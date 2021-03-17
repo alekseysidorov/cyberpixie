@@ -1,0 +1,13 @@
+[package]
+name = "longan-nano-blinky"
+version = "0.1.0"
+authors = ["Aleksei Sidorov <gorthauer87@yandex.ru>"]
+edition = "2018"
+
+[dependencies]
+embedded-hal = "0.2.3"
+gd32vf103xx-hal = "0.4.0"
+nb = "0.1.2"
+panic-halt = "0.2.0"
+riscv = "0.6.0"
+riscv-rt = "0.8.0"
