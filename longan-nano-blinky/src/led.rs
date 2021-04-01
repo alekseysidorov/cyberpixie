@@ -3,72 +3,44 @@
 //! - Red = PC13
 //! - Green = PA1
 //! - Blue = PA2
-use embedded_hal::digital::v2::OutputPin;
-use gd32vf103xx_hal::gpio::gpioc::PC13;
-use gd32vf103xx_hal::gpio::gpioa::{PA1, PA2};
-use gd32vf103xx_hal::gpio::{Output, PushPull, Active};
 
-/// Red LED
-pub struct RED {
-    port: PC13<Output<PushPull>>
+use embedded_hal::digital::v2::{InputPin, OutputPin};
+use gd32vf103xx_hal::gpio::{
+    gpioa::{PA1, PA2},
+    gpioc::PC13,
+    Floating, Input, Output, PushPull,
+};
+
+pub type RedLed = Led<Red>;
+pub type GreenLed = Led<Green>;
+pub type BlueLed = Led<Blue>;
+
+pub struct Led<T: IntoLed> {
+    port: T::Pin,
 }
 
-impl RED {
-    pub fn new<T: Active>(port: PC13<T>) -> Self {
-        Self {
-            port: port.into_push_pull_output()
-        }
-    }
-}
-
-/// Green LED
-pub struct GREEN {
-    port: PA1<Output<PushPull>>
-}
-
-impl GREEN {
-    pub fn new<T: Active>(port: PA1<T>) -> Self {
-        Self {
-            port: port.into_push_pull_output()
-        }
-    }
-}
-
-/// Blue LED
-pub struct BLUE {
-    port: PA2<Output<PushPull>>
-}
-
-impl BLUE {
-    pub fn new<T: Active>(port: PA2<T>) -> Self {
-        Self {
-            port: port.into_push_pull_output()
-        }
-    }
-}
-
-/// Returns RED, GREEN and BLUE LEDs.
-pub fn rgb<X, Y, Z>(
-    red: PC13<X>, green: PA1<Y>, blue: PA2<Z>
-) -> (RED, GREEN, BLUE)
-where X: Active, Y: Active, Z: Active
+impl<T> Led<T>
+where
+    T: IntoLed,
+    <<T as IntoLed>::Pin as OutputPin>::Error: core::fmt::Debug,
 {
-    let red: RED = RED::new(red);
-    let green: GREEN = GREEN::new(green);
-    let blue: BLUE = BLUE::new(blue);
-    (red, green, blue)
+    pub fn new(port: T::Port) -> Self {
+        Self {
+            port: T::wire_pin(port),
+        }
+    }
 }
 
-/// Generic LED
-pub trait Led {
-    /// Turns the LED off
+pub trait LedControl {
     fn off(&mut self);
-
-    /// Turns the LED on
     fn on(&mut self);
 }
 
-impl Led for RED {
+impl<T> LedControl for Led<T>
+where
+    T: IntoLed,
+    <<T as IntoLed>::Pin as OutputPin>::Error: core::fmt::Debug,
+{
     fn off(&mut self) {
         self.port.set_high().unwrap();
     }
@@ -78,22 +50,42 @@ impl Led for RED {
     }
 }
 
-impl Led for GREEN {
-    fn off(&mut self) {
-        self.port.set_high().unwrap();
-    }
+pub trait IntoLed {
+    type Port: InputPin;
+    type Pin: OutputPin;
 
-    fn on(&mut self) {
-        self.port.set_low().unwrap();
+    fn wire_pin(port: Self::Port) -> Self::Pin;
+}
+
+pub struct Red;
+
+impl IntoLed for Red {
+    type Port = PC13<Input<Floating>>;
+    type Pin = PC13<Output<PushPull>>;
+
+    fn wire_pin(port: Self::Port) -> Self::Pin {
+        port.into_push_pull_output()
     }
 }
 
-impl Led for BLUE {
-    fn off(&mut self) {
-        self.port.set_high().unwrap();
-    }
+pub struct Green;
 
-    fn on(&mut self) {
-        self.port.set_low().unwrap();
+impl IntoLed for Green {
+    type Port = PA1<Input<Floating>>;
+    type Pin = PA1<Output<PushPull>>;
+
+    fn wire_pin(port: Self::Port) -> Self::Pin {
+        port.into_push_pull_output()
+    }
+}
+
+pub struct Blue;
+
+impl IntoLed for Blue {
+    type Port = PA2<Input<Floating>>;
+    type Pin = PA2<Output<PushPull>>;
+
+    fn wire_pin(port: Self::Port) -> Self::Pin {
+        port.into_push_pull_output()
     }
 }

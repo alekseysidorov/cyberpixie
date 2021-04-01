@@ -5,7 +5,7 @@ use panic_halt as _;
 
 use longan_nano_blinky::{
     hal::{delay::McycleDelay, pac, prelude::*},
-    led::{rgb, Led},
+    led::{BlueLed, GreenLed, LedControl, RedLed},
 };
 use riscv_rt::entry;
 
@@ -17,18 +17,21 @@ fn main() -> ! {
     let gpioa = dp.GPIOA.split(&mut rcu);
     let gpioc = dp.GPIOC.split(&mut rcu);
 
-    let (mut red, mut green, mut blue) = rgb(gpioc.pc13, gpioa.pa1, gpioa.pa2);
-    let leds: [&mut dyn Led; 3] = [&mut red, &mut green, &mut blue];
+    let mut red = RedLed::new(gpioc.pc13);
+    let mut green = GreenLed::new(gpioa.pa1);
+    let mut blue = BlueLed::new(gpioa.pa2);
+
+    let leds: [&mut dyn LedControl; 3] = [&mut red, &mut green, &mut blue];
 
     let mut delay = McycleDelay::new(&rcu.clocks);
 
     let mut i = 0;
-    
+
     loop {
         let inext = (i + 1) % leds.len();
         leds[i].off();
         leds[inext].on();
-        delay.delay_ms(500);
+        delay.delay_ms(50);
 
         i = inext;
     }
