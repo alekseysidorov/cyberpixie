@@ -1,0 +1,16 @@
+[package]
+name = "longan-nano-ws2812b"
+version = "0.1.0"
+authors = ["Aleksei Sidorov <gorthauer87@yandex.ru>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+embedded-hal = "0.2.3"
+longan-nano = "0.2.0"
+panic-halt = "0.2.0"
+riscv = "0.6.0"
+riscv-rt = "0.8.0"
+smart-leds = "0.3.0"
+ws2812-timer-delay = { version = "0.3.0", features = ["slow"] }

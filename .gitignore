@@ -12,6 +12,7 @@ Cargo.lock
 
 ### VisualStudioCode ###
 .vscode/*
+!.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 *.code-workspace
@@ -20,4 +21,3 @@ Cargo.lock
 # Ignore all local history of files
 .history
 .ionide
-

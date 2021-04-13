@@ -1,0 +1,2 @@
+[workspace]
+members = ["blinky", "ws2812b"]
