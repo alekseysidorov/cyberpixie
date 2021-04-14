@@ -13,4 +13,4 @@ panic-halt = "0.2.0"
 riscv = "0.6.0"
 riscv-rt = "0.8.0"
 smart-leds = "0.3.0"
-ws2812-timer-delay = { version = "0.3.0", features = ["slow"] }
+ws2812-spi = { version = "0.4.0" }
