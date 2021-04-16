@@ -1,10 +1,9 @@
 [package]
-name = "longan-nano-ws2812b"
+name = "firmware"
 version = "0.1.0"
 authors = ["Aleksei Sidorov <gorthauer87@yandex.ru>"]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+resolver = "2"
 
 [dependencies]
 embedded-hal = "0.2.3"
