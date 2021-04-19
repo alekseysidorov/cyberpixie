@@ -90,13 +90,7 @@ fn main() -> ! {
             stopbits: StopBits::STOP1,
         };
         let serial = Serial::new(dp.USART1, (tx, rx), config, &mut afio, &mut rcu);
-        let (tx, rx) = serial.split();
-        let en = gpioa.pa1.into_push_pull_output();
-
-        // let long_timer = LongTimer::new(timer);
-        // Esp8266::new(tx, rx, long_timer, en)
-
-        (tx, rx)
+        serial.split()
     };
 
     sprintln!(&mut usb_tx, "Establishing ESP communication");
