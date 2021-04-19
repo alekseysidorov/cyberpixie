@@ -1,14 +1,10 @@
 #![no_std]
 #![no_main]
 
-use core::convert::Infallible;
-use embedded_hal::timer::{CountDown, Periodic};
 use longan_nano::hal::{
-    delay::McycleDelay,
     pac::{self, USART0},
     prelude::*,
     serial::{Config, Parity, Serial, StopBits, Tx},
-    time::Hertz,
     timer::Timer,
 };
 

@@ -1,9 +1,16 @@
 [package]
-name = "utils"
+name = "longan-nano-sandbox"
 version = "0.1.0"
 authors = ["Aleksei Sidorov <gorthauer87@yandex.ru>"]
 edition = "2018"
 resolver = "2"
 
-[workspace]
-members = ["firmware"]
+[dependencies]
+embedded-hal = "0.2"
+longan-nano = "0.2"
+panic-halt = "0.2"
+riscv = "0.6"
+riscv-rt = "0.8"
+smart-leds = "0.3"
+ws2812-spi = { version = "0.4" }
+nb = "1.0"
