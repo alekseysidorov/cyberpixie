@@ -3,7 +3,6 @@ name = "longan-nano-sandbox"
 version = "0.1.0"
 authors = ["Aleksei Sidorov <gorthauer87@yandex.ru>"]
 edition = "2018"
-resolver = "2"
 
 [dependencies]
 embedded-hal = "0.2"
