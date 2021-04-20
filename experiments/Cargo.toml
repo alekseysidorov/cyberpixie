@@ -1,11 +1,12 @@
 [package]
-name = "pixel-poi-firmware"
+name = "longan-nano-sandbox"
 version = "0.1.0"
 authors = ["Aleksei Sidorov <gorthauer87@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
 embedded-hal = "0.2"
+longan-nano = "0.2"
 panic-halt = "0.2"
 riscv = "0.6"
 riscv-rt = "0.8"
