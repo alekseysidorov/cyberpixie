@@ -2,7 +2,7 @@ use smart_leds::RGB8;
 
 use crate::{
     config::{MAX_LINES_COUNT, STRIP_LEDS_COUNT},
-    time::MicroSeconds,
+    time::Microseconds,
 };
 
 pub trait StripLineSource {
@@ -10,7 +10,7 @@ pub trait StripLineSource {
 
     const LINE_LENGTH: usize;
 
-    fn next_line(&mut self) -> (MicroSeconds, Self::Line<'_>);
+    fn next_line(&mut self) -> (Microseconds, Self::Line<'_>);
 }
 
 const FIXED_IMAGE_BUF_LEN: usize = MAX_LINES_COUNT * STRIP_LEDS_COUNT;
@@ -28,13 +28,16 @@ macro_rules! opt_ensure {
 pub struct FixedImage {
     image_len: u16,
     current_line: u16,
-    duration: MicroSeconds,
+    duration: Microseconds,
 
     buf: [RGB8; FIXED_IMAGE_BUF_LEN],
 }
 
 impl FixedImage {
-    pub fn from_raw(raw: &[RGB8], duration: impl Into<MicroSeconds>) -> Option<Self> {
+    pub fn from_raw<I>(raw: &[RGB8], duration: I) -> Option<Self>
+    where
+        I: Into<Microseconds>,
+    {
         opt_ensure!(raw.len() <= FIXED_IMAGE_BUF_LEN, "The picture is too long.");
         opt_ensure!(
             raw.len() % STRIP_LEDS_COUNT as usize == 0,
@@ -71,7 +74,7 @@ impl StripLineSource for FixedImage {
 
     const LINE_LENGTH: usize = STRIP_LEDS_COUNT;
 
-    fn next_line(&mut self) -> (MicroSeconds, Self::Line<'_>) {
+    fn next_line(&mut self) -> (Microseconds, Self::Line<'_>) {
         let start = self.current_line as usize;
         let end = start + Self::LINE_LENGTH;
         self.current_line = (self.current_line + Self::LINE_LENGTH as u16) % self.image_len;
