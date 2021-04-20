@@ -13,7 +13,7 @@ fn out_dir() -> PathBuf {
 }
 
 fn convert_image() {
-    let name = "images/cat.png";
+    let name = "images/cat_dark.png";
 
     let raw_img_def = {
         let image = Reader::open(name).unwrap().decode().unwrap().to_rgb8();

@@ -1,4 +1,4 @@
-use gd32vf103xx_hal::time::MilliSeconds;
+use gd32vf103xx_hal::time::{Hertz, MilliSeconds};
 
 /// Time unit
 #[derive(PartialEq, PartialOrd, Clone, Copy, Eq, Debug)]
@@ -19,5 +19,11 @@ impl From<MilliSeconds> for MicroSeconds {
 impl From<u32> for MicroSeconds {
     fn from(inner: u32) -> Self {
         Self(inner)
+    }
+}
+
+impl From<Hertz> for MicroSeconds {
+    fn from(hz: Hertz) -> Self {
+        Self(1_000_000 / hz.0)
     }
 }

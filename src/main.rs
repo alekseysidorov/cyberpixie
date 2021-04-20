@@ -1,13 +1,15 @@
 #![no_std]
 #![no_main]
 
-use gd32vf103xx_hal::{delay::McycleDelay, pac, prelude::*, serial::Serial};
+use gd32vf103xx_hal::{delay::McycleDelay, pac, prelude::*, serial::Serial, spi::Spi};
 use pixel_poi_firmware::{
     config::SERIAL_PORT_CONFIG,
     generated,
     strip::{FixedImage, StripLineSource},
-    uwrite, uwriteln,
+    uwriteln,
 };
+use smart_leds::{SmartLedsWrite, RGB8};
+use ws2812_spi::Ws2812;
 
 use panic_halt as _;
 
@@ -28,17 +30,38 @@ fn main() -> ! {
         let serial = Serial::new(dp.USART0, (tx, rx), SERIAL_PORT_CONFIG, &mut afio, &mut rcu);
         serial.split()
     };
-    let mut delay = McycleDelay::new(&rcu.clocks);
 
-    let mut source = FixedImage::from_raw(&generated::DATA, 50.ms()).unwrap();
+    uwriteln!(usb_tx, "Serial port configured.");
+
+    let spi = {
+        let pins = (
+            gpioa.pa5.into_alternate_push_pull(),
+            gpioa.pa6.into_floating_input(),
+            gpioa.pa7.into_alternate_push_pull(),
+        );
+
+        Spi::spi0(
+            dp.SPI0,
+            pins,
+            &mut afio,
+            ws2812_spi::MODE,
+            2800.khz(),
+            &mut rcu,
+        )
+    };
+    let mut strip = Ws2812::new(spi);
+    let mut delay = McycleDelay::new(&rcu.clocks);
+    let mut source = FixedImage::from_raw(&generated::DATA, 2.hz()).unwrap();
+
+    uwriteln!(usb_tx, "Led strip configured.");
+    strip
+        .write(core::iter::repeat(RGB8::default()).take(144))
+        .ok();
+    uwriteln!(usb_tx, "Led strip cleaned.");
+
     loop {
         let (us, line) = source.next_line();
-        for pixel in line {
-            uwrite!(usb_tx, "{}|{}|{} ", pixel.r, pixel.g, pixel.b);
-        }
-        uwriteln!(usb_tx);
-
+        strip.write(line).ok();
         delay.delay_us(us.0);
-        continue;
     }
 }

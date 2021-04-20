@@ -11,4 +11,4 @@ pub const SERIAL_PORT_CONFIG: Config = Config {
 
 pub const STRIP_LEDS_COUNT: usize = 24;
 
-pub const MAX_LINES_COUNT: usize = 100;
+pub const MAX_LINES_COUNT: usize = 150;
