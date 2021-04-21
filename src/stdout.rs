@@ -1,6 +1,9 @@
 use core::fmt::{self, Write};
 
 use embedded_hal::serial;
+use gd32vf103xx_hal::{pac::USART0, serial::Tx};
+
+use crate::sync::RwLock;
 
 /// Wraps the original serial writer to handle `\ n` symbols as` \ r` for better
 /// compatibility with the some of the devices.
@@ -23,14 +26,44 @@ where
     }
 }
 
-/// Writes a string to the specified serial port device.
-pub fn write_str(tx: impl serial::Write<u8>, s: &str) -> fmt::Result {
-    SerialWrapper(tx).write_str(s)
+static STDOUT: RwLock<Option<Tx<USART0>>> = RwLock::new(None);
+
+pub fn enable(tx: Tx<USART0>) {
+    STDOUT
+        .write(|mut inner| {
+            inner.replace(tx);
+        })
+        .unwrap();
 }
 
-/// Writes a formatted string to the specified serial port device.
-pub fn write_fmt(tx: impl serial::Write<u8>, args: fmt::Arguments) -> fmt::Result {
-    SerialWrapper(tx).write_fmt(args)
+pub fn release() -> Option<Tx<USART0>> {
+    STDOUT.write(|mut inner| inner.take()).unwrap()
+}
+
+/// Writes a string to the configured serial port device.
+pub fn write_str(s: &str) -> fmt::Result {
+    STDOUT
+        .write(|mut inner| {
+            if let Some(tx) = inner.as_mut() {
+                tx.write_str(s)
+            } else {
+                Ok(())
+            }
+        })
+        .unwrap()
+}
+
+/// Writes a formatted string to the configured serial port device.
+pub fn write_fmt(args: fmt::Arguments) -> fmt::Result {
+    STDOUT
+        .write(|mut inner| {
+            if let Some(tx) = inner.as_mut() {
+                tx.write_fmt(args)
+            } else {
+                Ok(())
+            }
+        })
+        .unwrap()
 }
 
 /// Macro for printing to the specified output, without a newline.
@@ -60,5 +93,30 @@ macro_rules! uwriteln {
     ($o:expr, $s:expr, $($tt:tt)*) => {{
         use core::fmt::Write;
         $o.write_fmt(format_args!(concat!($s, "\r\n"), $($tt)*)).ok();
+    }};
+}
+
+/// Macro for printing to the configured stdout, without a newline.
+#[macro_export]
+macro_rules! uprint {
+    ($s:expr) => {{
+        $crate::stdout::write_str($s).ok();
+    }};
+    ($s:expr, $($tt:tt)*) => {{
+        $crate::stdout::write_fmt(format_args!($s, $($tt)*)).ok();
+    }};
+}
+
+/// Macro for printing to the configured stdout, without a newline.
+#[macro_export]
+macro_rules! uprintln {
+    () => {{
+        $crate::stdout::write_str("\r\n").ok();
+    }};
+    ($s:expr) => {{
+        $crate::stdout::write_str(concat!($s, "\r\n")).ok();
+    }};
+    ($s:expr, $($tt:tt)*) => {{
+        $crate::stdout::write_fmt(format_args!(concat!($s, "\r\n"), $($tt)*)).ok();
     }};
 }

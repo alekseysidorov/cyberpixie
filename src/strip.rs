@@ -1,23 +1,21 @@
 use smart_leds::RGB8;
 
-use crate::{
-    config::{MAX_LINES_COUNT, STRIP_LEDS_COUNT},
-    time::Microseconds,
-};
+use crate::config::{MAX_LINES_COUNT, STRIP_LEDS_COUNT};
 
 pub trait StripLineSource {
     type Line<'a>: Iterator<Item = RGB8> + 'a;
 
     const LINE_LENGTH: usize;
 
-    fn next_line(&mut self) -> (Microseconds, Self::Line<'_>);
+    fn next_line(&mut self) -> Self::Line<'_>;
 }
 
 const FIXED_IMAGE_BUF_LEN: usize = MAX_LINES_COUNT * STRIP_LEDS_COUNT;
 
 macro_rules! opt_ensure {
-    ($e:expr, $_msg:expr) => {
+    ($e:expr, $msg:expr) => {
         if !($e) {
+            $crate::uprintln!($msg);
             return None;
         }
     };
@@ -28,40 +26,39 @@ macro_rules! opt_ensure {
 pub struct FixedImage {
     image_len: u16,
     current_line: u16,
-    duration: Microseconds,
-
     buf: [RGB8; FIXED_IMAGE_BUF_LEN],
 }
 
 impl FixedImage {
-    pub fn from_raw<I>(raw: &[RGB8], duration: I) -> Option<Self>
-    where
-        I: Into<Microseconds>,
-    {
-        opt_ensure!(raw.len() <= FIXED_IMAGE_BUF_LEN, "The picture is too long.");
+    pub fn empty() -> Self {
+        Self {
+            current_line: 0,
+            image_len: 0,
+            buf: [RGB8::default(); FIXED_IMAGE_BUF_LEN],
+        }
+    }
+
+    pub fn from_data(data: &[RGB8]) -> Option<Self> {
+        let mut img = Self::empty();
+        img.reset(data)?;
+        Some(img)
+    }
+
+    pub fn reset(&mut self, data: &[RGB8]) -> Option<()> {
         opt_ensure!(
-            raw.len() % STRIP_LEDS_COUNT as usize == 0,
+            data.len() <= FIXED_IMAGE_BUF_LEN,
+            "The picture is too long."
+        );
+        opt_ensure!(
+            data.len() % STRIP_LEDS_COUNT as usize == 0,
             "The picture length must be multiple of the strip length."
         );
 
-        let mut buf = [RGB8::default(); FIXED_IMAGE_BUF_LEN];
-        buf[0..raw.len()].copy_from_slice(raw);
+        self.buf[0..data.len()].copy_from_slice(data);
+        self.image_len = data.len() as u16;
+        self.current_line = 0;
 
-        // Calculate the duration of the glow of a single strip.
-        let height = raw.len() / Self::LINE_LENGTH;
-        let mut duration = duration.into();
-        duration.0 /= height as u32;
-        opt_ensure!(
-            duration.0 > 1,
-            "Delay should be greater than the one microsecond."
-        );
-
-        Some(Self {
-            current_line: 0,
-            image_len: raw.len() as u16,
-            buf,
-            duration,
-        })
+        Some(())
     }
 
     pub fn height(&self) -> u16 {
@@ -74,12 +71,11 @@ impl StripLineSource for FixedImage {
 
     const LINE_LENGTH: usize = STRIP_LEDS_COUNT;
 
-    fn next_line(&mut self) -> (Microseconds, Self::Line<'_>) {
+    fn next_line(&mut self) -> Self::Line<'_> {
         let start = self.current_line as usize;
         let end = start + Self::LINE_LENGTH;
         self.current_line = (self.current_line + Self::LINE_LENGTH as u16) % self.image_len;
 
-        let iter = self.buf[start..end].iter().copied();
-        (self.duration, iter)
+        self.buf[start..end].iter().copied()
     }
 }

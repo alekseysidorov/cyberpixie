@@ -1,17 +1,105 @@
 #![no_std]
 #![no_main]
 
-use gd32vf103xx_hal::{delay::McycleDelay, pac, prelude::*, serial::Serial, spi::Spi};
+use gd32vf103xx_hal::{
+    delay::McycleDelay,
+    eclic::{EclicExt, Level, LevelPriorityBits, Priority, TriggerType},
+    gpio::{
+        gpioa::{PA5, PA6, PA7},
+        Alternate, Floating, Input, PushPull,
+    },
+    pac::{self, Interrupt, ECLIC, SPI0, TIMER0},
+    prelude::*,
+    rcu::Rcu,
+    serial::Serial,
+    spi::Spi,
+    time::Hertz,
+    timer::{Event, Timer},
+};
 use pixel_poi_firmware::{
     config::SERIAL_PORT_CONFIG,
-    generated,
+    generated, stdout,
     strip::{FixedImage, StripLineSource},
-    uwriteln,
+    sync::RwLock,
+    uprintln,
 };
 use smart_leds::{SmartLedsWrite, RGB8};
 use ws2812_spi::Ws2812;
 
 use panic_halt as _;
+
+type Spi0 = Spi<
+    SPI0,
+    (
+        PA5<Alternate<PushPull>>,
+        PA6<Input<Floating>>,
+        PA7<Alternate<PushPull>>,
+    ),
+>;
+
+struct StripDriver {
+    output: Ws2812<Spi0>,
+    image: FixedImage,
+    timer: Option<Timer<TIMER0>>,
+}
+
+impl StripDriver {
+    pub fn new(output: Ws2812<Spi0>, timer: TIMER0, rcu: &mut Rcu) -> Self {
+        Self {
+            output,
+            image: FixedImage::empty(),
+            timer: Some(Timer::timer0(timer, 1.hz(), rcu)),
+        }
+    }
+
+    pub fn set_image(&mut self, data: &[RGB8], mut refresh_rate: Hertz, rcu: &mut Rcu) {
+        self.image.reset(data);
+
+        refresh_rate.0 *= self.image.height() as u32;
+        uprintln!("Setting up {}hz refresh rate", refresh_rate.0);
+
+        // Reset timer update period
+        let mut timer = self.timer.take().unwrap();
+        timer.unlisten(Event::Update);
+        timer = Timer::timer0(timer.free(), refresh_rate, rcu);
+        timer.listen(Event::Update);
+        self.timer.replace(timer);
+    }
+
+    pub fn refresh(&mut self) {
+        self.timer.as_mut().unwrap().clear_update_interrupt_flag();
+        self.output.write(self.image.next_line()).unwrap();
+    }
+}
+
+static STRIP: RwLock<Option<StripDriver>> = RwLock::new(None);
+
+#[export_name = "TIMER0_UP"]
+fn handle_timer_0_update() {
+    STRIP
+        .write(|mut inner| {
+            inner.as_mut().unwrap().refresh();
+        })
+        .ok();
+}
+
+unsafe fn setup_timer0_interrupts() {
+    // IRQ
+    ECLIC::reset();
+    ECLIC::set_threshold_level(Level::L0);
+    // Use 3 bits for level, 1 for priority
+    ECLIC::set_level_priority_bits(LevelPriorityBits::L3P1);
+
+    ECLIC::setup(
+        Interrupt::TIMER0_UP,
+        TriggerType::RisingEdge,
+        Level::L1,
+        Priority::P1,
+    );
+
+    ECLIC::unmask(Interrupt::TIMER0_UP);
+    riscv::interrupt::enable();
+}
 
 #[riscv_rt::entry]
 fn main() -> ! {
@@ -23,15 +111,16 @@ fn main() -> ! {
 
     let gpioa = dp.GPIOA.split(&mut rcu);
 
-    let (mut usb_tx, mut _usb_rx) = {
+    let (usb_tx, mut _usb_rx) = {
         let tx = gpioa.pa9.into_alternate_push_pull();
         let rx = gpioa.pa10.into_floating_input();
 
         let serial = Serial::new(dp.USART0, (tx, rx), SERIAL_PORT_CONFIG, &mut afio, &mut rcu);
         serial.split()
     };
+    stdout::enable(usb_tx);
 
-    uwriteln!(usb_tx, "Serial port configured.");
+    uprintln!("Serial port configured.");
 
     let spi = {
         let pins = (
@@ -49,19 +138,31 @@ fn main() -> ! {
             &mut rcu,
         )
     };
-    let mut strip = Ws2812::new(spi);
-    let mut delay = McycleDelay::new(&rcu.clocks);
-    let mut source = FixedImage::from_raw(&generated::DATA, 2.hz()).unwrap();
 
-    uwriteln!(usb_tx, "Led strip configured.");
-    strip
+    let mut output = Ws2812::new(spi);
+    output
         .write(core::iter::repeat(RGB8::default()).take(144))
         .ok();
-    uwriteln!(usb_tx, "Led strip cleaned.");
 
+    let mut driver = StripDriver::new(output, dp.TIMER0, &mut rcu);
+    driver.set_image(&generated::DATA, 1.hz(), &mut rcu);
+    STRIP.write(|mut inner| inner.replace(driver)).unwrap();
+
+    unsafe { setup_timer0_interrupts() }
+
+    let mut delay = McycleDelay::new(&rcu.clocks);
+    let mut rate = 1.hz();
     loop {
-        let (us, line) = source.next_line();
-        strip.write(line).ok();
-        delay.delay_us(us.0);
+        delay.delay_ms(100);
+        rate.0 += 1;
+
+        STRIP
+            .write(|mut inner| {
+                inner
+                    .as_mut()
+                    .unwrap()
+                    .set_image(&generated::DATA, rate, &mut rcu)
+            })
+            .unwrap();
     }
 }
