@@ -59,9 +59,10 @@ fn main() -> ! {
         .ok();
     uwriteln!(usb_tx, "Led strip cleaned.");
 
+    let rate = 1_000.hz();
     loop {
         let (us, line) = source.next_line();
         strip.write(line).ok();
-        delay.delay_us(us.0);
+        delay.delay_us(1_000_000 / rate.0);
     }
 }
