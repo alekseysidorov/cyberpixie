@@ -14,3 +14,5 @@ pub mod stdout;
 pub mod strip;
 pub mod time;
 pub mod sync;
+pub mod storage;
+pub mod alloc;

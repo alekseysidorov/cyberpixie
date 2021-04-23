@@ -1,8 +1,14 @@
 #![no_std]
 #![no_main]
+#![feature(alloc_error_handler)]
+
+extern crate alloc;
+
+use core::alloc::Layout;
 
 use gd32vf103xx_hal::{delay::McycleDelay, pac, prelude::*, serial::Serial, spi::Spi};
 use pixel_poi_firmware::{
+    alloc::{heap_bottom, RiscVHeap},
     config::SERIAL_PORT_CONFIG,
     generated, stdout,
     strip::{FixedImage, StripLineSource},
@@ -13,8 +19,20 @@ use ws2812_spi::Ws2812;
 
 use panic_halt as _;
 
+#[global_allocator]
+static ALLOCATOR: RiscVHeap = RiscVHeap::empty();
+
+unsafe fn init_alloc() {
+    // Initialize the allocator BEFORE you use it.
+    let start = heap_bottom();
+    let size = 1024; // in bytes
+    ALLOCATOR.init(start, size)
+}
+
 #[riscv_rt::entry]
 fn main() -> ! {
+    unsafe { init_alloc() }
+
     // Hardware initialization step.
     let dp = pac::Peripherals::take().unwrap();
 
@@ -60,9 +78,21 @@ fn main() -> ! {
         .ok();
     uprintln!("Led strip cleaned.");
 
+    let vec = alloc::vec![0_u8; 512];
+    uprintln!("Successfuly allocated: {}", vec.len());
+
     loop {
         let (us, line) = source.next_line();
         strip.write(line).ok();
         delay.delay_us(us.0);
+    }
+}
+
+#[alloc_error_handler]
+fn oom(layout: Layout) -> ! {
+    uprintln!("OOM with layout: {:?}", layout);
+
+    loop {
+        continue;
     }
 }
