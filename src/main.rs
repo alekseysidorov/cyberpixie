@@ -4,7 +4,11 @@
 
 extern crate alloc;
 
-use core::alloc::Layout;
+use core::{
+    alloc::Layout,
+    panic::PanicInfo,
+    sync::atomic::{self, Ordering},
+};
 
 use embedded_hal::digital::v2::OutputPin;
 use gd32vf103xx_hal::{
@@ -17,14 +21,13 @@ use gd32vf103xx_hal::{
 use pixel_poi_firmware::{
     allocator::{heap_bottom, RiscVHeap},
     config::SERIAL_PORT_CONFIG,
-    generated, stdout, storage,
+    generated, stdout,
+    storage::{ImagesRepository, MAX_IMAGES_COUNT},
     strip::{FixedImage, StripLineSource},
     uprintln,
 };
 use smart_leds::{SmartLedsWrite, RGB8};
 use ws2812_spi::Ws2812;
-
-use panic_halt as _;
 
 #[global_allocator]
 static ALLOCATOR: RiscVHeap = RiscVHeap::empty();
@@ -34,15 +37,6 @@ unsafe fn init_alloc() {
     let start = heap_bottom();
     let size = 1024; // in bytes
     ALLOCATOR.init(start, size)
-}
-
-/// Zero time as fake time source.
-pub struct DummyTimeSource;
-
-impl embedded_sdmmc::TimeSource for DummyTimeSource {
-    fn get_timestamp(&self) -> embedded_sdmmc::Timestamp {
-        embedded_sdmmc::Timestamp::from_fat(0, 0)
-    }
 }
 
 #[riscv_rt::entry]
@@ -120,9 +114,15 @@ fn main() -> ! {
         uprintln!("SD MMC Device init failed: {:?}", e);
     }
 
-    // storage::format(&mut device);
-    storage::add_image(&mut device, &generated::DATA, 300.hz());
-    storage::read_header(&mut device);
+    let mut images = ImagesRepository::open(&mut device).unwrap();
+    if images.count() < MAX_IMAGES_COUNT {
+        images
+            .add_image(generated::DATA.iter().copied(), 300.hz())
+            .unwrap();
+        uprintln!("Added image with size {}", generated::DATA.len());
+    }
+
+    uprintln!("Total images count: {}", images.count());
 
     loop {
         let (us, line) = source.next_line();
@@ -133,9 +133,21 @@ fn main() -> ! {
 
 #[alloc_error_handler]
 fn oom(layout: Layout) -> ! {
-    uprintln!("OOM with layout: {:?}", layout);
+    uprintln!("OOM: {:?}", layout);
 
     loop {
         continue;
+    }
+}
+
+#[inline(never)]
+#[panic_handler]
+fn panic(info: &PanicInfo) -> ! {
+    uprintln!();
+    uprintln!("The firmware panicked!");
+    uprintln!("- {}", info);
+
+    loop {
+        atomic::compiler_fence(Ordering::SeqCst);
     }
 }
