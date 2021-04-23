@@ -6,6 +6,8 @@
 // #![feature(const_generics)]
 // #![feature(const_evaluatable_checked)]
 
+extern crate alloc;
+
 pub use time::Microseconds;
 
 pub mod config;
@@ -15,4 +17,4 @@ pub mod strip;
 pub mod time;
 pub mod sync;
 pub mod storage;
-pub mod alloc;
+pub mod allocator;

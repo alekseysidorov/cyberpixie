@@ -11,6 +11,8 @@ use core::{
 use linked_list_allocator::Heap;
 use riscv::interrupt::Mutex;
 
+use crate::uprintln;
+
 pub struct RiscVHeap {
     heap: Mutex<RefCell<Heap>>,
 }
@@ -69,6 +71,7 @@ impl RiscVHeap {
 unsafe impl GlobalAlloc for RiscVHeap {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         riscv::interrupt::free(|cs| {
+            uprintln!("alloc: {:?}, used: {}, free: {}", layout, self.used(), self.free());
             self.heap
                 .borrow(cs)
                 .borrow_mut()
@@ -80,6 +83,7 @@ unsafe impl GlobalAlloc for RiscVHeap {
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         riscv::interrupt::free(|cs| {
+            uprintln!("dealloc: {:?}, used: {}, free: {}", layout, self.used(), self.free());
             self.heap
                 .borrow(cs)
                 .borrow_mut()

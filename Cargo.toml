@@ -7,13 +7,19 @@ resolver = "2"
 
 [dependencies]
 embedded-hal = "0.2"
-gd32vf103xx-hal = "0.4.0"
+embedded-sdmmc = "0.3"
+gd32vf103xx-hal = "0.4"
 nb = "1.0"
 panic-halt = "0.2"
 riscv = "0.6"
 riscv-rt = "0.8"
 smart-leds = "0.3"
 ws2812-spi = { version = "0.4" }
+endian_codec = "0.1"
+
+[dependencies.byteorder]
+version = "1"
+default-features = false
 
 [dependencies.prost]
 version = "0.7"
@@ -21,8 +27,8 @@ default-features = false
 features = ["prost-derive"]
 
 [dependencies.linked_list_allocator]
-default-features = false
 version = "0.8.11"
+default-features = false
 features = ["const_mut_refs"]
 
 [build-dependencies]
