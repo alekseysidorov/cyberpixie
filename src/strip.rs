@@ -17,14 +17,6 @@ pub trait StripLineSource {
 
 const FIXED_IMAGE_BUF_LEN: usize = MAX_LINES_COUNT * STRIP_LEDS_COUNT;
 
-macro_rules! opt_ensure {
-    ($e:expr, $_msg:expr) => {
-        if !($e) {
-            return None;
-        }
-    };
-}
-
 /// Fixed image.
 #[derive(Debug)]
 pub struct FixedImage {
@@ -36,15 +28,20 @@ pub struct FixedImage {
 }
 
 impl FixedImage {
-    pub fn from_raw<I, T>(raw: I, duration: T) -> Option<Self>
+    pub fn from_raw<I, T>(raw: I, duration: T) -> Self
     where
         I: Iterator<Item = RGB8> + ExactSizeIterator,
         T: Into<Microseconds>,
     {
         let image_len = raw.len();
 
-        opt_ensure!(image_len <= FIXED_IMAGE_BUF_LEN, "The picture is too long.");
-        opt_ensure!(
+        assert!(
+            image_len <= FIXED_IMAGE_BUF_LEN,
+            "The picture is too long: {} > {}",
+            image_len,
+            FIXED_IMAGE_BUF_LEN
+        );
+        assert!(
             image_len % STRIP_LEDS_COUNT as usize == 0,
             "The picture length must be multiple of the strip length."
         );
@@ -58,17 +55,17 @@ impl FixedImage {
         let height = image_len / Self::LINE_LENGTH;
         let mut duration = duration.into();
         duration.0 /= height as u32;
-        opt_ensure!(
+        assert!(
             duration.0 > 1,
             "Delay should be greater than the one microsecond."
         );
 
-        Some(Self {
+        Self {
             current_line: 0,
             image_len: image_len as u16,
             buf,
             duration,
-        })
+        }
     }
 
     pub fn height(&self) -> u16 {

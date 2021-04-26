@@ -21,8 +21,8 @@ use gd32vf103xx_hal::{
 use pixel_poi_firmware::{
     allocator::{heap_bottom, RiscVHeap},
     config::SERIAL_PORT_CONFIG,
-    generated, stdout,
-    storage::{ImagesRepository, MAX_IMAGES_COUNT},
+    stdout,
+    storage::ImagesRepository,
     strip::{FixedImage, StripLineSource},
     uprintln,
 };
@@ -84,7 +84,6 @@ fn main() -> ! {
     };
     let mut strip = Ws2812::new(spi);
     let mut delay = McycleDelay::new(&rcu.clocks);
-    let mut source = FixedImage::from_raw(generated::DATA.iter().copied(), 300.hz()).unwrap();
 
     uprintln!("Led strip configured.");
     strip
@@ -110,19 +109,15 @@ fn main() -> ! {
     cs.set_low().unwrap();
 
     let mut device = embedded_sdmmc::SdMmcSpi::new(spi, cs);
-    if let Err(e) = device.init() {
-        uprintln!("SD MMC Device init failed: {:?}", e);
-    }
+    device.init().unwrap();
 
     let mut images = ImagesRepository::open(&mut device).unwrap();
-    if images.count() < MAX_IMAGES_COUNT {
-        images
-            .add_image(generated::DATA.iter().copied(), 300.hz())
-            .unwrap();
-        uprintln!("Added image with size {}", generated::DATA.len());
-    }
-
     uprintln!("Total images count: {}", images.count());
+
+    let image_num = 3;
+    let (refresh_rate, data) = images.read_image(image_num);
+    let mut source = FixedImage::from_raw(data, refresh_rate);
+    uprintln!("Loaded {} image from the repository", image_num);
 
     loop {
         let (us, line) = source.next_line();

@@ -10,11 +10,12 @@ extern crate alloc;
 
 pub use time::Microseconds;
 
+pub mod allocator;
 pub mod config;
+#[cfg(feature = "generate_img")]
 pub mod generated;
 pub mod stdout;
-pub mod strip;
-pub mod time;
-pub mod sync;
 pub mod storage;
-pub mod allocator;
+pub mod strip;
+pub mod sync;
+pub mod time;

@@ -9,6 +9,8 @@ mod types;
 /// The maximum amount of stored images.
 pub const MAX_IMAGES_COUNT: usize = 60;
 
+const BLOCK_SIZE: usize = 512;
+
 pub struct ImagesRepository<'a, B> {
     device: &'a mut B,
     block: HeaderBlock,
@@ -18,11 +20,11 @@ impl<'a, B> ImagesRepository<'a, B>
 where
     B: BlockDevice,
 {
-    /// This block is used to determine if the image repository has been initialized. 
+    /// This block is used to determine if the image repository has been initialized.
     /// If this block contains the `INIT_MSG` the repository is successfully initialized
     /// before.
     const INIT_BLOCK: BlockIdx = BlockIdx(0);
-    /// The message should be presented in the `INIT_BLOCK` if this repository 
+    /// The message should be presented in the `INIT_BLOCK` if this repository
     /// is has been initialized.
     const INIT_MSG: &'static [u8] = b"POI_STORAGE";
     /// This block contains the repository header.
@@ -67,6 +69,21 @@ where
         self.device.write(&self.block.inner, Self::HEADER_BLOCK)
     }
 
+    pub fn read_image(
+        &mut self,
+        index: usize,
+    ) -> (Hertz, impl Iterator<Item = RGB8> + ExactSizeIterator + '_) {
+        let descriptor = self.image_descriptor_at(index);
+
+        let refresh_rate = Hertz(descriptor.refresh_rate);
+        let read_iter = ReadImageIter::new(
+            self.device,
+            BlockIdx(descriptor.block_number as u32),
+            descriptor.image_len as usize,
+        );
+        (refresh_rate, read_iter)
+    }
+
     pub fn count(&self) -> usize {
         self.block.header().images_count as usize
     }
@@ -97,6 +114,16 @@ where
         }
 
         Ok((header_block, device))
+    }
+
+    fn image_descriptor_at(&self, index: usize) -> ImageDescriptor {
+        assert!(
+            index < self.count(),
+            "An attempt to read an image at an index greater than the total images count."
+        );
+
+        let descriptor_pos = Header::PACKED_LEN + index * ImageDescriptor::PACKED_LEN;
+        ImageDescriptor::decode_from_le_bytes(&self.block.inner[0][descriptor_pos..])
     }
 }
 
@@ -132,7 +159,7 @@ where
         i += 1;
         c += 1;
         // If the current block is filled just flush it to the block device.
-        if i == 512 {
+        if i == BLOCK_SIZE {
             device.write(&blocks, block_index)?;
             i = 0;
             block_index.0 += 1;
@@ -141,7 +168,7 @@ where
     // Special case for the last block.
     if i > 0 {
         // Fill the rest of the block with zeroes to prevent garbage.
-        for j in i..512 {
+        for j in i..BLOCK_SIZE {
             blocks[0][j] = 0;
         }
         device.write(&blocks, block_index)?;
@@ -150,3 +177,77 @@ where
 
     Ok((c, block_index))
 }
+
+struct ReadImageIter<'a, B> {
+    device: &'a B,
+    buf: [Block; 1],
+    block_idx: BlockIdx,
+    current_byte_in_block: usize,
+    remaining_bytes: usize,
+}
+
+impl<'a, B: BlockDevice> ReadImageIter<'a, B> {
+    fn new(device: &'a B, block_idx: BlockIdx, bytes_to_read: usize) -> Self {
+        assert!(
+            bytes_to_read % 3 == 0,
+            "Bytes amount to read must be a multiple of 3."
+        );
+
+        Self {
+            device,
+            buf: [Block::default()],
+            block_idx,
+            current_byte_in_block: 0,
+            remaining_bytes: bytes_to_read,
+        }
+    }
+
+    fn block_data(&self) -> &[u8] {
+        &self.buf[0][..]
+    }
+}
+
+impl<'a, B: BlockDevice> Iterator for ReadImageIter<'a, B> {
+    type Item = RGB8;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.remaining_bytes == 0 {
+            return None;
+        }
+
+        let mut color_bytes = [0_u8; 3];
+        for color in &mut color_bytes {
+            // In this case, we should read the next block from the device.
+            if self.current_byte_in_block == 0 {
+                self.device
+                    .read(
+                        &mut self.buf,
+                        self.block_idx,
+                        "Read block with the image content.",
+                    )
+                    .unwrap();
+                // Move the cursor to the next block.
+                self.block_idx.0 += 1;
+            }
+
+            let data = self.block_data();
+            *color = data[self.current_byte_in_block];
+
+            self.current_byte_in_block = (self.current_byte_in_block + 1) % BLOCK_SIZE;
+            self.remaining_bytes -= 1;
+        }
+
+        Some(RGB8 {
+            r: color_bytes[0],
+            g: color_bytes[1],
+            b: color_bytes[2],
+        })
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let image_len = self.remaining_bytes / 3;
+        (image_len, Some(image_len))
+    }
+}
+
+impl<'a, B: BlockDevice> ExactSizeIterator for ReadImageIter<'a, B> {}
