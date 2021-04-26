@@ -16,14 +16,14 @@ smart-leds = "0.3"
 ws2812-spi = { version = "0.4" }
 endian_codec = "0.1"
 
-[dependencies.byteorder]
-version = "1"
-default-features = false
+# [dependencies.byteorder]
+# version = "1"
+# default-features = false
 
-[dependencies.prost]
-version = "0.7"
-default-features = false
-features = ["prost-derive"]
+# [dependencies.prost]
+# version = "0.7"
+# default-features = false
+# features = ["prost-derive"]
 
 [dependencies.linked_list_allocator]
 version = "0.8.11"
