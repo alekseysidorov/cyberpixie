@@ -1,49 +1,51 @@
-use std::{
-    env,
-    fs::{self, File},
-    io::Write,
-    path::PathBuf,
-};
-
-use image::io::Reader;
-use quote::quote;
+use std::{env, fs, path::PathBuf};
 
 fn out_dir() -> PathBuf {
     PathBuf::from(env::var("OUT_DIR").unwrap())
 }
 
-fn convert_image() {
-    let name = "images/cat_dark.png";
+#[cfg(feature = "generate_img")]
+mod image_gen {
+    use std::{fs::File, io::Write};
 
-    let raw_img_def = {
-        let image = Reader::open(name).unwrap().decode().unwrap().to_rgb8();
-        let buf_items = image.pixels().map(|x| {
-            let r = x[0];
-            let g = x[1];
-            let b = x[2];
+    use image::io::Reader;
+    use quote::quote;
 
-            quote! {
-                RGB8 { r: #r, g: #g, b: #b }
-            }
-        });
-        let image_len = (image.height() * image.width()) as usize;
+    use super::out_dir;
 
-        let body = quote! {
-            // This file is generated automatically, do not edit it!
+    pub fn convert_image() {
+        let name = "images/cat_dark.png";
 
-            use smart_leds::RGB8;
+        let raw_img_def = {
+            let image = Reader::open(name).unwrap().decode().unwrap().to_rgb8();
+            let buf_items = image.pixels().map(|x| {
+                let r = x[0];
+                let g = x[1];
+                let b = x[2];
 
-            pub const DATA: [RGB8; #image_len] = [
-                #(#buf_items),*
-            ];
+                quote! {
+                    RGB8 { r: #r, g: #g, b: #b }
+                }
+            });
+            let image_len = (image.height() * image.width()) as usize;
+
+            let body = quote! {
+                // This file is generated automatically, do not edit it!
+
+                use smart_leds::RGB8;
+
+                pub const DATA: [RGB8; #image_len] = [
+                    #(#buf_items),*
+                ];
+            };
+            body.to_string()
         };
-        body.to_string()
-    };
 
-    let mut out_file = File::create(out_dir().join("raw_image.rs")).unwrap();
-    out_file.by_ref().write_all(raw_img_def.as_bytes()).unwrap();
+        let mut out_file = File::create(out_dir().join("raw_image.rs")).unwrap();
+        out_file.by_ref().write_all(raw_img_def.as_bytes()).unwrap();
 
-    println!("cargo:rerun-if-changed={}", name);
+        println!("cargo:rerun-if-changed={}", name);
+    }
 }
 
 fn main() {
@@ -54,5 +56,6 @@ fn main() {
     fs::copy("memory-cb.x", out_dir.join("memory-cb.x")).unwrap();
     println!("cargo:rerun-if-changed=memory-cb.x");
 
-    convert_image();
+    #[cfg(feature = "generate_img")]
+    image_gen::convert_image();
 }
