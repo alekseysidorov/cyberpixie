@@ -3,6 +3,9 @@ all: hex
 hex:
 	cargo objcopy --release -- -O ihex target/firmware.hex
 
+bin:
+	cargo objcopy --release -- -O binary target/firmware.bin
+
 flash: hex
 	stm32flash -w target/firmware.hex -v -g 0x0 /dev/ttyUSB0
 
