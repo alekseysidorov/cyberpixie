@@ -1,0 +1,11 @@
+[package]
+name = "pixel-poi-proto"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+postcard = { version = "0.6.1", default-features = false }
+serde = { version = "1", default-features = false, features = ["derive"] }
+nb = "1.0"
