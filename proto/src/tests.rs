@@ -34,12 +34,25 @@ fn packet_read_write() -> postcard::Result<()> {
     let packet = message.to_packet()?;
     let packet_len = packet.write_to(buf.as_mut());
 
+    // Try to read the packet's length one byte at a time.
     let mut reader = PacketReader::new();
     reader.add_bytes(&buf[0..1]);
     reader.add_bytes(&buf[1..2]);
     let (packet_2, tail) = reader.add_bytes(&buf[2..]).unwrap();
 
-    assert_eq!(packet, packet_2);
+    assert_eq!(&packet, packet_2);
+    assert_eq!(tail.len(), buf.len() - packet_len);
+
+    // Try to read the packet's length at the single read.
+    reader.add_bytes(&buf[0..2]);
+    let (packet_2, tail) = reader.add_bytes(&buf[2..]).unwrap();
+
+    assert_eq!(&packet, packet_2);
+    assert_eq!(tail.len(), buf.len() - packet_len);    
+
+    // Try to read the whole packet by a single time.
+    let (packet_2, tail) = reader.add_bytes(&buf).unwrap();
+    assert_eq!(&packet, packet_2);
     assert_eq!(tail.len(), buf.len() - packet_len);
 
     Ok(())
