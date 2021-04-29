@@ -49,8 +49,9 @@ fn main() -> ! {
     let mut rcu = dp.RCU.configure().sysclk(108.mhz()).freeze();
     let mut afio = dp.AFIO.constrain(&mut rcu);
 
-    let gpioa = dp.GPIOA.split(&mut rcu);
+    let mut delay = McycleDelay::new(&rcu.clocks);
 
+    let gpioa = dp.GPIOA.split(&mut rcu);
     let (usb_tx, mut _usb_rx) = {
         let tx = gpioa.pa9.into_alternate_push_pull();
         let rx = gpioa.pa10.into_floating_input();
@@ -60,6 +61,7 @@ fn main() -> ! {
     };
     stdout::enable(usb_tx);
 
+    delay.delay_ms(1_000);
     uprintln!("Serial port configured.");
 
     let vec = alloc::vec![0_u8; 512];
@@ -83,7 +85,6 @@ fn main() -> ! {
         )
     };
     let mut strip = Ws2812::new(spi);
-    let mut delay = McycleDelay::new(&rcu.clocks);
 
     uprintln!("Led strip configured.");
     strip
