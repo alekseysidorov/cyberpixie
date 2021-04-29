@@ -6,7 +6,7 @@ edition = "2018"
 resolver = "2"
 
 [workspace]
-members = ["proto"]
+members = ["proto", "experiments"]
 
 [dependencies]
 embedded-hal = "0.2"
