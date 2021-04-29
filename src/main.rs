@@ -7,13 +7,17 @@ extern crate alloc;
 use core::{
     alloc::Layout,
     panic::PanicInfo,
-    sync::atomic::{self, Ordering},
+    sync::atomic::{self, AtomicBool, Ordering},
 };
 
 use embedded_hal::digital::v2::OutputPin;
 use gd32vf103xx_hal::{
+    afio::Afio,
     delay::McycleDelay,
-    pac,
+    eclic::{EclicExt, Level, LevelPriorityBits, Priority, TriggerType},
+    exti::{Exti, ExtiLine, TriggerEdge},
+    gpio::gpioa::PA8,
+    pac::{self, Interrupt, ECLIC, EXTI},
     prelude::*,
     serial::Serial,
     spi::{Spi, MODE_0},
@@ -37,6 +41,64 @@ unsafe fn init_alloc() {
     let start = heap_bottom();
     let size = 1024; // in bytes
     ALLOCATOR.init(start, size)
+}
+
+const TOTAL_LED_STRIP_LEN: usize = 144;
+
+static LED_STRIP_ENABLE: AtomicBool = AtomicBool::new(false);
+
+#[export_name = "EXTI_LINE9_5"]
+fn handle_button_pressed() {
+    let extiline = ExtiLine::from_gpio_line(8).unwrap();
+    if Exti::is_pending(extiline) {
+        Exti::unpend(extiline);
+        Exti::clear(extiline);
+
+        let mut old = LED_STRIP_ENABLE.load(Ordering::Relaxed);
+        let new = !old;
+        loop {
+            match LED_STRIP_ENABLE.compare_exchange_weak(
+                old,
+                new,
+                Ordering::SeqCst,
+                Ordering::Relaxed,
+            ) {
+                Ok(_) => break,
+                Err(x) => old = x,
+            }
+        }
+    }
+}
+
+// Interrupts initialization step.
+unsafe fn init_button_interrupt<T>(boot_btn: PA8<T>, exti: EXTI, afio: &mut Afio) {
+    // IRQ
+    ECLIC::reset();
+    ECLIC::set_threshold_level(Level::L0);
+    // Use 3 bits for level, 1 for priority
+    ECLIC::set_level_priority_bits(LevelPriorityBits::L3P1);
+
+    // eclic_irq_enable(EXTI5_9_IRQn, 1, 1);
+    ECLIC::setup(
+        Interrupt::EXTI_LINE9_5,
+        TriggerType::Level,
+        Level::L1,
+        Priority::P1,
+    );
+
+    // gpio_exti_source_select(GPIO_PORT_SOURCE_GPIOA, GPIO_PIN_SOURCE_8);
+    afio.extiss(boot_btn.port(), boot_btn.pin_number());
+
+    // ECLIC::setup(Interrupt::TIMER0_UP, TriggerType::Level, Level::L0, Priority::P0);
+    ECLIC::unmask(Interrupt::EXTI_LINE9_5);
+
+    let mut exti = Exti::new(exti);
+
+    let extiline = ExtiLine::from_gpio_line(boot_btn.pin_number()).unwrap();
+    exti.listen(extiline, TriggerEdge::Rising);
+    Exti::clear(extiline);
+
+    riscv::interrupt::enable();
 }
 
 #[riscv_rt::entry]
@@ -80,17 +142,22 @@ fn main() -> ! {
             pins,
             &mut afio,
             ws2812_spi::MODE,
-            2800.khz(),
+            3200.khz(),
             &mut rcu,
         )
     };
     let mut strip = Ws2812::new(spi);
 
-    uprintln!("Led strip configured.");
+    uprintln!("LED strip configured.");
     strip
-        .write(core::iter::repeat(RGB8::default()).take(144))
+        .write(core::iter::repeat(RGB8::default()).take(TOTAL_LED_STRIP_LEN))
         .ok();
-    uprintln!("Led strip cleaned.");
+    uprintln!("LED strip cleaned.");
+
+    unsafe {
+        init_button_interrupt(gpioa.pa8, dp.EXTI, &mut afio);
+    }
+    uprintln!("Toggle LED strip button enabled.");
 
     // SPI1_SCK(PB13), SPI1_MISO(PB14) and SPI1_MOSI(PB15) GPIO pin configuration
     let gpiob = dp.GPIOB.split(&mut rcu);
@@ -120,10 +187,25 @@ fn main() -> ! {
     let mut source = FixedImage::from_raw(data, refresh_rate);
     uprintln!("Loaded {} image from the repository", image_num);
 
+    let mut current_state = LED_STRIP_ENABLE.load(Ordering::SeqCst);
     loop {
-        let (us, line) = source.next_line();
-        strip.write(line).ok();
-        delay.delay_us(us.0);
+        let next_state = LED_STRIP_ENABLE.load(Ordering::SeqCst);
+        if current_state != next_state {
+            uprintln!("LED poi enabled: {}", next_state);
+
+            strip
+                .write(core::iter::repeat(RGB8::default()).take(TOTAL_LED_STRIP_LEN))
+                .ok();
+            delay.delay_ms(100);
+
+            current_state = next_state;
+        }
+
+        if current_state {
+            let (us, line) = source.next_line();
+            strip.write(line).ok();
+            delay.delay_us(us.0);
+        }
     }
 }
 
