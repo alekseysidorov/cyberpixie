@@ -18,7 +18,7 @@ use gd32vf103xx_hal::{
     serial::Serial,
     spi::{Spi, MODE_0},
 };
-use pixel_poi_firmware::{
+use aurora_led_firmware::{
     allocator::{heap_bottom, RiscVHeap},
     config::SERIAL_PORT_CONFIG,
     stdout,
