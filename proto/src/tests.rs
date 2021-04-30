@@ -48,7 +48,7 @@ fn packet_read_write() -> postcard::Result<()> {
     let (packet_2, tail) = reader.add_bytes(&buf[2..]).unwrap();
 
     assert_eq!(&packet, packet_2);
-    assert_eq!(tail.len(), buf.len() - packet_len);    
+    assert_eq!(tail.len(), buf.len() - packet_len);
 
     // Try to read the whole packet by a single time.
     let (packet_2, tail) = reader.add_bytes(&buf).unwrap();

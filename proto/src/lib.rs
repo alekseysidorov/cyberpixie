@@ -1,7 +1,7 @@
 #![no_std]
 
-pub use types::*;
 pub use packet::*;
+pub use types::*;
 
 mod packet;
 mod types;
