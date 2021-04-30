@@ -6,8 +6,6 @@
 // #![feature(const_generics)]
 // #![feature(const_evaluatable_checked)]
 
-extern crate alloc;
-
 pub use time::Microseconds;
 
 pub mod allocator;

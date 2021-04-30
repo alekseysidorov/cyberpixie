@@ -12,5 +12,10 @@ flash: hex
 run: flash
 	serial-monitor -b 115200 --enter crlf
 
+esprun: 
+	cargo objcopy --release -p esp8266-device -- -O ihex target/esp.hex
+	stm32flash -w target/esp.hex -v -g 0x0 /dev/ttyUSB0
+	serial-monitor -b 115200 --enter crlf
+
 clean:
 	rm -rf target

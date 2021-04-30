@@ -1,6 +1,6 @@
 use core::fmt::{self, Write};
 
-use embedded_hal::serial;
+use embedded_hal::{prelude::_embedded_hal_serial_Write, serial};
 use gd32vf103xx_hal::{pac::USART0, serial::Tx};
 
 use crate::sync::RwLock;
@@ -38,6 +38,18 @@ pub fn enable(tx: Tx<USART0>) {
 
 pub fn release() -> Option<Tx<USART0>> {
     STDOUT.write(|mut inner| inner.take()).unwrap()
+}
+
+pub fn write_byte(byte: u8) -> fmt::Result {
+    STDOUT
+        .write(|mut inner| {
+            if let Some(tx) = inner.as_mut() {
+                nb::block!(tx.write(byte)).map_err(|_| fmt::Error)
+            } else {
+                Ok(())
+            }
+        })
+        .unwrap()
 }
 
 /// Writes a string to the configured serial port device.
