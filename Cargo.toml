@@ -31,3 +31,10 @@ syn = { version = "1.0", optional = true }
 
 [features]
 generate_img = ["image", "quote", "syn"]
+
+[profile.release]
+opt-level = 3
+debug = false
+debug-assertions = false
+overflow-checks = false
+lto = true
