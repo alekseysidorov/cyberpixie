@@ -1,9 +1,11 @@
-#![cfg_attr(not(test), no_std)]
+// #![cfg_attr(not(test), no_std)]
+
+pub mod adapter;
+
+use core::fmt;
 
 #[cfg(test)]
 mod tests;
-
-use core::fmt;
 
 pub struct ClRf;
 

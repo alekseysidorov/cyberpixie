@@ -9,6 +9,12 @@ impl EmbeddedSerial {
     pub fn new(inner: Box<dyn SerialPort>) -> Self {
         Self(inner)
     }
+
+    pub fn into_rx_tx(self) -> (impl serial::Read<u8>, impl serial::Write<u8>) {
+        let rx = self.0.try_clone().unwrap();
+
+        (Self(rx), self)
+    }
 }
 
 impl serial::Read<u8> for EmbeddedSerial {
@@ -18,7 +24,12 @@ impl serial::Read<u8> for EmbeddedSerial {
         let mut buf = [0_u8];
         match self.0.read(&mut buf) {
             Ok(_) => Ok(buf[0]),
-            Err(e) if e.kind() == std::io::ErrorKind::TimedOut => Err(nb::Error::WouldBlock),
+            Err(e)
+                if e.kind() == std::io::ErrorKind::TimedOut
+                    || e.kind() == std::io::ErrorKind::Interrupted =>
+            {
+                Err(nb::Error::WouldBlock)
+            }
             Err(e) => Err(nb::Error::Other(e)),
         }
     }
