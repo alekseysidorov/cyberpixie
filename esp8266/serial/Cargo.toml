@@ -10,7 +10,7 @@ edition = "2018"
 arrayvec = { version = "0.7", default-features = false }
 embedded-hal = "0.2"
 nb = "1"
-nom = "6.1"
+nom = { version = "6.1", default-features = false }
 
 [dev-dependencies]
 anyhow = "1.0"
