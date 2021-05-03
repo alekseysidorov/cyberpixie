@@ -96,7 +96,7 @@ fn main() -> ! {
     sprintln!(&mut usb_tx, "Establishing ESP communication");
 
     loop {
-        let (ue, we) = match (usb_rx.read(), wifi_rx.read()) {
+        match (usb_rx.read(), wifi_rx.read()) {
             (Ok(u), Ok(w)) => {
                 wifi_tx.write(u).ok();
                 usb_tx.write(w).ok();
@@ -111,9 +111,7 @@ fn main() -> ! {
                 continue;
             }
             (Err(nb::Error::WouldBlock), Err(nb::Error::WouldBlock)) => continue,
-            (ue, we) => (ue, we),
+            _ => {}
         };
-
-        sprintln!(&mut usb_tx, "Something went wrong: {:?}. {:?}", ue, we);
     }
 }
