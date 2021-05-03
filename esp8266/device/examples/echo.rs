@@ -34,7 +34,7 @@ fn main() -> ! {
     let mut delay = McycleDelay::new(&rcu.clocks);
 
     let gpioa = dp.GPIOA.split(&mut rcu);
-    let (usb_tx, mut _usb_rx) = {
+    let (mut usb_tx, mut usb_rx) = {
         let tx = gpioa.pa9.into_alternate_push_pull();
         let rx = gpioa.pa10.into_floating_input();
 
@@ -55,12 +55,23 @@ fn main() -> ! {
     };
     uprintln!("esp32 serial communication port configured.");
 
-    uwriteln!(&mut esp_tx, "AT+{}", "GMR");
     loop {
-        if let Ok(byte) = esp_rx.read() {
-            stdout::write_byte(byte).unwrap();
-        }
-
-        continue;
+        match (usb_rx.read(), esp_rx.read()) {
+            (Ok(u), Ok(w)) => {
+                esp_tx.write(u).ok();
+                stdout::write_byte(w).ok();
+                continue;
+            }
+            (Ok(u), Err(nb::Error::WouldBlock)) => {
+                esp_tx.write(u).ok();
+                continue;
+            }
+            (Err(nb::Error::WouldBlock), Ok(w)) => {
+                stdout::write_byte(w).ok();
+                continue;
+            }
+            (Err(nb::Error::WouldBlock), Err(nb::Error::WouldBlock)) => continue,
+            _ => {}
+        };
     }
 }

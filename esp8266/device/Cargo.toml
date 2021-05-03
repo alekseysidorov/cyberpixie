@@ -12,4 +12,4 @@ riscv-rt = "0.8"
 
 # For main util
 [dependencies.aurora-led-firmware]
-path = "../.."
+path = "../../firmware"
