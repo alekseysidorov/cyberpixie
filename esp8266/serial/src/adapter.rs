@@ -3,9 +3,6 @@ use embedded_hal::serial;
 
 pub const ADAPTER_BUF_CAPACITY: usize = 512;
 
-const OK: &[u8] = b"OK\r\n";
-const READY: &[u8] = b"ready\r\n";
-
 #[derive(Debug)]
 pub enum Error {
     Read,
@@ -43,19 +40,19 @@ where
 
     pub fn reset(&mut self) -> Result<(), Error> {
         self.send_command(b"AT+RST")?;
-        self.read_until(READY)?;
+        self.read_until(ReadyCondition)?;
 
         Ok(())
     }
 
-    pub fn send_at_command(&mut self, raw: &[u8]) -> Result<&'_ [u8], Error> {
+    pub fn send_at_command(&mut self, raw: &[u8]) -> Result<Result<&'_ [u8], &'_ [u8]>, Error> {
         self.send_command(raw)?;
-        self.read_until(OK)
+        self.read_until(OkCondition)
     }
 
     fn disable_echo(&mut self) -> Result<(), Error> {
         self.send_command(b"ATE0")?;
-        self.read_until(OK)?;
+        self.read_until(OkCondition)?.map_err(|_| Error::Read)?;
 
         Ok(())
     }
@@ -82,8 +79,7 @@ where
         Ok(bytes_read)
     }
 
-    fn read_until(&mut self, msg: &[u8]) -> Result<&'_ [u8], Error> 
-    {
+    fn read_until<'a, C: Condition<'a>>(&'a mut self, condition: C) -> Result<C::Output, Error> {
         if self.read_finished {
             self.read_finished = false;
             self.buf.clear();
@@ -100,10 +96,63 @@ where
                 Err(_) => return Err(Error::Read),
             };
 
-            if self.buf.ends_with(msg) {
+            if condition.is_performed(&self.buf) {
                 self.read_finished = true;
-                return Ok(&self.buf[0..self.buf.len() - msg.len()]);
+                break;
             }
+        }
+
+        Ok(condition.output(&self.buf))
+    }
+}
+
+trait Condition<'a>: Copy + Clone {
+    type Output: 'a;
+
+    fn is_performed(self, buf: &[u8]) -> bool;
+
+    fn output(self, buf: &'a [u8]) -> Self::Output;
+}
+
+#[derive(Clone, Copy)]
+struct ReadyCondition;
+
+impl ReadyCondition {
+    const MSG: &'static [u8] = b"ready\r\n";
+}
+
+impl<'a> Condition<'a> for ReadyCondition {
+    type Output = &'a [u8];
+
+    fn is_performed(self, buf: &[u8]) -> bool {
+        buf.ends_with(Self::MSG)
+    }
+
+    fn output(self, buf: &'a [u8]) -> Self::Output {
+        &buf[0..buf.len() - Self::MSG.len()]
+    }
+}
+
+#[derive(Clone, Copy)]
+struct OkCondition;
+
+impl OkCondition {
+    const OK: &'static [u8] = b"OK\r\n";
+    const ERROR: &'static [u8] = b"ERROR\r\n";
+}
+
+impl<'a> Condition<'a> for OkCondition {
+    type Output = Result<&'a [u8], &'a [u8]>;
+
+    fn is_performed(self, buf: &[u8]) -> bool {
+        buf.ends_with(Self::OK) || buf.ends_with(Self::ERROR)
+    }
+
+    fn output(self, buf: &'a [u8]) -> Self::Output {
+        if buf.ends_with(Self::OK) {
+            Ok(&buf[0..buf.len() - Self::OK.len()])
+        } else {
+            Err(&buf[0..buf.len() - Self::ERROR.len()])
         }
     }
 }
