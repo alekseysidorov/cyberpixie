@@ -1,9 +1,12 @@
 use std::fmt::Write;
 
-use embedded_hal::serial::Read;
-use nom_parser::serial::EmbeddedSerial;
+use embedded_hal::prelude::*;
+use serial::EmbeddedSerial;
 
-fn main() -> anyhow::Result<()> {
+mod serial;
+
+#[test]
+fn test_connect() -> anyhow::Result<()> {
     let port = serialport::new("/dev/ttyUSB0", 115200).open()?;
     let mut serial = EmbeddedSerial::new(port);
 
@@ -22,5 +25,6 @@ fn main() -> anyhow::Result<()> {
             idx = 0;
         }
     }
+    
     Ok(())
 }
