@@ -134,7 +134,10 @@ where
 }
 
 #[derive(Debug)]
-pub struct DataReader<'a, Rx> {
+pub struct DataReader<'a, Rx>
+where
+    Rx: serial::Read<u8> + 'static,
+{
     bytes_remaining: usize,
     read_pos: usize,
     reader: &'a mut ReadPart<Rx>,
@@ -187,11 +190,15 @@ where
 impl<'a, Rx> ExactSizeIterator for DataReader<'a, Rx> where Rx: serial::Read<u8> + 'static {}
 
 impl<'a, Rx> Drop for DataReader<'a, Rx>
-// where
-// Rx: serial::Read<u8> + 'static,
+where
+    Rx: serial::Read<u8> + 'static,
 {
     fn drop(&mut self) {
-        // todo!()
+        // In order to use the reader further, we must read all of the remaining bytes. 
+        // Otherwise, the reader will be in an inconsistent state.
+        for _ in self {
+
+        }
     }
 }
 
