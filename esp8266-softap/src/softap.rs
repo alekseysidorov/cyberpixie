@@ -15,7 +15,11 @@ pub struct SoftApConfig<'a> {
     pub mode: u8,
 }
 
-pub struct SoftAp<Rx, Tx> {
+pub struct SoftAp<Rx, Tx>
+where
+    Rx: serial::Read<u8> + 'static,
+    Tx: serial::Write<u8> + 'static,
+{
     adapter: Adapter<Rx, Tx>,
 }
 
@@ -23,6 +27,7 @@ impl<Rx, Tx> SoftAp<Rx, Tx>
 where
     Rx: serial::Read<u8> + 'static,
     Tx: serial::Write<u8> + 'static,
+    Rx::Error: core::fmt::Debug,
 {
     pub fn new(adapter: Adapter<Rx, Tx>) -> Self {
         Self { adapter }
@@ -83,6 +88,7 @@ where
 pub enum Event<'a, Rx>
 where
     Rx: serial::Read<u8> + 'static,
+    Rx::Error: core::fmt::Debug,
 {
     Connected {
         link_id: usize,
@@ -99,6 +105,7 @@ where
 impl<Rx> ReadPart<Rx>
 where
     Rx: serial::Read<u8> + 'static,
+    Rx::Error: core::fmt::Debug,
 {
     pub fn poll_data(&mut self) -> nb::Result<Event<'_, Rx>, Error> {
         let response =
@@ -137,6 +144,7 @@ where
 pub struct DataReader<'a, Rx>
 where
     Rx: serial::Read<u8> + 'static,
+    Rx::Error: core::fmt::Debug,
 {
     bytes_remaining: usize,
     read_pos: usize,
@@ -146,6 +154,7 @@ where
 impl<'a, Rx> Iterator for DataReader<'a, Rx>
 where
     Rx: serial::Read<u8> + 'static,
+    Rx::Error: core::fmt::Debug,
 {
     type Item = u8;
 
@@ -187,18 +196,22 @@ where
     }
 }
 
-impl<'a, Rx> ExactSizeIterator for DataReader<'a, Rx> where Rx: serial::Read<u8> + 'static {}
+impl<'a, Rx> ExactSizeIterator for DataReader<'a, Rx>
+where
+    Rx: serial::Read<u8> + 'static,
+    Rx::Error: core::fmt::Debug,
+{
+}
 
 impl<'a, Rx> Drop for DataReader<'a, Rx>
 where
     Rx: serial::Read<u8> + 'static,
+    Rx::Error: core::fmt::Debug,
 {
     fn drop(&mut self) {
-        // In order to use the reader further, we must read all of the remaining bytes. 
+        // In order to use the reader further, we must read all of the remaining bytes.
         // Otherwise, the reader will be in an inconsistent state.
-        for _ in self {
-
-        }
+        for _ in self {}
     }
 }
 

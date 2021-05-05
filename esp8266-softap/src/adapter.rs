@@ -11,7 +11,11 @@ use crate::{
 const NEWLINE: &[u8] = b"\r\n";
 
 #[derive(Debug)]
-pub struct Adapter<Rx, Tx> {
+pub struct Adapter<Rx, Tx>
+where
+    Rx: serial::Read<u8> + 'static,
+    Tx: serial::Write<u8> + 'static,
+{
     reader: ReadPart<Rx>,
     writer: WriterPart<Tx>,
     cmd_read_finished: bool,
@@ -21,6 +25,7 @@ impl<Rx, Tx> Adapter<Rx, Tx>
 where
     Rx: serial::Read<u8> + 'static,
     Tx: serial::Write<u8> + 'static,
+    Rx::Error: core::fmt::Debug,
 {
     pub fn new(rx: Rx, tx: Tx) -> Result<Self> {
         let mut adapter = Self {
@@ -95,7 +100,7 @@ where
                     }
                 }
                 Err(nb::Error::WouldBlock) => {}
-                Err(_) => return Err(Error::Read),
+                Err(nb::Error::Other(err)) => return Err(err),
             };
 
             if condition.is_performed(&self.reader.buf) {
@@ -168,6 +173,7 @@ pub struct ReadPart<Rx> {
 impl<Rx> ReadPart<Rx>
 where
     Rx: serial::Read<u8> + 'static,
+    Rx::Error: core::fmt::Debug,
 {
     pub(crate) fn read_bytes(&mut self) -> nb::Result<(), Error> {
         loop {
@@ -175,11 +181,8 @@ where
                 return Err(nb::Error::WouldBlock);
             }
 
-            self.buf.push(
-                self.rx
-                    .read()
-                    .map_err(|maybe_block| maybe_block.map(|_| Error::Read))?,
-            );
+            self.buf
+                .push(self.rx.read().map_err(|_| nb::Error::WouldBlock)?);
         }
     }
 }

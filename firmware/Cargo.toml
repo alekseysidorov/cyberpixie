@@ -16,6 +16,9 @@ riscv-rt = "0.8"
 smart-leds = "0.3"
 ws2812-spi = { version = "0.4" }
 
+[dev-dependencies]
+esp8266-softap = { version = "0.1", path = "../esp8266-softap" }
+
 [dependencies.linked_list_allocator]
 version = "0.9"
 default-features = false

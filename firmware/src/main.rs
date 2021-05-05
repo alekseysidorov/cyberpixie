@@ -26,6 +26,7 @@ use aurora_led_firmware::{
     strip::{FixedImage, StripLineSource},
     uprintln,
 };
+use esp8266_softap::{Adapter, SoftAp};
 use smart_leds::{SmartLedsWrite, RGB8};
 use ws2812_spi::Ws2812;
 
@@ -91,6 +92,18 @@ fn main() -> ! {
         .write(core::iter::repeat(RGB8::default()).take(144))
         .ok();
     uprintln!("Led strip cleaned.");
+
+
+    let mut softap = {
+            let tx = gpioa.pa2.into_alternate_push_pull();
+            let rx = gpioa.pa3.into_floating_input();
+    
+            let serial = Serial::new(dp.USART1, (tx, rx), SERIAL_PORT_CONFIG, &mut afio, &mut rcu);
+            let (mut esp_tx, mut esp_rx) = serial.split();
+        uprintln!("esp32 serial communication port configured.");
+
+        let adapter = Adapter::new(rx, tx);
+    };
 
     // SPI1_SCK(PB13), SPI1_MISO(PB14) and SPI1_MOSI(PB15) GPIO pin configuration
     let gpiob = dp.GPIOB.split(&mut rcu);
