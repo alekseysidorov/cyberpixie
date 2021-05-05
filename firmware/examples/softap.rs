@@ -71,18 +71,20 @@ fn main() -> ! {
         .unwrap();
     uprintln!("SoftAP has been successfuly configured.");
 
+    let mut total_len = 0;
     loop {
         if let Ok(event) = net_reader.poll_data() {
             match event {
+                Event::Connected { .. } => {
+                    total_len = 0;
+                }
                 Event::Closed { link_id } => {
-                    uprintln!("Closed {}", link_id);
+                    uprintln!("Closed {}, received {} bytes", link_id, total_len);
                 }
-                Event::DataAvailable { link_id, reader } => {
-                    let len = reader.len();
+                Event::DataAvailable { reader, .. } => {
+                    total_len += reader.len();
                     for _ in reader {}
-                    // uprintln!("Amount of {} bytes have been received from the {}", len, link_id);
                 }
-                _ => {}
             }
         }
     }
