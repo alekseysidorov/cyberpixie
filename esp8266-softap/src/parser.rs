@@ -1,4 +1,4 @@
-use nom::{IResult, alt, char, character::streaming::digit1, do_parse, named, opt, tag};
+use nom::{alt, char, character::streaming::digit1, do_parse, named, opt, tag, IResult};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CommandResponse {
@@ -28,61 +28,47 @@ fn parse_usize(input: &[u8]) -> IResult<&[u8], usize> {
     IResult::Ok((input, num))
 }
 
-#[rustfmt::skip]
-named!(
-    crlf,
-    tag!("\r\n")
-);
+named!(crlf, tag!("\r\n"));
 
 named!(
     connected<CommandResponse>,
     do_parse!(
-        opt!( crlf ) >>
-        link_id: parse_usize >>
-        tag!(",CONNECT") >>
-        crlf >>
-        (
-            CommandResponse::Connected { link_id, }
-        )
+        opt!(crlf)
+            >> link_id: parse_usize
+            >> tag!(",CONNECT")
+            >> crlf
+            >> (CommandResponse::Connected { link_id })
     )
 );
 
 named!(
     closed<CommandResponse>,
     do_parse!(
-        opt!( crlf ) >>
-        link_id: parse_usize >>
-        tag!(",CLOSED") >>
-        crlf >>
-        (
-            CommandResponse::Closed { link_id, }
-        )
+        opt!(crlf)
+            >> link_id: parse_usize
+            >> tag!(",CLOSED")
+            >> crlf
+            >> (CommandResponse::Closed { link_id })
     )
 );
 
 named!(
     data_available<CommandResponse>,
     do_parse!(
-        opt!( crlf ) >>
-        tag!( "+IPD,") >>
-        link_id: parse_usize >>
-        char!(',') >>
-        size: parse_usize >>
-        char!(':') >>
-        opt!( crlf ) >>
-        (
-            CommandResponse::DataAvailable { link_id, size }
-        )
+        opt!(crlf)
+            >> tag!("+IPD,")
+            >> link_id: parse_usize
+            >> char!(',')
+            >> size: parse_usize
+            >> char!(':')
+            >> opt!(crlf)
+            >> (CommandResponse::DataAvailable { link_id, size })
     )
 );
 
 named!(
     parse<CommandResponse>,
-    alt!(
-        connected
-        | closed
-        | data_available
-    )
+    alt!(connected | closed | data_available)
 );
 
 impl CommandResponse {

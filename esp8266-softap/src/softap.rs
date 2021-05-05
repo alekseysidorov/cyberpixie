@@ -33,15 +33,16 @@ where
         Self { adapter }
     }
 
+    #[allow(clippy::type_complexity)]
     pub fn start(
         mut self,
         config: SoftApConfig<'_>,
-    ) -> crate::Result<(ReadPart<Rx>, WriterPart<Tx>)> {
+    ) -> crate::Result<(ReadPart<Rx>, WriterPart<Tx>), Rx::Error, Tx::Error> {
         self.init(config)?;
         Ok(self.adapter.into_parts())
     }
 
-    fn init(&mut self, config: SoftApConfig<'_>) -> crate::Result<()> {
+    fn init(&mut self, config: SoftApConfig<'_>) -> crate::Result<(), Rx::Error, Tx::Error> {
         // Enable SoftAP+Station mode.
         self.adapter
             .send_at_command_str("AT+CWMODE=3")?
@@ -107,7 +108,7 @@ where
     Rx: serial::Read<u8> + 'static,
     Rx::Error: core::fmt::Debug,
 {
-    pub fn poll_data(&mut self) -> nb::Result<Event<'_, Rx>, Error> {
+    pub fn poll_data(&mut self) -> nb::Result<Event<'_, Rx>, Rx::Error> {
         let response =
             CommandResponse::parse(&self.buf).map(|(remainder, event)| (remainder.len(), event));
         if let Some((remaining_bytes, response)) = response {
@@ -134,8 +135,7 @@ where
             return Ok(event);
         }
 
-        self.read_bytes()
-            .map_err(|inner| inner.map(|_| Error::Read))?;
+        self.read_bytes()?;
         Err(nb::Error::WouldBlock)
     }
 }

@@ -7,6 +7,8 @@ use core::{
 };
 
 use aurora_led_firmware::{config::SERIAL_PORT_CONFIG, stdout, uprint, uprintln};
+use embedded_hal::digital::v2::OutputPin;
+use esp8266_softap::{Adapter, Event, SoftAp, SoftApConfig};
 use gd32vf103xx_hal::{delay::McycleDelay, pac::Peripherals, prelude::*, serial::Serial};
 
 #[inline(never)]
@@ -37,7 +39,7 @@ fn main() -> ! {
     // between normal and boot modes.
     gpioa.pa1.into_push_pull_output().set_high().unwrap();
 
-    let (usb_tx, mut usb_rx) = {
+    let (usb_tx, _usb_rx) = {
         let tx = gpioa.pa9.into_alternate_push_pull();
         let rx = gpioa.pa10.into_floating_input();
 
@@ -49,7 +51,7 @@ fn main() -> ! {
     delay.delay_ms(1_000);
     uprintln!("Serial port configured.");
 
-    let (mut esp_tx, mut esp_rx) = {
+    let (esp_tx, esp_rx) = {
         let tx = gpioa.pa2.into_alternate_push_pull();
         let rx = gpioa.pa3.into_floating_input();
 
@@ -70,23 +72,17 @@ fn main() -> ! {
     uprintln!("SoftAP has been successfuly configured.");
 
     loop {
-        delay.delay_ms(1000);
-        uprintln!("Poll next event: {}", times);
-        times += 1;
-
         if let Ok(event) = net_reader.poll_data() {
             match event {
-                Event::Connected { link_id } => uprintln!("Event::Connected {}", link_id),
                 Event::Closed { link_id } => {
-                    uprintln!("Event::Closed {}", link_id);
+                    uprintln!("Closed {}", link_id);
                 }
                 Event::DataAvailable { link_id, reader } => {
-                    uprintln!("Event::BytesReceived {} count: {}", link_id, reader.len());
-                    for byte in reader {
-                        uprint!("{}", byte as char);
-                    }
-                    uprintln!();
+                    let len = reader.len();
+                    for _ in reader {}
+                    // uprintln!("Amount of {} bytes have been received from the {}", len, link_id);
                 }
+                _ => {}
             }
         }
     }

@@ -8,6 +8,8 @@ use crate::{
     ADAPTER_BUF_CAPACITY,
 };
 
+pub type RawResponse<'a> = core::result::Result<&'a [u8], &'a [u8]>;
+
 const NEWLINE: &[u8] = b"\r\n";
 
 #[derive(Debug)]
@@ -27,7 +29,7 @@ where
     Tx: serial::Write<u8> + 'static,
     Rx::Error: core::fmt::Debug,
 {
-    pub fn new(rx: Rx, tx: Tx) -> Result<Self> {
+    pub fn new(rx: Rx, tx: Tx) -> Result<Self, Rx::Error, Tx::Error> {
         let mut adapter = Self {
             reader: ReadPart {
                 buf: ArrayVec::default(),
@@ -40,16 +42,29 @@ where
         Ok(adapter)
     }
 
-    pub fn reset(&mut self) -> Result<()> {
+    fn init(&mut self) -> Result<(), Rx::Error, Tx::Error> {
+        // FIXME: It is ok to receive errors like "framing" during the reset procedure.
+        self.reset().ok();
+        // Workaround to catch the framing errors.
+        for _ in 0..50 {
+            self.send_at_command_str(b"ATE1").ok();
+        }
+
+        self.disable_echo()?;
+        Ok(())
+    }
+
+    pub fn reset(&mut self) -> Result<(), Rx::Error, Tx::Error> {
         self.send_command_impl(b"AT+RST")?;
         self.read_until(ReadyCondition)?;
+
         Ok(())
     }
 
     pub fn send_at_command_str(
         &mut self,
         cmd: impl AsRef<[u8]>,
-    ) -> Result<core::result::Result<&'_ [u8], &'_ [u8]>> {
+    ) -> Result<RawResponse<'_>, Rx::Error, Tx::Error> {
         self.send_command_impl(cmd.as_ref())?;
         self.read_until(OkCondition)
     }
@@ -57,9 +72,9 @@ where
     pub fn send_at_command_fmt(
         &mut self,
         args: core::fmt::Arguments,
-    ) -> Result<core::result::Result<&'_ [u8], &'_ [u8]>> {
-        self.writer.write_fmt(args).map_err(|_| Error::Write)?;
-        self.writer.write_bytes(NEWLINE).map_err(|_| Error::Write)?;
+    ) -> Result<RawResponse<'_>, Rx::Error, Tx::Error> {
+        self.writer.write_fmt(args).map_err(|_| Error::Format)?;
+        self.writer.write_bytes(NEWLINE).map_err(Error::Write)?;
 
         self.read_until(OkCondition)
     }
@@ -69,21 +84,16 @@ where
         (self.reader, self.writer)
     }
 
-    fn init(&mut self) -> Result<()> {
-        self.reset()?;
-        self.disable_echo()
-    }
-
-    fn disable_echo(&mut self) -> Result<()> {
+    fn disable_echo(&mut self) -> Result<(), Rx::Error, Tx::Error> {
         self.send_at_command_str(b"ATE0").map(drop)
     }
 
-    fn send_command_impl(&mut self, cmd: &[u8]) -> Result<()> {
-        self.writer.write_bytes(cmd).map_err(|_| Error::Write)?;
-        self.writer.write_bytes(NEWLINE).map_err(|_| Error::Write)
+    fn send_command_impl(&mut self, cmd: &[u8]) -> Result<(), Rx::Error, Tx::Error> {
+        self.writer.write_bytes(cmd).map_err(Error::Write)?;
+        self.writer.write_bytes(NEWLINE).map_err(Error::Write)
     }
 
-    fn read_until<'a, C>(&'a mut self, condition: C) -> Result<C::Output>
+    fn read_until<'a, C>(&'a mut self, condition: C) -> Result<C::Output, Rx::Error, Tx::Error>
     where
         C: Condition<'a>,
     {
@@ -100,7 +110,7 @@ where
                     }
                 }
                 Err(nb::Error::WouldBlock) => {}
-                Err(nb::Error::Other(err)) => return Err(err),
+                Err(nb::Error::Other(err)) => return Err(Error::Read(err)),
             };
 
             if condition.is_performed(&self.reader.buf) {
@@ -175,14 +185,15 @@ where
     Rx: serial::Read<u8> + 'static,
     Rx::Error: core::fmt::Debug,
 {
-    pub(crate) fn read_bytes(&mut self) -> nb::Result<(), Error> {
+    pub(crate) fn read_bytes(&mut self) -> nb::Result<(), Rx::Error> {
         loop {
             if self.buf.is_full() {
                 return Err(nb::Error::WouldBlock);
             }
 
-            self.buf
-                .push(self.rx.read().map_err(|_| nb::Error::WouldBlock)?);
+            let byte = self.rx.read()?;
+            self.buf.push(byte);
+            // aurora_led_firmware::uprint!("{}", byte as char);
         }
     }
 }
@@ -203,6 +214,7 @@ where
 
     fn write_bytes(&mut self, bytes: &[u8]) -> core::result::Result<(), Tx::Error> {
         for byte in bytes.iter() {
+            // aurora_led_firmware::uprint!("{}", *byte as char);
             nb::block!(self.tx.write(*byte))?;
         }
         Ok(())
