@@ -6,7 +6,7 @@ use core::{
     sync::atomic::{self, Ordering},
 };
 
-use aurora_led_firmware::{config::SERIAL_PORT_CONFIG, stdout, uprintln};
+use cyberpixie_firmware::{config::SERIAL_PORT_CONFIG, stdout, uprintln};
 use gd32vf103xx_hal::{delay::McycleDelay, pac::Peripherals, prelude::*, serial::Serial};
 
 #[inline(never)]

@@ -6,7 +6,7 @@ use core::{
     sync::atomic::{self, Ordering},
 };
 
-use aurora_led_firmware::{config::SERIAL_PORT_CONFIG, stdout, uprint, uprintln};
+use cyberpixie_firmware::{config::SERIAL_PORT_CONFIG, stdout, uprint, uprintln};
 use embedded_hal::digital::v2::OutputPin;
 use esp8266_softap::{Adapter, Event, SoftAp, SoftApConfig};
 use gd32vf103xx_hal::{delay::McycleDelay, pac::Peripherals, prelude::*, serial::Serial};

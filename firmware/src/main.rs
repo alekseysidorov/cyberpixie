@@ -10,7 +10,7 @@ use core::{
     sync::atomic::{self, Ordering},
 };
 
-use aurora_led_firmware::{
+use cyberpixie_firmware::{
     allocator::{heap_bottom, RiscVHeap},
     config::SERIAL_PORT_CONFIG,
     stdout,
