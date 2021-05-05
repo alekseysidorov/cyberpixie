@@ -12,9 +12,9 @@ flash: hex
 run: flash
 	serial-monitor -b 115200 --enter crlf
 
-run_esp32_echo: 
-	cargo objcopy --release -p esp8266-device --example echo -- -O ihex target/echo.hex
-	stm32flash -w target/echo.hex -v -g 0x0 /dev/ttyUSB0
+run_retransmitter: 
+	cargo objcopy -p aurora-led-firmware --release --example retransmitter -- -O ihex target/retransmitter.hex
+	stm32flash -w target/retransmitter.hex -v -g 0x0 /dev/ttyUSB0
 	serial-monitor -b 115200 --enter crlf
 
 clean:

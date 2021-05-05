@@ -6,7 +6,7 @@ use core::{
     sync::atomic::{self, Ordering},
 };
 
-use aurora_led_firmware::{config::SERIAL_PORT_CONFIG, stdout, uprintln, uwriteln};
+use aurora_led_firmware::{config::SERIAL_PORT_CONFIG, stdout, uprintln};
 use gd32vf103xx_hal::{delay::McycleDelay, pac::Peripherals, prelude::*, serial::Serial};
 
 #[inline(never)]
@@ -34,7 +34,7 @@ fn main() -> ! {
     let mut delay = McycleDelay::new(&rcu.clocks);
 
     let gpioa = dp.GPIOA.split(&mut rcu);
-    let (mut usb_tx, mut usb_rx) = {
+    let (usb_tx, mut usb_rx) = {
         let tx = gpioa.pa9.into_alternate_push_pull();
         let rx = gpioa.pa10.into_floating_input();
 

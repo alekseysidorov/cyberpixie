@@ -3,12 +3,8 @@ resolver = "2"
 members = [
     "firmware", 
     "proto", 
-    "esp8266/device", 
-    "esp8266/serial"
+    "esp8266-softap", 
 ]
-
-# exclude = ["esp8266/serial"]
-# default-members = ["firmware", "esp8266/device"]
 
 [profile.release]
 opt-level = 3
