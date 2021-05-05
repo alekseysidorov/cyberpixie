@@ -23,7 +23,10 @@ impl serial::Read<u8> for EmbeddedSerial {
     fn read(&mut self) -> nb::Result<u8, Self::Error> {
         let mut buf = [0_u8];
         match self.0.read(&mut buf) {
-            Ok(_) => Ok(buf[0]),
+            Ok(_) => {
+                // eprint!("{}", buf[0] as char);
+                Ok(buf[0])
+            }
             Err(e)
                 if e.kind() == std::io::ErrorKind::TimedOut
                     || e.kind() == std::io::ErrorKind::Interrupted =>
@@ -41,7 +44,10 @@ impl serial::Write<u8> for EmbeddedSerial {
     fn write(&mut self, word: u8) -> nb::Result<(), Self::Error> {
         let buf = [word];
         match self.0.write(&buf) {
-            Ok(_) => Ok(()),
+            Ok(_) => {
+                // eprint!("{}", word as char);
+                Ok(())
+            }
             Err(e) if e.kind() == std::io::ErrorKind::Interrupted => Err(nb::Error::WouldBlock),
             Err(e) => Err(nb::Error::Other(std::io::Error::new(
                 std::io::ErrorKind::Other,

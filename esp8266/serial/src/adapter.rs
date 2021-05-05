@@ -1,94 +1,93 @@
+use core::fmt::Write;
+
 use arrayvec::ArrayVec;
 use embedded_hal::serial;
 
-pub const ADAPTER_BUF_CAPACITY: usize = 512;
+use crate::{
+    error::{Error, Result},
+    ADAPTER_BUF_CAPACITY,
+};
 
-#[derive(Debug)]
-pub enum Error {
-    Read,
-    Write,
-    BufferFull,
-}
+const NEWLINE: &[u8] = b"\r\n";
 
-pub struct Adapter<Rx, Tx>
-where
-    Rx: serial::Read<u8>,
-    Tx: serial::Write<u8>,
-{
-    rx: Rx,
-    tx: Tx,
-    buf: ArrayVec<u8, ADAPTER_BUF_CAPACITY>,
-    read_finished: bool,
+pub struct Adapter<Rx, Tx> {
+    reader: ReadPart<Rx>,
+    writer: WriterPart<Tx>,
+    cmd_read_finished: bool,
 }
 
 impl<Rx, Tx> Adapter<Rx, Tx>
 where
-    Rx: serial::Read<u8>,
-    Tx: serial::Write<u8>,
+    Rx: serial::Read<u8> + 'static,
+    Tx: serial::Write<u8> + 'static,
 {
-    pub fn new(rx: Rx, tx: Tx) -> Result<Self, Error> {
+    pub fn new(rx: Rx, tx: Tx) -> Result<Self> {
         let mut adapter = Self {
-            rx,
-            tx,
-            buf: ArrayVec::default(),
-            read_finished: false,
+            reader: ReadPart {
+                buf: ArrayVec::default(),
+                rx,
+            },
+            writer: WriterPart { tx },
+            cmd_read_finished: false,
         };
         adapter.reset()?;
         adapter.disable_echo()?;
         Ok(adapter)
     }
 
-    pub fn reset(&mut self) -> Result<(), Error> {
-        self.send_command(b"AT+RST")?;
-        self.read_until(ReadyCondition)?;
+    pub fn reset(&mut self) -> Result<()> {
+        self.send_command_impl(b"AT+RST")?;
 
+        self.read_until(ReadyCondition)?;
         Ok(())
     }
 
-    pub fn send_at_command(&mut self, raw: &[u8]) -> Result<Result<&'_ [u8], &'_ [u8]>, Error> {
-        self.send_command(raw)?;
+    pub fn send_at_command_str(
+        &mut self,
+        cmd: impl AsRef<[u8]>,
+    ) -> Result<core::result::Result<&'_ [u8], &'_ [u8]>> {
+        self.send_command_impl(cmd.as_ref())?;
+
         self.read_until(OkCondition)
     }
 
-    fn disable_echo(&mut self) -> Result<(), Error> {
-        self.send_command(b"ATE0")?;
-        self.read_until(OkCondition)?.map_err(|_| Error::Read)?;
+    pub fn send_at_command_fmt(
+        &mut self,
+        args: core::fmt::Arguments,
+    ) -> Result<core::result::Result<&'_ [u8], &'_ [u8]>> {
+        self.writer.write_fmt(args).map_err(|_| Error::Write)?;
+        self.writer.write_bytes(NEWLINE).map_err(|_| Error::Write)?;
 
-        Ok(())
+        self.read_until(OkCondition)
     }
 
-    fn write_bytes(&mut self, bytes: &[u8]) -> Result<(), Tx::Error> {
-        for byte in bytes.iter() {
-            nb::block!(self.tx.write(*byte))?;
-        }
-        Ok(())
+    pub(crate) fn into_parts(mut self) -> (ReadPart<Rx>, WriterPart<Tx>) {
+        self.reader.buf.clear();        
+        (self.reader, self.writer)
     }
 
-    fn send_command(&mut self, cmd: &[u8]) -> Result<(), Error> {
-        self.write_bytes(cmd).map_err(|_| Error::Write)?;
-        self.write_bytes(b"\r\n").map_err(|_| Error::Write)
+    fn disable_echo(&mut self) -> Result<()> {
+        self.send_at_command_str(b"ATE0").map(drop)
     }
 
-    fn read_bytes(&mut self) -> nb::Result<usize, Rx::Error> {
-        let mut bytes_read = 0;
-        while self.buf.remaining_capacity() > 0 {
-            self.buf.push(self.rx.read()?);
-            bytes_read += 1;
-        }
-
-        Ok(bytes_read)
+    fn send_command_impl(&mut self, cmd: &[u8]) -> Result<()> {
+        self.writer.write_bytes(cmd).map_err(|_| Error::Write)?;
+        self.writer.write_bytes(NEWLINE).map_err(|_| Error::Write)
     }
 
-    fn read_until<'a, C: Condition<'a>>(&'a mut self, condition: C) -> Result<C::Output, Error> {
-        if self.read_finished {
-            self.read_finished = false;
-            self.buf.clear();
+    fn read_until<'a, C>(&'a mut self, condition: C) -> Result<C::Output>
+    where
+        C: Condition<'a>,
+    {
+        if self.cmd_read_finished {
+            self.cmd_read_finished = false;
+            self.reader.buf.clear();
         }
 
         loop {
-            match self.read_bytes() {
-                Ok(bytes_read) => {
-                    if bytes_read == 0 {
+            match self.reader.read_bytes() {
+                Ok(_) => {
+                    if self.reader.buf.is_full() {
                         return Err(Error::BufferFull);
                     }
                 }
@@ -96,13 +95,13 @@ where
                 Err(_) => return Err(Error::Read),
             };
 
-            if condition.is_performed(&self.buf) {
-                self.read_finished = true;
+            if condition.is_performed(&self.reader.buf) {
+                self.cmd_read_finished = true;
                 break;
             }
         }
 
-        Ok(condition.output(&self.buf))
+        Ok(condition.output(&self.reader.buf))
     }
 }
 
@@ -142,7 +141,7 @@ impl OkCondition {
 }
 
 impl<'a> Condition<'a> for OkCondition {
-    type Output = Result<&'a [u8], &'a [u8]>;
+    type Output = core::result::Result<&'a [u8], &'a [u8]>;
 
     fn is_performed(self, buf: &[u8]) -> bool {
         buf.ends_with(Self::OK) || buf.ends_with(Self::ERROR)
@@ -154,5 +153,43 @@ impl<'a> Condition<'a> for OkCondition {
         } else {
             Err(&buf[0..buf.len() - Self::ERROR.len()])
         }
+    }
+}
+
+pub struct ReadPart<Rx> {
+    rx: Rx,
+    pub(crate) buf: ArrayVec<u8, ADAPTER_BUF_CAPACITY>,
+}
+
+impl<Rx> ReadPart<Rx>
+where
+    Rx: serial::Read<u8> + 'static,
+{
+    pub(crate) fn read_bytes(&mut self) -> nb::Result<(), Rx::Error> {
+        while self.buf.remaining_capacity() > 0 {
+            self.buf.push(self.rx.read()?);
+        }
+        Ok(())
+    }
+}
+
+pub struct WriterPart<Tx> {
+    tx: Tx,
+}
+
+impl<Tx> WriterPart<Tx>
+where
+    Tx: serial::Write<u8> + 'static,
+{
+    fn write_fmt(&mut self, args: core::fmt::Arguments) -> core::fmt::Result {
+        let writer = &mut self.tx as &mut (dyn serial::Write<u8, Error = Tx::Error> + 'static);
+        writer.write_fmt(args)
+    }
+
+    fn write_bytes(&mut self, bytes: &[u8]) -> core::result::Result<(), Tx::Error> {
+        for byte in bytes.iter() {
+            nb::block!(self.tx.write(*byte))?;
+        }
+        Ok(())
     }
 }
