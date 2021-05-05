@@ -7,6 +7,3 @@ rustflags = [
 
 [build]
 target = "riscv32imac-unknown-none-elf"
-
-[profile.release]
-lto = true
