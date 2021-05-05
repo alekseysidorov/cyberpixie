@@ -1,7 +1,11 @@
 use embedded_hal::serial::{Read, Write};
 use serial::EmbeddedSerial;
 
-use crate::{adapter::Adapter, parser::NetworkEvent, softap::{SoftAp, SoftApConfig}};
+use crate::{
+    adapter::Adapter,
+    parser::CommandResponse,
+    softap::{Event, SoftAp, SoftApConfig},
+};
 
 mod serial;
 
@@ -13,39 +17,59 @@ fn test_soft_ap() {
     let adapter = Adapter::new(rx, tx).unwrap();
     let (mut rx, tx) = SoftAp::new(adapter)
         .start(SoftApConfig {
-            ssid: "aurora_led",
+            ssid: "cyberpixie",
             password: "12345678",
             channel: 5,
             mode: 4,
         })
         .unwrap();
 
+    eprintln!("Serial port established");
     loop {
         let event = nb::block!(rx.poll_data()).unwrap();
-        eprintln!("Got event: {:?}", event);
+        match event {
+            Event::Connected { link_id } => eprintln!("Event::Connected {}", link_id),
+            Event::Closed { link_id } => {
+                eprintln!("Event::Closed {}", link_id);
+                break;
+            }
+            Event::DataAvailable { link_id, reader } => {
+                eprintln!("Event::BytesReceived {} count: {}", link_id, reader.len());
+                for byte in reader {
+                    eprint!("{}", byte as char);
+                }
+                eprintln!();
+            }
+        }
     }
 }
 
 #[test]
 fn test_parse_connect() {
     let raw = b"1,CONNECT\r\n";
-    let event = NetworkEvent::parse(raw.as_ref()).unwrap().1;
-    
-    assert_eq!(event, NetworkEvent::Connected { link_id: 1 })
+    let event = CommandResponse::parse(raw.as_ref()).unwrap().1;
+
+    assert_eq!(event, CommandResponse::Connected { link_id: 1 })
 }
 
 #[test]
 fn test_parse_close() {
     let raw = b"1,CLOSED\r\n";
-    let event = NetworkEvent::parse(raw.as_ref()).unwrap().1;
-    
-    assert_eq!(event, NetworkEvent::Closed { link_id: 1 })
+    let event = CommandResponse::parse(raw.as_ref()).unwrap().1;
+
+    assert_eq!(event, CommandResponse::Closed { link_id: 1 })
 }
 
 #[test]
 fn test_parse_data_available() {
     let raw = b"+IPD,12,6:hello\r\n";
-    let event = NetworkEvent::parse(raw.as_ref()).unwrap().1;
-    
-    assert_eq!(event, NetworkEvent::DataAvailable { link_id: 12, size: 6 })
+    let event = CommandResponse::parse(raw.as_ref()).unwrap().1;
+
+    assert_eq!(
+        event,
+        CommandResponse::DataAvailable {
+            link_id: 12,
+            size: 6
+        }
+    )
 }

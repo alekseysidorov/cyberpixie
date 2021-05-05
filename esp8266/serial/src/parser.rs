@@ -1,7 +1,7 @@
 use nom::{IResult, alt, char, character::streaming::digit1, do_parse, named, opt, tag};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NetworkEvent {
+pub enum CommandResponse {
     Connected { link_id: usize },
     Closed { link_id: usize },
     DataAvailable { link_id: usize, size: usize },
@@ -35,33 +35,33 @@ named!(
 );
 
 named!(
-    connected<NetworkEvent>,
+    connected<CommandResponse>,
     do_parse!(
         opt!( crlf ) >>
         link_id: parse_usize >>
         tag!(",CONNECT") >>
         crlf >>
         (
-            NetworkEvent::Connected { link_id, }
+            CommandResponse::Connected { link_id, }
         )
     )
 );
 
 named!(
-    closed<NetworkEvent>,
+    closed<CommandResponse>,
     do_parse!(
         opt!( crlf ) >>
         link_id: parse_usize >>
         tag!(",CLOSED") >>
         crlf >>
         (
-            NetworkEvent::Closed { link_id, }
+            CommandResponse::Closed { link_id, }
         )
     )
 );
 
 named!(
-    data_available<NetworkEvent>,
+    data_available<CommandResponse>,
     do_parse!(
         opt!( crlf ) >>
         tag!( "+IPD,") >>
@@ -71,13 +71,13 @@ named!(
         char!(':') >>
         opt!( crlf ) >>
         (
-            NetworkEvent::DataAvailable { link_id, size }
+            CommandResponse::DataAvailable { link_id, size }
         )
     )
 );
 
 named!(
-    parse<NetworkEvent>,
+    parse<CommandResponse>,
     alt!(
         connected
         | closed
@@ -85,7 +85,7 @@ named!(
     )
 );
 
-impl NetworkEvent {
+impl CommandResponse {
     pub fn parse(input: &[u8]) -> Option<(&[u8], Self)> {
         parse(input).ok()
     }

@@ -10,6 +10,7 @@ use crate::{
 
 const NEWLINE: &[u8] = b"\r\n";
 
+#[derive(Debug)]
 pub struct Adapter<Rx, Tx> {
     reader: ReadPart<Rx>,
     writer: WriterPart<Tx>,
@@ -30,14 +31,12 @@ where
             writer: WriterPart { tx },
             cmd_read_finished: false,
         };
-        adapter.reset()?;
-        adapter.disable_echo()?;
+        adapter.init()?;
         Ok(adapter)
     }
 
     pub fn reset(&mut self) -> Result<()> {
         self.send_command_impl(b"AT+RST")?;
-
         self.read_until(ReadyCondition)?;
         Ok(())
     }
@@ -47,7 +46,6 @@ where
         cmd: impl AsRef<[u8]>,
     ) -> Result<core::result::Result<&'_ [u8], &'_ [u8]>> {
         self.send_command_impl(cmd.as_ref())?;
-
         self.read_until(OkCondition)
     }
 
@@ -62,8 +60,13 @@ where
     }
 
     pub(crate) fn into_parts(mut self) -> (ReadPart<Rx>, WriterPart<Tx>) {
-        self.reader.buf.clear();        
+        self.reader.buf.clear();
         (self.reader, self.writer)
+    }
+
+    fn init(&mut self) -> Result<()> {
+        self.reset()?;
+        self.disable_echo()
     }
 
     fn disable_echo(&mut self) -> Result<()> {
@@ -156,6 +159,7 @@ impl<'a> Condition<'a> for OkCondition {
     }
 }
 
+#[derive(Debug)]
 pub struct ReadPart<Rx> {
     rx: Rx,
     pub(crate) buf: ArrayVec<u8, ADAPTER_BUF_CAPACITY>,
@@ -165,14 +169,22 @@ impl<Rx> ReadPart<Rx>
 where
     Rx: serial::Read<u8> + 'static,
 {
-    pub(crate) fn read_bytes(&mut self) -> nb::Result<(), Rx::Error> {
-        while self.buf.remaining_capacity() > 0 {
-            self.buf.push(self.rx.read()?);
+    pub(crate) fn read_bytes(&mut self) -> nb::Result<(), Error> {
+        loop {
+            if self.buf.is_full() {
+                return Err(nb::Error::WouldBlock);
+            }
+
+            self.buf.push(
+                self.rx
+                    .read()
+                    .map_err(|maybe_block| maybe_block.map(|_| Error::Read))?,
+            );
         }
-        Ok(())
     }
 }
 
+#[derive(Debug)]
 pub struct WriterPart<Tx> {
     tx: Tx,
 }
