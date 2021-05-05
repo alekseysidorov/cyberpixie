@@ -1,6 +1,6 @@
 use core::fmt::Write;
 
-use arrayvec::ArrayVec;
+use heapless::Vec;
 use embedded_hal::serial;
 
 use crate::{
@@ -32,7 +32,7 @@ where
     pub fn new(rx: Rx, tx: Tx) -> Result<Self, Rx::Error, Tx::Error> {
         let mut adapter = Self {
             reader: ReadPart {
-                buf: ArrayVec::default(),
+                buf: Vec::default(),
                 rx,
             },
             writer: WriterPart { tx },
@@ -177,7 +177,7 @@ impl<'a> Condition<'a> for OkCondition {
 #[derive(Debug)]
 pub struct ReadPart<Rx> {
     rx: Rx,
-    pub(crate) buf: ArrayVec<u8, ADAPTER_BUF_CAPACITY>,
+    pub(crate) buf: Vec<u8, ADAPTER_BUF_CAPACITY>,
 }
 
 impl<Rx> ReadPart<Rx>
@@ -192,8 +192,12 @@ where
             }
 
             let byte = self.rx.read()?;
-            self.buf.push(byte);
-            // aurora_led_firmware::uprint!("{}", byte as char);
+            // Safety: we have already checked if this buffer is full,
+            // a couple of lines above.
+            unsafe {
+                self.buf.push_unchecked(byte);
+            }
+            // cyberpixie_firmware::uprint!("{}", byte as char);
         }
     }
 }
@@ -214,7 +218,7 @@ where
 
     fn write_bytes(&mut self, bytes: &[u8]) -> core::result::Result<(), Tx::Error> {
         for byte in bytes.iter() {
-            // aurora_led_firmware::uprint!("{}", *byte as char);
+            // cyberpixie_firmware::uprint!("{}", *byte as char);
             nb::block!(self.tx.write(*byte))?;
         }
         Ok(())

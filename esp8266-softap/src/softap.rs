@@ -1,4 +1,4 @@
-use arrayvec::ArrayVec;
+use heapless::Vec;
 use embedded_hal::serial;
 
 use crate::{
@@ -216,7 +216,7 @@ where
 }
 
 // FIXME Reduce complexity of this operation.
-fn truncate_buf<const N: usize>(buf: &mut ArrayVec<u8, N>, at: usize) {
+fn truncate_buf<const N: usize>(buf: &mut Vec<u8, N>, at: usize) {
     assert!(at <= buf.len());
 
     for from in at..buf.len() {
