@@ -1,3 +1,4 @@
+use arrayvec::ArrayVec;
 use embedded_hal::serial;
 
 use crate::{
@@ -107,12 +108,7 @@ where
                 self.buf.clear();
             } else {
                 let pos = self.buf.len() - remaining_bytes;
-                // FIXME Reduce complexity of the such kind operations.
-                for to in 0..remaining_bytes {
-                    let from = pos + to;
-                    self.buf[to] = self.buf[from];
-                }
-                self.buf.truncate(remaining_bytes);
+                truncate_buf(&mut self.buf, pos);
             }
 
             let event = match response {
@@ -156,14 +152,7 @@ where
             // the next pieces of data.
             if self.bytes_remaining == 0 {
                 if self.read_pos > 0 {
-                    // FIXME Reduce complexity of the such kind operations.
-                    for from in self.read_pos..self.reader.buf.len() {
-                        let to = from - self.read_pos;
-                        self.reader.buf[to] = self.reader.buf[from];
-                    }
-                    self.reader
-                        .buf
-                        .truncate(self.reader.buf.len() - self.read_pos);
+                    truncate_buf(&mut self.reader.buf, self.read_pos);
                     self.read_pos = 0;
                 }
                 return None;
@@ -199,14 +188,20 @@ impl<'a, Rx> ExactSizeIterator for DataReader<'a, Rx> where Rx: serial::Read<u8>
 
 impl<'a, Rx> Drop for DataReader<'a, Rx>
 // where
-    // Rx: serial::Read<u8> + 'static,
+// Rx: serial::Read<u8> + 'static,
 {
     fn drop(&mut self) {
-        todo!()
+        // todo!()
     }
 }
 
- // FIXME Reduce complexity of this operation.
-fn truncate_buf(buf: &mut [u8], at: usize) {
-    
+// FIXME Reduce complexity of this operation.
+fn truncate_buf<const N: usize>(buf: &mut ArrayVec<u8, N>, at: usize) {
+    assert!(at <= buf.len());
+
+    for from in at..buf.len() {
+        let to = from - at;
+        buf[to] = buf[from];
+    }
+    buf.truncate(buf.len() - at);
 }
