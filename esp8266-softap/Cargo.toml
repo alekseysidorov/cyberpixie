@@ -11,7 +11,7 @@ heapless = "0.7"
 embedded-hal = "0.2"
 nb = "1"
 nom = { version = "6.1", default-features = false }
-# aurora-led-firmware = { path = "../firmware" }
+stdio-serial = { path = "../crates/stdio-serial" }
 
 [dev-dependencies]
 anyhow = "1.0"

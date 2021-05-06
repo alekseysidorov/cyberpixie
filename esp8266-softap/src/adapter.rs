@@ -1,7 +1,7 @@
 use core::fmt::Write;
 
-use heapless::Vec;
 use embedded_hal::serial;
+use heapless::Vec;
 
 use crate::{
     error::{Error, Result},
@@ -197,7 +197,7 @@ where
             unsafe {
                 self.buf.push_unchecked(byte);
             }
-            // cyberpixie_firmware::uprint!("{}", byte as char);
+            stdio_serial::dprint!("{}", byte as char);
         }
     }
 }
@@ -218,7 +218,7 @@ where
 
     fn write_bytes(&mut self, bytes: &[u8]) -> core::result::Result<(), Tx::Error> {
         for byte in bytes.iter() {
-            // cyberpixie_firmware::uprint!("{}", *byte as char);
+            stdio_serial::dprint!("{}", *byte as char);
             nb::block!(self.tx.write(*byte))?;
         }
         Ok(())

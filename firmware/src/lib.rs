@@ -12,7 +12,7 @@ pub mod allocator;
 pub mod config;
 #[cfg(feature = "generate_img")]
 pub mod generated;
-pub mod stdout;
+pub mod macros;
 pub mod storage;
 pub mod strip;
 pub mod sync;

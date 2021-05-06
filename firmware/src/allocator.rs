@@ -10,8 +10,7 @@ use core::{
 
 use linked_list_allocator::Heap;
 use riscv::interrupt::Mutex;
-
-use crate::uprintln;
+use stdio_serial::uprintln;
 
 pub struct RiscVHeap {
     heap: Mutex<RefCell<Heap>>,

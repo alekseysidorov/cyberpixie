@@ -15,6 +15,7 @@ riscv = "0.6"
 riscv-rt = "0.8"
 smart-leds = "0.3"
 ws2812-spi = { version = "0.4" }
+stdio-serial = { path = "../crates/stdio-serial" }
 
 [dev-dependencies]
 esp8266-softap = { version = "0.1", path = "../esp8266-softap" }
