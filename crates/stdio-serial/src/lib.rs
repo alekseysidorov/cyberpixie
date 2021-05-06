@@ -140,3 +140,54 @@ macro_rules! uprintln {
 
     (@newline) => { "\r\n" };
 }
+
+/// Macro for printing to the configured stdout, without a newline.
+/// 
+/// This method prints only if the `dprint` feature enabled, which is useful
+/// for debugging purposes.
+#[cfg(any(feature = "dprint", doc))]
+#[macro_export]
+macro_rules! dprint {
+    ($s:expr) => {{
+        $crate::write_str($s).ok();
+    }};
+    ($s:expr, $($tt:tt)*) => {{
+        $crate::write_fmt(format_args!($s, $($tt)*)).ok();
+    }};
+}
+#[cfg(not(any(feature = "dprint", doc)))]
+#[macro_export]
+macro_rules! dprint {
+    ($s:expr) => {};
+    ($s:expr, $($tt:tt)*) => {};
+}
+
+/// Macro for printing to the configured stdout, with a newline.
+/// 
+/// This method prints only if the `dprint` feature enabled, which is useful
+/// for debugging purposes.
+#[macro_export]
+#[cfg(any(feature = "dprint", doc))]
+macro_rules! dprintln {
+    () => {{
+        #[cfg(feature = "dprint")]
+        $crate::write_str(uprintln!(@newline)).ok();
+    }};
+    ($s:expr) => {{
+        #[cfg(feature = "dprint")]
+        $crate::write_str(concat!($s, uprintln!(@newline))).ok();
+    }};
+    ($s:expr, $($tt:tt)*) => {{
+        #[cfg(feature = "dprint")]
+        $crate::write_fmt(format_args!(concat!($s, uprintln!(@newline)), $($tt)*)).ok();
+    }};
+
+    (@newline) => { "\r\n" };
+}
+#[cfg(not(any(feature = "dprint", doc)))]
+#[macro_export]
+macro_rules! dprintln {
+    () => {};
+    ($s:expr) => {};
+    ($s:expr, $($tt:tt)*) => {};
+}

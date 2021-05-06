@@ -19,3 +19,4 @@ cortex-m = "0.7"
 [features]
 default = ["alloc"]
 alloc = []
+dprint = []
