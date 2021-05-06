@@ -3,12 +3,11 @@ name = "stdio-serial"
 version = "0.1.0"
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 embedded-hal = "0.2"
 bare-metal = "1.0"
 nb = "1.0"
+static-box = { version = "0.0.1", optional = true }
 
 [target.'cfg(target_arch = "riscv32")'.dependencies]
 riscv = "0.6"
@@ -17,6 +16,6 @@ riscv = "0.6"
 cortex-m = "0.7"
 
 [features]
-default = ["alloc"]
-alloc = []
+default = ["without_alloc"]
+without_alloc = ["static-box"]
 dprint = []
