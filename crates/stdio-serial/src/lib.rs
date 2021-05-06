@@ -129,12 +129,14 @@ macro_rules! uprint {
 #[macro_export]
 macro_rules! uprintln {
     () => {{
-        $crate::write_str("\n").ok();
+        $crate::write_str(uprintln!(@newline)).ok();
     }};
     ($s:expr) => {{
-        $crate::write_str(concat!($s, "\n")).ok();
+        $crate::write_str(concat!($s, uprintln!(@newline))).ok();
     }};
     ($s:expr, $($tt:tt)*) => {{
-        $crate::write_fmt(format_args!(concat!($s, "\n"), $($tt)*)).ok();
+        $crate::write_fmt(format_args!(concat!($s, uprintln!(@newline)), $($tt)*)).ok();
     }};
+
+    (@newline) => { "\r\n" };
 }
