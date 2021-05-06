@@ -13,10 +13,8 @@ use core::{
 use cyberpixie_firmware::{
     allocator::{heap_bottom, RiscVHeap},
     config::SERIAL_PORT_CONFIG,
-    stdout,
     storage::ImagesRepository,
     strip::{FixedImage, StripLineSource},
-    uprintln,
 };
 use embedded_hal::digital::v2::OutputPin;
 use gd32vf103xx_hal::{
@@ -27,6 +25,7 @@ use gd32vf103xx_hal::{
     spi::{Spi, MODE_0},
 };
 use smart_leds::{SmartLedsWrite, RGB8};
+use stdio_serial::uprintln;
 use ws2812_spi::Ws2812;
 
 #[global_allocator]
@@ -35,7 +34,7 @@ static ALLOCATOR: RiscVHeap = RiscVHeap::empty();
 unsafe fn init_alloc() {
     // Initialize the allocator BEFORE you use it.
     let start = heap_bottom();
-    let size = 1024; // in bytes
+    let size = 128; // in bytes
     ALLOCATOR.init(start, size)
 }
 
@@ -59,14 +58,10 @@ fn main() -> ! {
         let serial = Serial::new(dp.USART0, (tx, rx), SERIAL_PORT_CONFIG, &mut afio, &mut rcu);
         serial.split()
     };
-    stdout::enable(usb_tx);
+    stdio_serial::init(usb_tx);
 
     delay.delay_ms(1_000);
     uprintln!("Serial port configured.");
-
-    let vec = alloc::vec![0_u8; 512];
-    uprintln!("Successfuly allocated: {}", vec.len());
-    drop(vec);
 
     let spi = {
         let pins = (

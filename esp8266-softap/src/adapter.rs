@@ -1,7 +1,7 @@
 use core::fmt::Write;
 
-use heapless::Vec;
 use embedded_hal::serial;
+use heapless::Vec;
 
 use crate::{
     error::{Error, Result},

@@ -4,6 +4,7 @@ members = [
     "firmware", 
     "proto", 
     "esp8266-softap", 
+    "crates/stdio-serial",
 ]
 
 [profile.release]

@@ -6,7 +6,7 @@ use core::{
     sync::atomic::{self, Ordering},
 };
 
-use cyberpixie_firmware::{config::SERIAL_PORT_CONFIG, stdout, uprintln};
+use cyberpixie_firmware::{config::SERIAL_PORT_CONFIG, stdio, uprintln};
 use embedded_hal::digital::v2::OutputPin;
 use esp8266_softap::{Adapter, Event, SoftAp, SoftApConfig};
 use gd32vf103xx_hal::{delay::McycleDelay, pac::Peripherals, prelude::*, serial::Serial};
@@ -46,7 +46,7 @@ fn main() -> ! {
         let serial = Serial::new(dp.USART0, (tx, rx), SERIAL_PORT_CONFIG, &mut afio, &mut rcu);
         serial.split()
     };
-    stdout::enable(usb_tx);
+    stdio::enable(usb_tx);
 
     delay.delay_ms(1_000);
     uprintln!("Serial port configured.");

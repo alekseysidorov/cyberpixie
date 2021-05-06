@@ -1,5 +1,5 @@
-use heapless::Vec;
 use embedded_hal::serial;
+use heapless::Vec;
 
 use crate::{
     adapter::{Adapter, ReadPart, WriterPart},
