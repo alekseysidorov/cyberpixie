@@ -1,30 +1,38 @@
 #![no_std]
 #![no_main]
+#![feature(alloc_error_handler)]
+
+extern crate alloc;
 
 use core::{
+    alloc::Layout,
     panic::PanicInfo,
     sync::atomic::{self, Ordering},
 };
 
-use cyberpixie_firmware::{config::SERIAL_PORT_CONFIG, stdio, uprintln};
+use cyberpixie_firmware::{
+    allocator::{heap_bottom, RiscVHeap},
+    config::SERIAL_PORT_CONFIG,
+};
 use embedded_hal::digital::v2::OutputPin;
 use esp8266_softap::{Adapter, Event, SoftAp, SoftApConfig};
 use gd32vf103xx_hal::{delay::McycleDelay, pac::Peripherals, prelude::*, serial::Serial};
+use stdio_serial::uprintln;
 
-#[inline(never)]
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    uprintln!();
-    uprintln!("The firmware panicked!");
-    uprintln!("- {}", info);
+#[global_allocator]
+static ALLOCATOR: RiscVHeap = RiscVHeap::empty();
 
-    loop {
-        atomic::compiler_fence(Ordering::SeqCst);
-    }
+unsafe fn init_alloc() {
+    // Initialize the allocator BEFORE you use it.
+    let start = heap_bottom();
+    let size = 128; // in bytes
+    ALLOCATOR.init(start, size)
 }
 
 #[riscv_rt::entry]
 fn main() -> ! {
+    unsafe { init_alloc() }
+
     // Hardware initialization step.
     let dp = Peripherals::take().unwrap();
 
@@ -46,7 +54,7 @@ fn main() -> ! {
         let serial = Serial::new(dp.USART0, (tx, rx), SERIAL_PORT_CONFIG, &mut afio, &mut rcu);
         serial.split()
     };
-    stdio::enable(usb_tx);
+    stdio_serial::init(usb_tx);
 
     delay.delay_ms(1_000);
     uprintln!("Serial port configured.");
@@ -87,5 +95,26 @@ fn main() -> ! {
                 }
             }
         }
+    }
+}
+
+#[inline(never)]
+#[panic_handler]
+fn panic(info: &PanicInfo) -> ! {
+    uprintln!();
+    uprintln!("The firmware panicked!");
+    uprintln!("- {}", info);
+
+    loop {
+        atomic::compiler_fence(Ordering::SeqCst);
+    }
+}
+
+#[alloc_error_handler]
+fn oom(layout: Layout) -> ! {
+    uprintln!("OOM: {:?}", layout);
+
+    loop {
+        continue;
     }
 }

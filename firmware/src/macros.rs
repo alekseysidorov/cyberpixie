@@ -1,5 +1,3 @@
-pub use stdio_serial::init;
-
 /// Macro for printing to the specified output, without a newline.
 #[macro_export]
 macro_rules! uwrite {
