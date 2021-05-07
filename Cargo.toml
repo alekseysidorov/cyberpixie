@@ -1,10 +1,14 @@
 [workspace]
 resolver = "2"
+
 members = [
     "firmware", 
     "crates/proto", 
     "crates/esp8266-softap", 
     "crates/stdio-serial",
+]
+default-members = [
+    "crates/proto", 
 ]
 
 [profile.release]
