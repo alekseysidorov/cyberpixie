@@ -9,11 +9,15 @@ fn postcard_messages() -> postcard::Result<()> {
     let mut buf = [8_u8; 512];
 
     let messages = [
-        MessageHeader::Info(FirmwareInfo { version: 1 }),
+        MessageHeader::Info(FirmwareInfo {
+            version: 1,
+            strip_len: 24,
+        }),
         MessageHeader::Error(42),
         MessageHeader::AddImage(AddImage {
             refresh_rate: 32,
-            len: 15,
+            strip_len: 24,
+            image_len: 15,
         }),
     ];
 
@@ -31,7 +35,10 @@ fn message_reader_scalar() -> postcard::Result<()> {
     let mut buf = [8_u8; MAX_HEADER_LEN];
 
     let messages = [
-        MessageHeader::Info(FirmwareInfo { version: 1 }),
+        MessageHeader::Info(FirmwareInfo {
+            version: 1,
+            strip_len: 24,
+        }),
         MessageHeader::Error(42),
         MessageHeader::GetInfo,
     ];
@@ -57,7 +64,8 @@ fn message_reader_unsized() -> postcard::Result<()> {
 
     let image_len = 200;
     let message = MessageHeader::AddImage(AddImage {
-        len: image_len as u32,
+        image_len: image_len as u32,
+        strip_len: 24,
         refresh_rate: 32,
     });
     write_message_header(&mut buf, &message)?;
@@ -71,9 +79,11 @@ fn message_reader_unsized() -> postcard::Result<()> {
     if let IncomingMessage::AddImage {
         refresh_rate,
         reader,
+        strip_len,
     } = msg
     {
         assert_eq!(refresh_rate, 32);
+        assert_eq!(strip_len, 24);
         assert_eq!(reader.len(), image_len);
         for byte in reader {
             assert_eq!(byte, 8);

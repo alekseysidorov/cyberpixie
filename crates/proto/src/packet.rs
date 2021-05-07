@@ -65,10 +65,11 @@ impl PacketReader {
             MessageHeader::GetInfo => IncomingMessage::GetInfo,
             MessageHeader::Info(info) => IncomingMessage::Info(info),
             MessageHeader::Error(code) => IncomingMessage::Error(code),
+            MessageHeader::ClearImages => IncomingMessage::ClearImages,
 
             MessageHeader::AddImage(img) => {
                 assert_eq!(
-                    img.len as usize,
+                    img.image_len as usize,
                     bytes.len(),
                     "The expected amount of bytes doesn't match the image size."
                 );
@@ -76,6 +77,7 @@ impl PacketReader {
                 IncomingMessage::AddImage {
                     refresh_rate: img.refresh_rate,
                     reader: bytes,
+                    strip_len: img.strip_len as usize,
                 }
             }
         };
@@ -90,7 +92,12 @@ where
 {
     // Requests.
     GetInfo,
-    AddImage { refresh_rate: u32, reader: I },
+    AddImage {
+        refresh_rate: u32,
+        strip_len: usize,
+        reader: I,
+    },
+    ClearImages,
 
     // Responses.
     Info(FirmwareInfo),

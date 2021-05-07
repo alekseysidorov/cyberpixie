@@ -6,9 +6,11 @@ members = [
     "crates/proto", 
     "crates/esp8266-softap", 
     "crates/stdio-serial",
+    "utils/image_sender",
 ]
 default-members = [
     "crates/proto", 
+    "utils/image_sender",
 ]
 
 [profile.release]
