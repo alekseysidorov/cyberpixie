@@ -1,7 +1,8 @@
 use std::{
     fmt::Display,
-    io::{BufRead, Read, Seek, Write},
+    io::Write,
     net::{TcpStream, ToSocketAddrs},
+    path::Path,
 };
 
 use cyberpixie_proto::{
@@ -10,11 +11,8 @@ use cyberpixie_proto::{
 };
 use image::io::Reader;
 
-pub fn convert_image_to_raw<R>(img: R) -> anyhow::Result<Vec<u8>>
-where
-    R: Read + BufRead + Seek,
-{
-    let image = Reader::new(img).decode()?.to_rgb8();
+pub fn convert_image_to_raw(path: impl AsRef<Path>) -> anyhow::Result<Vec<u8>> {
+    let image = Reader::open(path)?.decode()?.to_rgb8();
 
     let mut raw = Vec::with_capacity(image.len() * 3);
     for rgb in image.pixels() {

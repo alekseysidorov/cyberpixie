@@ -3,7 +3,11 @@
 #[cfg(not(feature = "without_alloc"))]
 extern crate alloc;
 
-use core::{cell::RefCell, fmt::{self, Write as _Write}, ops::DerefMut};
+use core::{
+    cell::RefCell,
+    fmt::{self, Write as _Write},
+    ops::DerefMut,
+};
 
 use embedded_hal::serial::Write;
 
