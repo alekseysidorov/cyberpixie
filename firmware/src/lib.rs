@@ -15,5 +15,4 @@ pub mod generated;
 pub mod macros;
 pub mod storage;
 pub mod strip;
-pub mod sync;
 pub mod time;

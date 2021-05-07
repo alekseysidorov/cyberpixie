@@ -2,8 +2,8 @@
 resolver = "2"
 members = [
     "firmware", 
-    "proto", 
-    "esp8266-softap", 
+    "crates/proto", 
+    "crates/esp8266-softap", 
     "crates/stdio-serial",
 ]
 

@@ -15,10 +15,9 @@ riscv = "0.6"
 riscv-rt = "0.8"
 smart-leds = "0.3"
 ws2812-spi = { version = "0.4" }
-stdio-serial = { path = "../crates/stdio-serial", features = ["dprint"] }
 
-[dev-dependencies]
-esp8266-softap = { version = "0.1", path = "../esp8266-softap" }
+stdio-serial = { path = "../crates/stdio-serial" }
+esp8266-softap = { version = "0.1", path = "../crates/esp8266-softap" }
 
 [dependencies.linked_list_allocator]
 version = "0.9"
