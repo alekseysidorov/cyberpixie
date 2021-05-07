@@ -1,7 +1,7 @@
-use core::str;
 use std::{
+    fmt::Display,
     io::{BufRead, Read, Seek, Write},
-    net::{IpAddr, TcpStream},
+    net::{TcpStream, ToSocketAddrs},
 };
 
 use cyberpixie_proto::{
@@ -26,11 +26,11 @@ where
     Ok(raw)
 }
 
-pub fn send_image(
+pub fn send_image<T: ToSocketAddrs + Display + Copy>(
     strip_len: u16,
     refresh_rate: u32,
     raw: Vec<u8>,
-    to: IpAddr,
+    to: T,
 ) -> anyhow::Result<()> {
     let mut header_buf = vec![0_u8; MAX_HEADER_LEN];
     let msg = MessageHeader::AddImage(AddImage {
@@ -39,10 +39,11 @@ pub fn send_image(
         strip_len,
     });
 
-    let total_len = write_message_header(&mut header_buf, &header)?;
+    let total_len = write_message_header(&mut header_buf, &msg)
+        .map_err(|e| anyhow::format_err!("Unable to write message header: {:?}", e))?;
     header_buf.truncate(total_len);
 
-    let stream = TcpStream::connect(to)?;
+    let mut stream = TcpStream::connect(to)?;
     stream.write_all(&header_buf)?;
     stream.write_all(&raw)?;
 

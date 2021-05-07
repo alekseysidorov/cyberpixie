@@ -1,4 +1,4 @@
-use std::{fs::File, net::IpAddr, path::PathBuf};
+use std::{fs::File, io::BufReader, net::SocketAddr, path::PathBuf};
 
 use structopt::StructOpt;
 
@@ -9,7 +9,7 @@ enum Commands {
     /// Resize and send image to the device.
     #[structopt(name = "send")]
     Send {
-        host: IpAddr,
+        host: SocketAddr,
         #[structopt(name = "image-file")]
         image_path: PathBuf,
         #[structopt(short, long, default_value = "24")]
@@ -34,12 +34,14 @@ fn main() -> anyhow::Result<()> {
             refresh_rate,
         } => {
             let file = File::open(image_path)?;
-            let raw = convert_image_to_raw(file)?;
+            let reader = BufReader::new(file);
+
+            let raw = convert_image_to_raw(reader)?;
             send_image(strip_len, refresh_rate, raw, host)?;
         }
 
         Commands::GenCompletions => {
-            let clap = Commands::clap();
+            let _clap = Commands::clap();
             // clap.gen_completions(bin_name, for_shell, out_dir)
             todo!()
         }
