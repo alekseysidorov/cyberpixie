@@ -14,6 +14,7 @@ use cyberpixie_firmware::{
     allocator::{heap_bottom, RiscVHeap},
     config::SERIAL_PORT_CONFIG,
 };
+use cyberpixie_proto::{IncomingMessage, PacketReader};
 use embedded_hal::digital::v2::OutputPin;
 use esp8266_softap::{Adapter, Event, SoftAp, SoftApConfig};
 use gd32vf103xx_hal::{delay::McycleDelay, pac::Peripherals, prelude::*, serial::Serial};
@@ -79,21 +80,45 @@ fn main() -> ! {
         .unwrap();
     uprintln!("SoftAP has been successfuly configured.");
 
-    let mut total_len = 0;
+    let mut data = None;
     loop {
         if let Ok(event) = net_reader.poll_data() {
             match event {
-                Event::Connected { .. } => {
-                    total_len = 0;
-                }
+                Event::Connected { .. } => {}
                 Event::Closed { link_id } => {
-                    uprintln!("Closed {}, received {} bytes", link_id, total_len);
+                    uprintln!("Closed {}", link_id);
                 }
-                Event::DataAvailable { reader, .. } => {
-                    total_len += reader.len();
+                Event::DataAvailable { mut reader, .. } => {
+                    let mut packet_reader = PacketReader::default();
+                    let msg_len = packet_reader.read_message_len(&mut reader);
+                    let msg = packet_reader.read_message(&mut reader, msg_len).unwrap();
+
+                    match msg {
+                        IncomingMessage::GetInfo => {}
+                        IncomingMessage::AddImage {
+                            refresh_rate,
+                            strip_len,
+                            reader,
+                        } => {
+                            data = Some((refresh_rate, strip_len, reader.len()));
+                        }
+                        IncomingMessage::ClearImages => {}
+                        IncomingMessage::Info(_) => {}
+                        IncomingMessage::Error(_) => {}
+                    };
+
                     for _ in reader {}
                 }
             }
+        }
+
+        if let Some((refresh_rate, strip_len, reader_len)) = data.take() {
+            uprintln!(
+                "Got image: refresh_rate: {}, strip_len: {}, reader_len: {}",
+                refresh_rate,
+                strip_len,
+                reader_len
+            );
         }
     }
 }

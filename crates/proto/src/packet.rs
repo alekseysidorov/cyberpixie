@@ -68,11 +68,11 @@ impl PacketReader {
             MessageHeader::ClearImages => IncomingMessage::ClearImages,
 
             MessageHeader::AddImage(img) => {
-                assert_eq!(
-                    img.image_len as usize,
-                    bytes.len(),
-                    "The expected amount of bytes doesn't match the image size."
-                );
+                // assert_eq!(
+                //     img.image_len as usize,
+                //     bytes.len(),
+                //     "The expected amount of bytes doesn't match the image size."
+                // );
 
                 IncomingMessage::AddImage {
                     refresh_rate: img.refresh_rate,
@@ -86,6 +86,7 @@ impl PacketReader {
     }
 }
 
+#[derive(Debug)]
 pub enum IncomingMessage<I>
 where
     I: Iterator<Item = u8> + ExactSizeIterator,

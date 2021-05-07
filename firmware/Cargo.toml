@@ -17,7 +17,8 @@ smart-leds = "0.3"
 ws2812-spi = { version = "0.4" }
 
 stdio-serial = { path = "../crates/stdio-serial" }
-esp8266-softap = { version = "0.1", path = "../crates/esp8266-softap" }
+esp8266-softap = { path = "../crates/esp8266-softap" }
+cyberpixie-proto = { path = "../crates/proto" }
 
 [dependencies.linked_list_allocator]
 version = "0.9"
