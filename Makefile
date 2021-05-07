@@ -5,6 +5,8 @@ target_arch = riscv32imac-unknown-none-elf
 
 all: hex
 
+test
+
 hex:
 	cargo objcopy --target ${target_arch} $(firmware_cmd) -- -O ihex target/firmware.hex
 

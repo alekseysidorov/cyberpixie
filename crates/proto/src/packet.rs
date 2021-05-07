@@ -1,72 +1,33 @@
-pub const MAX_PACKET_LEN: usize = 512;
+pub use crate::types::FirmwareInfo;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Packet {
-    pub(crate) size: u16,
-    pub(crate) buf: [u8; MAX_PACKET_LEN],
-}
+use crate::types::MessageHeader;
 
-impl Packet {
-    const HEADER_LEN: usize = 2;
+pub const MAX_HEADER_LEN: usize = 80;
 
-    pub const PAYLOAD_LEN: usize = MAX_PACKET_LEN - Self::HEADER_LEN;
+pub type PacketLength = u16;
 
-    pub(crate) fn empty() -> Self {
-        Self {
-            size: 0,
-            buf: [0_u8; MAX_PACKET_LEN],
-        }
-    }
+const PACKET_LEN_BYTES: usize = core::mem::align_of::<PacketLength>();
 
-    pub fn read_from(bytes: &[u8]) -> Self {
-        assert!(bytes.len() <= MAX_PACKET_LEN);
+pub fn write_message_header(buf: &mut [u8], header: &MessageHeader) -> postcard::Result<usize> {
+    let used_len = postcard::to_slice(header, &mut buf[PACKET_LEN_BYTES..])?.len();
+    assert!(used_len <= PacketLength::MAX as usize);
 
-        let mut packet = Self {
-            size: bytes.len() as u16,
-            ..Self::empty()
-        };
-        packet.buf[0..bytes.len()].copy_from_slice(bytes);
-        packet
-    }
+    let packet_len = used_len as PacketLength;
+    buf[0..PACKET_LEN_BYTES].copy_from_slice(&packet_len.to_le_bytes());
 
-    pub fn write_to(&self, buf: &mut [u8]) -> usize {
-        let size = self.size as usize;
-        assert!(buf.len() > size + Self::HEADER_LEN);
-
-        buf[0..Self::HEADER_LEN].copy_from_slice(&self.size.to_le_bytes());
-        buf[Self::HEADER_LEN..Self::HEADER_LEN + size].copy_from_slice(self.as_ref());
-        size + Self::HEADER_LEN
-    }
-
-    pub fn payload(&self) -> &[u8] {
-        self.buf[0..self.size as usize].as_ref()
-    }
-}
-
-impl AsRef<[u8]> for Packet {
-    fn as_ref(&self) -> &[u8] {
-        self.buf[0..self.size as usize].as_ref()
-    }
+    let total_len = used_len + PACKET_LEN_BYTES;
+    Ok(total_len)
 }
 
 #[derive(Debug)]
 pub struct PacketReader {
-    bytes_remaining: usize,
-    inner: Packet,
-    size_buf: [u8; Packet::HEADER_LEN],
-    size_pos: usize,
+    header: [u8; MAX_HEADER_LEN],
 }
 
 impl Default for PacketReader {
     fn default() -> Self {
         Self {
-            bytes_remaining: 0,
-            inner: Packet {
-                size: 0,
-                buf: [0_u8; MAX_PACKET_LEN],
-            },
-            size_buf: [0_u8; Packet::HEADER_LEN],
-            size_pos: 0,
+            header: [0_u8; MAX_HEADER_LEN],
         }
     }
 }
@@ -76,60 +37,72 @@ impl PacketReader {
         Self::default()
     }
 
-    pub fn add_byte(&mut self, byte: u8) -> Option<&Packet> {
-        let buf = [byte];
-        self.add_bytes(&buf).map(|x| x.0)
+    pub fn read_message_len<I>(&mut self, bytes: &mut I) -> usize
+    where
+        I: Iterator<Item = u8> + ExactSizeIterator,
+    {
+        assert!(bytes.len() > PACKET_LEN_BYTES);
+
+        let mut val_buf = [0_u8; PACKET_LEN_BYTES];
+        fill_buf(&mut val_buf, bytes, PACKET_LEN_BYTES);
+
+        PacketLength::from_le_bytes(val_buf) as usize
     }
 
-    // TODO Rewrite packet reader internals to returning a Packet reference instead of copying.
-    pub fn add_bytes<'a>(&mut self, mut bytes: &'a [u8]) -> Option<(&Packet, &'a [u8])> {
-        if bytes.is_empty() {
-            return None;
-        }
+    pub fn read_message<'a, I>(
+        &mut self,
+        bytes: &'a mut I,
+        hdr_len: usize,
+    ) -> postcard::Result<IncomingMessage<&'a mut I>>
+    where
+        I: Iterator<Item = u8> + ExactSizeIterator,
+    {
+        assert!(hdr_len <= self.header.len());
+        fill_buf(&mut self.header, bytes, hdr_len);
 
-        // In this case, we have to read a packet size.
-        if self.bytes_remaining == 0 {
-            match (self.size_pos, bytes.len()) {
-                // We have enough bytes to read a packet length immediately.
-                (0, len) if len >= Packet::HEADER_LEN => {
-                    self.size_buf[0..Packet::HEADER_LEN]
-                        .copy_from_slice(&bytes[0..Packet::HEADER_LEN]);
-                    bytes = &bytes[Packet::HEADER_LEN..];
-                }
-                // We have not enough bytes to read length right now.
-                (0, len) if len == 1 => {
-                    self.size_buf[0] = bytes[0];
-                    self.size_pos += 1;
-                    return None;
-                }
-                // We can read the remaining length byte.
-                _ => {
-                    self.size_buf[1] = bytes[0];
-                    self.size_pos += 1;
-                    bytes = &bytes[1..];
+        let header: MessageHeader = postcard::from_bytes(&self.header)?;
+        let msg = match header {
+            MessageHeader::GetInfo => IncomingMessage::GetInfo,
+            MessageHeader::Info(info) => IncomingMessage::Info(info),
+            MessageHeader::Error(code) => IncomingMessage::Error(code),
+
+            MessageHeader::AddImage(img) => {
+                assert_eq!(
+                    img.len as usize,
+                    bytes.len(),
+                    "The expected amount of bytes doesn't match the image size."
+                );
+
+                IncomingMessage::AddImage {
+                    refresh_rate: img.refresh_rate,
+                    reader: bytes,
                 }
             }
+        };
 
-            self.size_pos = 0;
-            self.bytes_remaining = u16::from_le_bytes(self.size_buf) as usize;
-            self.inner.size = 0;
-        }
-
-        // Extend the packet's buffer by the incoming data.
-        let bytes_to_read = core::cmp::min(self.bytes_remaining, bytes.len());
-        let from = self.inner.size as usize;
-        let to = from + bytes_to_read;
-
-        self.inner.buf[from..to].copy_from_slice(&bytes[0..bytes_to_read]);
-        self.inner.size = to as u16;
-
-        self.bytes_remaining -= bytes_to_read;
-        if self.bytes_remaining == 0 {
-            // We successfully read the whole packet.
-            bytes = &bytes[bytes_to_read..];
-            Some((&self.inner, bytes))
-        } else {
-            None
-        }
+        Ok(msg)
     }
+}
+
+pub enum IncomingMessage<I>
+where
+    I: Iterator<Item = u8> + ExactSizeIterator,
+{
+    // Requests.
+    GetInfo,
+    AddImage { refresh_rate: u32, reader: I },
+
+    // Responses.
+    Info(FirmwareInfo),
+    Error(u16),
+}
+
+fn fill_buf<I>(buf: &mut [u8], it: &mut I, len: usize)
+where
+    I: Iterator<Item = u8> + ExactSizeIterator,
+{
+    assert!(it.len() >= len);
+    assert!(len <= buf.len());
+
+    (0..len).for_each(|i| buf[i] = it.next().unwrap());
 }

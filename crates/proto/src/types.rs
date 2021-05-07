@@ -12,19 +12,12 @@ pub struct AddImage {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug)]
-pub enum Request {
+pub enum MessageHeader {
+    // Requests
     GetInfo,
     AddImage(AddImage),
-}
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug)]
-pub enum Response {
+    // Responses.
     Info(FirmwareInfo),
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug)]
-pub enum Message {
-    Request(Request),
-    Response(Response),
     Error(u16),
 }

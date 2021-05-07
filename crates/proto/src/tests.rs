@@ -1,59 +1,86 @@
-// use crate::{AddImage, Message, PacketReader, Request, Response};
+use crate::{
+    packet::write_message_header,
+    types::{AddImage, FirmwareInfo, MessageHeader},
+    IncomingMessage, PacketReader, MAX_HEADER_LEN,
+};
 
-// #[test]
-// fn postcard_messages() -> postcard::Result<()> {
-//     let mut buf = [8_u8; 512];
+#[test]
+fn postcard_messages() -> postcard::Result<()> {
+    let mut buf = [8_u8; 512];
 
-//     let messages = [
-//         Message::Request(Request::AddImage(AddImage {
-//             refresh_rate: 50,
-//             len: 100,
-//         })),
-//         Message::Response(Response::Ok),
-//         Message::Bytes(b"Hello ebmedded world"),
-//     ];
+    let messages = [
+        MessageHeader::Info(FirmwareInfo { version: 1 }),
+        MessageHeader::Error(42),
+        MessageHeader::AddImage(AddImage {
+            refresh_rate: 32,
+            len: 15,
+        }),
+    ];
 
-//     for message in &messages {
-//         let bytes = postcard::to_slice(&message, &mut buf)?;
-//         let message_2 = postcard::from_bytes(&bytes)?;
-//         assert_eq!(message, &message_2);
-//     }
+    for message in &messages {
+        let bytes = postcard::to_slice(&message, &mut buf)?;
+        let message_2 = postcard::from_bytes(&bytes)?;
+        assert_eq!(message, &message_2);
+    }
 
-//     Ok(())
-// }
+    Ok(())
+}
 
-// #[test]
-// fn packet_read_write() -> postcard::Result<()> {
-//     let mut buf = [0_u8; 512];
+#[test]
+fn message_reader_scalar() -> postcard::Result<()> {
+    let mut buf = [8_u8; MAX_HEADER_LEN];
 
-//     let message = Message::Request(Request::AddImage(AddImage {
-//         refresh_rate: 50,
-//         len: 100,
-//     }));
+    let messages = [
+        MessageHeader::Info(FirmwareInfo { version: 1 }),
+        MessageHeader::Error(42),
+        MessageHeader::GetInfo,
+    ];
 
-//     let packet = message.to_packet()?;
-//     let packet_len = packet.write_to(buf.as_mut());
+    let mut reader = PacketReader::new();
+    for message in &messages {
+        write_message_header(&mut buf, &message)?;
 
-//     // Try to read the packet's length one byte at a time.
-//     let mut reader = PacketReader::new();
-//     reader.add_bytes(&buf[0..1]);
-//     reader.add_bytes(&buf[1..2]);
-//     let (packet_2, tail) = reader.add_bytes(&buf[2..]).unwrap();
+        let mut bytes = buf.iter_mut().map(|x| *x);
+        let len = reader.read_message_len(&mut bytes);
 
-//     assert_eq!(&packet, packet_2);
-//     assert_eq!(tail.len(), buf.len() - packet_len);
+        assert!(len < bytes.len());
+        let mut bytes = bytes.take(len);
+        reader.read_message(&mut bytes, len)?;
+    }
 
-//     // Try to read the packet's length at the single read.
-//     reader.add_bytes(&buf[0..2]);
-//     let (packet_2, tail) = reader.add_bytes(&buf[2..]).unwrap();
+    Ok(())
+}
 
-//     assert_eq!(&packet, packet_2);
-//     assert_eq!(tail.len(), buf.len() - packet_len);
+#[test]
+fn message_reader_unsized() -> postcard::Result<()> {
+    let mut buf = [8_u8; 512];
 
-//     // Try to read the whole packet by a single time.
-//     let (packet_2, tail) = reader.add_bytes(&buf).unwrap();
-//     assert_eq!(&packet, packet_2);
-//     assert_eq!(tail.len(), buf.len() - packet_len);
+    let image_len = 200;
+    let message = MessageHeader::AddImage(AddImage {
+        len: image_len as u32,
+        refresh_rate: 32,
+    });
+    write_message_header(&mut buf, &message)?;
 
-//     Ok(())
-// }
+    let mut reader = PacketReader::new();
+    let mut bytes = buf.iter_mut().map(|x| *x);
+    let len = reader.read_message_len(&mut bytes);
+
+    let mut bytes = bytes.take(len + image_len);
+    let msg = reader.read_message(&mut bytes, len)?;
+    if let IncomingMessage::AddImage {
+        refresh_rate,
+        reader,
+    } = msg
+    {
+        assert_eq!(refresh_rate, 32);
+        assert_eq!(reader.len(), image_len);
+        for byte in reader {
+            assert_eq!(byte, 8);
+        }
+    } else {
+        panic!("Wrong message type");
+    }
+
+    Ok(())
+}
