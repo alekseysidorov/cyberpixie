@@ -6,7 +6,7 @@ pub const MAX_HEADER_LEN: usize = 80;
 
 pub type PacketLength = u16;
 
-const PACKET_LEN_BYTES: usize = core::mem::align_of::<PacketLength>();
+const PACKET_LEN_BYTES: usize = core::mem::size_of::<PacketLength>();
 
 pub fn write_message_header(buf: &mut [u8], header: &MessageHeader) -> postcard::Result<usize> {
     let used_len = postcard::to_slice(header, &mut buf[PACKET_LEN_BYTES..])?.len();
