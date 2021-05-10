@@ -49,16 +49,16 @@ impl PacketReader {
         PacketLength::from_le_bytes(val_buf) as usize
     }
 
-    pub fn read_message<'a, I>(
+    pub fn read_message<I>(
         &mut self,
-        bytes: &'a mut I,
+        mut bytes: I,
         hdr_len: usize,
-    ) -> postcard::Result<IncomingMessage<&'a mut I>>
+    ) -> postcard::Result<IncomingMessage<I>>
     where
         I: Iterator<Item = u8> + ExactSizeIterator,
     {
         assert!(hdr_len <= self.header.len());
-        fill_buf(&mut self.header, bytes, hdr_len);
+        fill_buf(&mut self.header, &mut bytes, hdr_len);
 
         let header: MessageHeader = postcard::from_bytes(&self.header)?;
         let msg = match header {
@@ -75,6 +75,7 @@ impl PacketReader {
                 // );
 
                 IncomingMessage::AddImage {
+                    len: img.image_len as usize,
                     refresh_rate: img.refresh_rate,
                     reader: bytes,
                     strip_len: img.strip_len as usize,
@@ -94,6 +95,7 @@ where
     // Requests.
     GetInfo,
     AddImage {
+        len: usize,
         refresh_rate: u32,
         strip_len: usize,
         reader: I,

@@ -1,9 +1,9 @@
 #![cfg_attr(not(test), no_std)]
 
 pub use crate::{
-    adapter::Adapter,
+    adapter::{Adapter, ReadPart, WriterPart},
     error::{Error, Result},
-    softap::{Event, SoftAp, SoftApConfig},
+    softap::{Event, SoftAp, SoftApConfig, DataReader},
 };
 
 pub mod adapter;

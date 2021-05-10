@@ -38,7 +38,7 @@ where
             writer: WriterPart { tx },
             cmd_read_finished: false,
         };
-        adapter.init()?;
+        // adapter.init()?;
         Ok(adapter)
     }
 
@@ -177,7 +177,7 @@ impl<'a> Condition<'a> for OkCondition {
 #[derive(Debug)]
 pub struct ReadPart<Rx> {
     rx: Rx,
-    pub(crate) buf: Vec<u8, ADAPTER_BUF_CAPACITY>,
+    pub buf: Vec<u8, ADAPTER_BUF_CAPACITY>,
 }
 
 impl<Rx> ReadPart<Rx>

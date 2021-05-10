@@ -24,7 +24,7 @@ use riscv::interrupt::{self, Mutex};
 #[cfg(not(feature = "without_alloc"))]
 type SerialWriter = Box<dyn Write<u8, Error = fmt::Error> + Send>;
 #[cfg(feature = "without_alloc")]
-type SerialWriter = Box<dyn Write<u8, Error = fmt::Error> + Send, 64>;
+type SerialWriter = Box<dyn Write<u8, Error = fmt::Error> + Send, 32>;
 
 struct SerialWrapper<T: Write<u8>>(T);
 

@@ -38,7 +38,7 @@ where
         mut self,
         config: SoftApConfig<'_>,
     ) -> crate::Result<(ReadPart<Rx>, WriterPart<Tx>), Rx::Error, Tx::Error> {
-        self.init(config)?;
+        // self.init(config)?;
         Ok(self.adapter.into_parts())
     }
 
@@ -108,16 +108,22 @@ where
     Rx: serial::Read<u8> + 'static,
     Rx::Error: core::fmt::Debug,
 {
+    pub fn poll_bytes(&mut self) -> Result<(), Rx::Error> {
+        if let Err(nb::Error::Other(e)) = self.read_bytes() {
+            Err(e)
+        } else {
+            Ok(())
+        }
+    }
+
     pub fn poll_data(&mut self) -> nb::Result<Event<'_, Rx>, Rx::Error> {
+        self.poll_bytes()?;
+
         let response =
             CommandResponse::parse(&self.buf).map(|(remainder, event)| (remainder.len(), event));
         if let Some((remaining_bytes, response)) = response {
-            if remaining_bytes == 0 {
-                self.buf.clear();
-            } else {
-                let pos = self.buf.len() - remaining_bytes;
-                truncate_buf(&mut self.buf, pos);
-            }
+            let pos = self.buf.len() - remaining_bytes;
+            truncate_buf(&mut self.buf, pos);
 
             let event = match response {
                 CommandResponse::Connected { link_id } => Event::Connected { link_id },
@@ -135,7 +141,6 @@ where
             return Ok(event);
         }
 
-        self.read_bytes()?;
         Err(nb::Error::WouldBlock)
     }
 }
@@ -146,9 +151,16 @@ where
     Rx: serial::Read<u8> + 'static,
     Rx::Error: core::fmt::Debug,
 {
-    bytes_remaining: usize,
-    read_pos: usize,
-    reader: &'a mut ReadPart<Rx>,
+    pub bytes_remaining: usize,
+    pub read_pos: usize,
+    pub reader: &'a mut ReadPart<Rx>,
+}
+
+impl<'a, Rx> DataReader<'a, Rx>
+where
+    Rx: serial::Read<u8> + 'static,
+    Rx::Error: core::fmt::Debug,
+{
 }
 
 impl<'a, Rx> Iterator for DataReader<'a, Rx>
@@ -160,6 +172,11 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
+            // We need to wait for the next bytes batch.
+            match self.reader.read_bytes() {
+                Ok(_) | Err(nb::Error::WouldBlock) => {}
+                Err(e) => panic!("Panic in the iterator: {:?}", e),
+            }
             // We have received the all necessary bytes and should move the buffer to receive
             // the next pieces of data.
             if self.bytes_remaining == 0 {
@@ -179,14 +196,12 @@ where
             // At this point, we know that we have received the all bytes from the reader's buffer,
             // and thus we can safely clear it.
             if self.reader.buf.is_full() {
-                self.reader.buf.clear();
+                // Safety: `u8` is aprimitive type and doesn't have drop implementation so we can just
+                // modify the buffer length.
+                unsafe {
+                    self.reader.buf.set_len(0);
+                }
                 self.read_pos = 0;
-            }
-
-            // We need to wait for the next bytes batch.
-            match self.reader.read_bytes() {
-                Ok(_) | Err(nb::Error::WouldBlock) => continue,
-                Err(e) => panic!("Panic in the iterator: {:?}", e),
             }
         }
     }
@@ -203,19 +218,20 @@ where
 {
 }
 
-impl<'a, Rx> Drop for DataReader<'a, Rx>
-where
-    Rx: serial::Read<u8> + 'static,
-    Rx::Error: core::fmt::Debug,
-{
-    fn drop(&mut self) {
-        // In order to use the reader further, we must read all of the remaining bytes.
-        // Otherwise, the reader will be in an inconsistent state.
-        for _ in self {}
-    }
-}
+// FIXME: Rethink data reader to enable this drop.
+// impl<'a, Rx> Drop for DataReader<'a, Rx>
+// where
+//     Rx: serial::Read<u8> + 'static,
+//     Rx::Error: core::fmt::Debug,
+// {
+//     fn drop(&mut self) {
+//         // In order to use the reader further, we must read all of the remaining bytes.
+//         // Otherwise, the reader will be in an inconsistent state.
+//         for _ in self {}
+//     }
+// }
 
-// FIXME Reduce complexity of this operation.
+// FIXME: Reduce complexity of this operation.
 fn truncate_buf<const N: usize>(buf: &mut Vec<u8, N>, at: usize) {
     assert!(at <= buf.len());
 
@@ -223,5 +239,9 @@ fn truncate_buf<const N: usize>(buf: &mut Vec<u8, N>, at: usize) {
         let to = from - at;
         buf[to] = buf[from];
     }
-    buf.truncate(buf.len() - at);
+    // Safety: `u8` is aprimitive type and doesn't have drop implementation so we can just
+    // modify the buffer length.
+    unsafe {
+        buf.set_len(buf.len() - at);
+    }
 }

@@ -1,8 +1,9 @@
-use self::types::{Header, ImageDescriptor};
 use embedded_sdmmc::{Block, BlockDevice, BlockIdx};
 use endian_codec::{DecodeLE, EncodeLE, PackedSize};
 use gd32vf103xx_hal::time::Hertz;
 use smart_leds::RGB8;
+
+use self::types::{Header, ImageDescriptor};
 
 mod types;
 
@@ -251,3 +252,46 @@ impl<'a, B: BlockDevice> Iterator for ReadImageIter<'a, B> {
 }
 
 impl<'a, B: BlockDevice> ExactSizeIterator for ReadImageIter<'a, B> {}
+
+pub struct RgbWriter<I>
+where
+    I: Iterator<Item = u8> + ExactSizeIterator,
+{
+    inner: I,
+}
+
+impl<I> RgbWriter<I>
+where
+    I: Iterator<Item = u8> + ExactSizeIterator,
+{
+    pub fn new(inner: I) -> Self {
+        assert_eq!(
+            inner.len() % 3,
+            0,
+            "Iterator length must be a multiple of 3."
+        );
+
+        Self {
+            inner,
+        }
+    }
+}
+
+impl<I> Iterator for RgbWriter<I> where I: Iterator<Item = u8> + ExactSizeIterator {
+    type Item = RGB8;
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let rgb_count = self.inner.len() / 3;
+        (rgb_count, Some(rgb_count))
+    }
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let rgb = RGB8 {
+            r: self.inner.next()?,
+            g: self.inner.next().unwrap(),
+            b: self.inner.next().unwrap(),
+        };
+
+        Some(rgb)
+    }
+}
