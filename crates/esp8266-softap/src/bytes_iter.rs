@@ -1,10 +1,11 @@
 use core::convert::Infallible;
 
 use embedded_hal::serial;
-use esp8266_softap::{DataReader, Event, ReadPart};
 use stdio_serial::uprint;
 
-pub struct DataIter<'a, Rx>
+use crate::{DataReader, Event, ReadPart};
+
+pub struct BytesIter<'a, Rx>
 where
     Rx: serial::Read<u8> + 'static,
     Rx::Error: core::fmt::Debug,
@@ -22,23 +23,9 @@ where
     loop {
         let event = nb::block!(data.reader.poll_data()).unwrap();
     }
-
-    // match reader.inner().poll_data() {
-    //     Ok(event) => match event {
-    //         Event::DataAvailable { link_id, reader } if link_id == id => Ok(reader),
-    //         // We do not support simultaneous multiple connections.
-    //         Event::DataAvailable { link_id, reader } if link_id != id => {
-    //             for _ in reader {}
-
-    //             Err(inner)
-    //         }
-    //         _ => Err(inner),
-    //     },
-    //     Err(_) => Err(inner),
-    // }
 }
 
-impl<'a, Rx> DataIter<'a, Rx>
+impl<'a, Rx> BytesIter<'a, Rx>
 where
     Rx: serial::Read<u8> + 'static,
     Rx::Error: core::fmt::Debug,
@@ -73,7 +60,7 @@ where
     }
 }
 
-impl<'a, Rx> Iterator for DataIter<'a, Rx>
+impl<'a, Rx> Iterator for BytesIter<'a, Rx>
 where
     Rx: serial::Read<u8> + 'static,
     Rx::Error: core::fmt::Debug,
@@ -99,7 +86,7 @@ where
     }
 }
 
-impl<'a, Rx> ExactSizeIterator for DataIter<'a, Rx>
+impl<'a, Rx> ExactSizeIterator for BytesIter<'a, Rx>
 where
     Rx: serial::Read<u8> + 'static,
     Rx::Error: core::fmt::Debug,

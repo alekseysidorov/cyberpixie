@@ -4,12 +4,14 @@ pub use crate::{
     adapter::{Adapter, ReadPart, WriterPart},
     error::{Error, Result},
     softap::{Event, SoftAp, SoftApConfig, DataReader},
+    bytes_iter::BytesIter,
 };
 
 pub mod adapter;
 pub mod error;
 pub mod softap;
 
+mod bytes_iter;
 mod parser;
 #[cfg(test)]
 mod tests;

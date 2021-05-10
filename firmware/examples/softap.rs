@@ -13,12 +13,11 @@ use core::{
 use cyberpixie_firmware::{
     allocator::{heap_bottom, RiscVHeap},
     config::{MAX_LINES_COUNT, SERIAL_PORT_CONFIG, STRIP_LEDS_COUNT},
-    network::DataIter,
     storage::{ImagesRepository, RgbWriter},
 };
 use cyberpixie_proto::{IncomingMessage, PacketReader};
 use embedded_hal::{digital::v2::OutputPin, serial::Read, spi::MODE_0};
-use esp8266_softap::{adapter::ReadPart, Adapter, Event, SoftAp, SoftApConfig};
+use esp8266_softap::{adapter::ReadPart, Adapter, Event, SoftAp, SoftApConfig, BytesIter};
 use gd32vf103xx_hal::{delay::McycleDelay, pac::Peripherals, prelude::*, serial::Serial, spi::Spi};
 use heapless::Vec;
 use stdio_serial::{uprint, uprintln};
@@ -135,7 +134,7 @@ fn main() -> ! {
                             reader,
                             len,
                         } => {
-                            for byte in DataIter::new(link_id, reader, len) {
+                            for byte in BytesIter::new(link_id, reader, len) {
                                 // uprint!("{}", byte as char);
                                 // buf.push(byte).unwrap();
                             }

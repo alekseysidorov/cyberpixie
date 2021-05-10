@@ -151,9 +151,9 @@ where
     Rx: serial::Read<u8> + 'static,
     Rx::Error: core::fmt::Debug,
 {
-    pub bytes_remaining: usize,
-    pub read_pos: usize,
-    pub reader: &'a mut ReadPart<Rx>,
+    pub(crate) bytes_remaining: usize,
+    pub(crate) read_pos: usize,
+    pub(crate) reader: &'a mut ReadPart<Rx>,
 }
 
 impl<'a, Rx> DataReader<'a, Rx>
