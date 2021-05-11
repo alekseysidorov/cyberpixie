@@ -34,7 +34,6 @@ fn postcard_messages() -> postcard::Result<()> {
         MessageHeader::AddImage(AddImage {
             refresh_rate: 32,
             strip_len: 24,
-            image_len: 15,
         }),
     ];
 
@@ -62,14 +61,17 @@ fn message_reader_scalar() -> postcard::Result<()> {
 
     let mut reader = PacketReader::new();
     for message in &messages {
-        write_message_header(&mut buf, &message)?;
+        write_message_header(&mut buf, &message, 0)?;
 
         let mut bytes = buf.iter_mut().map(|x| *x);
-        let len = reader.read_message_len(&mut bytes);
+        let (header_len, payload_len) = reader.read_message_len(&mut bytes);
 
-        assert!(len < bytes.len());
-        let mut bytes = bytes.take(len);
-        reader.read_message(&mut bytes, len)?;
+        dbg!(header_len, payload_len);
+
+        assert_eq!(payload_len, 0);
+        assert!(header_len < bytes.len());
+        let mut bytes = bytes.take(header_len);
+        reader.read_message(&mut bytes, header_len)?;
     }
 
     Ok(())
@@ -81,31 +83,29 @@ fn message_reader_unsized() -> postcard::Result<()> {
 
     let image_len = 200;
     let message = MessageHeader::AddImage(AddImage {
-        image_len: image_len as u32,
         strip_len: 24,
         refresh_rate: 32,
     });
-    write_message_header(&mut buf, &message)?;
+    let msg_len = write_message_header(&mut buf, &message, image_len)?;
 
     let mut reader = PacketReader::new();
-    let mut bytes = buf.iter_mut().map(|x| *x);
-    let len = reader.read_message_len(&mut bytes);
+    let mut bytes = buf.iter_mut().map(|x| *x).take(msg_len + image_len);
+    let (header_len, payload_len) = reader.read_message_len(&mut bytes);
 
-    let mut bytes = bytes.take(len + image_len);
-    let msg = reader.read_message(&mut bytes, len)?;
+    let mut bytes = bytes.take(header_len + payload_len);
+    let msg = reader.read_message(&mut bytes, header_len)?;
     if let IncomingMessage::AddImage {
         refresh_rate,
-        reader,
+        bytes,
         strip_len,
-        len,
     } = msg
     {
         assert_eq!(refresh_rate, 32);
         assert_eq!(strip_len, 24);
-        assert_eq!(reader.len(), image_len);
-        assert_eq!(len, image_len);
+        assert_eq!(bytes.len(), image_len);
+        assert_eq!(bytes.len(), payload_len);
 
-        for byte in reader {
+        for byte in bytes {
             assert_eq!(byte, 8);
         }
     } else {
@@ -149,19 +149,25 @@ fn test_soft_ap() {
                 link_id,
                 mut reader,
             } => {
+                eprintln!("data available: {}", reader.len());
+
                 let mut packet_reader = PacketReader::default();
-                let msg_len = packet_reader.read_message_len(&mut reader);
-                let msg = packet_reader.read_message(reader, msg_len).unwrap();
+                let (header_len, payload_len) = packet_reader.read_message_len(&mut reader);
+
+                eprintln!("header_len: {}, payload_len: {}", header_len, payload_len);
+
+                let bytes = BytesIter::new(link_id, reader, payload_len + header_len);
+                let msg = packet_reader.read_message(bytes, header_len).unwrap();
 
                 match msg {
                     IncomingMessage::GetInfo => {}
                     IncomingMessage::AddImage {
                         refresh_rate,
                         strip_len,
-                        reader,
-                        len,
+                        bytes,
                     } => {
-                        for byte in BytesIter::new(link_id, reader, len) {
+                        eprintln!("Image len: actual: {}", bytes.len());
+                        for _byte in bytes {
                             // eprint!("{} ", byte as char);
                             // buf.push(byte).unwrap();
                         }

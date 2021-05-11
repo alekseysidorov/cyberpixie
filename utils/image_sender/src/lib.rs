@@ -33,11 +33,10 @@ pub fn send_image<T: ToSocketAddrs + Display + Copy>(
     let mut header_buf = vec![0_u8; MAX_HEADER_LEN];
     let msg = MessageHeader::AddImage(AddImage {
         refresh_rate,
-        image_len: raw.len() as u32,
         strip_len,
     });
 
-    let total_len = write_message_header(&mut header_buf, &msg)
+    let total_len = write_message_header(&mut header_buf, &msg, raw.len())
         .map_err(|e| anyhow::format_err!("Unable to write message header: {:?}", e))?;
     header_buf.truncate(total_len);
 

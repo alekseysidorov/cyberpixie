@@ -10,7 +10,6 @@ pub struct FirmwareInfo {
 pub struct AddImage {
     pub refresh_rate: u32,
     pub strip_len: u16,
-    pub image_len: u32,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug)]

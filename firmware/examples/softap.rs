@@ -131,7 +131,8 @@ fn main() -> ! {
                         IncomingMessage::AddImage {
                             refresh_rate,
                             strip_len,
-                            reader,
+                            bytes,
+                            len,
                         } => {
                             // for byte in BytesIter::new(link_id, reader, len) {
                             // uprint!("{}", byte as char);
