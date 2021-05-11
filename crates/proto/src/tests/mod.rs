@@ -11,16 +11,6 @@ use crate::{
 
 mod serial;
 
-#[macro_export]
-macro_rules! poll_continue {
-    ($e:expr) => {
-        match $e {
-            Err(nb::Error::WouldBlock) => continue,
-            other => other,
-        }
-    };
-}
-
 #[test]
 fn postcard_messages() -> postcard::Result<()> {
     let mut buf = [8_u8; 512];
@@ -131,19 +121,23 @@ fn test_soft_ap() {
         .unwrap();
 
     eprintln!("Serial port established");
-    let start = Instant::now();
+    let mut start = Instant::now();
     loop {
-        if start.elapsed() == Duration::from_secs(60) {
-            eprintln!("Ignored due timeout");
+        if start.elapsed() > Duration::from_secs(30) {
+            eprintln!("Ignored: this test depends on the manual manipulations with the device.");
             break;
         }
 
-        let event = poll_continue!(rx.poll_data()).unwrap();
+        let event = match rx.poll_data() {
+            Ok(event) => event,
+            Err(nb::Error::WouldBlock) => continue,
+            Err(err) => panic!("{:?}", err),
+        };
+
         match event {
             Event::Connected { link_id } => eprintln!("Event::Connected {}", link_id),
             Event::Closed { link_id } => {
                 eprintln!("Event::Closed {}", link_id);
-                break;
             }
             Event::DataAvailable {
                 link_id,
@@ -161,21 +155,13 @@ fn test_soft_ap() {
 
                 match msg {
                     IncomingMessage::GetInfo => {}
-                    IncomingMessage::AddImage {
-                        refresh_rate,
-                        strip_len,
-                        bytes,
-                    } => {
-                        eprintln!("Image len: actual: {}", bytes.len());
-                        for _byte in bytes {
-                            // eprint!("{} ", byte as char);
-                            // buf.push(byte).unwrap();
-                        }
-                        eprintln!("Image read finished");
+                    IncomingMessage::AddImage { bytes, .. } => {
+                        let size = bytes.len();
+                        for _byte in bytes {}
 
-                        // let img_reader = RgbWriter::new(buf.as_slice().into_iter().copied());
-                        // images.add_image(img_reader, refresh_rate.hz()).unwrap();
-                        // uprintln!("Write image: total images count: {}", images.count());
+                        eprintln!("Image read finished, size: {}", size);
+
+                        start = Instant::now();
                     }
                     IncomingMessage::ClearImages => {}
                     IncomingMessage::Info(_) => {}
