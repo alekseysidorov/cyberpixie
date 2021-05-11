@@ -1,21 +1,31 @@
+use core::convert::TryInto;
+
 pub use crate::types::FirmwareInfo;
 
 use crate::types::MessageHeader;
 
 pub const MAX_HEADER_LEN: usize = 80;
 
-pub type PacketLength = u16;
+pub type PayloadLength = u32;
 
-const PACKET_LEN_BYTES: usize = core::mem::align_of::<PacketLength>();
+const PAYLOAD_LEN_BYTES: usize = core::mem::size_of::<PayloadLength>();
 
-pub fn write_message_header(buf: &mut [u8], header: &MessageHeader) -> postcard::Result<usize> {
-    let used_len = postcard::to_slice(header, &mut buf[PACKET_LEN_BYTES..])?.len();
-    assert!(used_len <= PacketLength::MAX as usize);
+pub fn write_message_header(
+    buf: &mut [u8],
+    header: &MessageHeader,
+    payload_len: usize,
+) -> postcard::Result<usize> {
+    let header_pos = PAYLOAD_LEN_BYTES + 1;
 
-    let packet_len = used_len as PacketLength;
-    buf[0..PACKET_LEN_BYTES].copy_from_slice(&packet_len.to_le_bytes());
+    let header_len = postcard::to_slice(header, &mut buf[header_pos..])?.len();
+    assert!(header_len <= PayloadLength::MAX as usize);
 
-    let total_len = used_len + PACKET_LEN_BYTES;
+    let packet_len: PayloadLength = payload_len.try_into().unwrap();
+
+    buf[0] = header_len as u8;
+    buf[1..header_pos].copy_from_slice(&packet_len.to_le_bytes());
+
+    let total_len = header_len + PAYLOAD_LEN_BYTES + 1;
     Ok(total_len)
 }
 
@@ -37,45 +47,46 @@ impl PacketReader {
         Self::default()
     }
 
-    pub fn read_message_len<I>(&mut self, bytes: &mut I) -> usize
+    pub fn read_message_len<I>(&mut self, bytes: &mut I) -> (usize, usize)
     where
         I: Iterator<Item = u8> + ExactSizeIterator,
     {
-        assert!(bytes.len() > PACKET_LEN_BYTES);
+        assert!(bytes.len() > (PAYLOAD_LEN_BYTES + 1));
 
-        let mut val_buf = [0_u8; PACKET_LEN_BYTES];
-        fill_buf(&mut val_buf, bytes, PACKET_LEN_BYTES);
+        let header_len = bytes.next().unwrap() as usize;
+        let payload_len = {
+            let mut val_buf = [0_u8; PAYLOAD_LEN_BYTES];
+            fill_buf(&mut val_buf, bytes, PAYLOAD_LEN_BYTES);
 
-        PacketLength::from_le_bytes(val_buf) as usize
+            PayloadLength::from_le_bytes(val_buf) as usize
+        };
+
+        (header_len, payload_len)
     }
 
-    pub fn read_message<'a, I>(
+    pub fn read_message<I>(
         &mut self,
-        bytes: &'a mut I,
-        hdr_len: usize,
-    ) -> postcard::Result<IncomingMessage<&'a mut I>>
+        mut bytes: I,
+        header_len: usize,
+    ) -> postcard::Result<IncomingMessage<I>>
     where
         I: Iterator<Item = u8> + ExactSizeIterator,
     {
-        assert!(hdr_len <= self.header.len());
-        fill_buf(&mut self.header, bytes, hdr_len);
+        assert!(self.header.len() >= header_len);
+        fill_buf(&mut self.header, &mut bytes, header_len);
 
         let header: MessageHeader = postcard::from_bytes(&self.header)?;
         let msg = match header {
             MessageHeader::GetInfo => IncomingMessage::GetInfo,
             MessageHeader::Info(info) => IncomingMessage::Info(info),
             MessageHeader::Error(code) => IncomingMessage::Error(code),
+            MessageHeader::ClearImages => IncomingMessage::ClearImages,
 
             MessageHeader::AddImage(img) => {
-                assert_eq!(
-                    img.len as usize,
-                    bytes.len(),
-                    "The expected amount of bytes doesn't match the image size."
-                );
-
                 IncomingMessage::AddImage {
                     refresh_rate: img.refresh_rate,
-                    reader: bytes,
+                    bytes,
+                    strip_len: img.strip_len as usize,
                 }
             }
         };
@@ -84,13 +95,19 @@ impl PacketReader {
     }
 }
 
+#[derive(Debug)]
 pub enum IncomingMessage<I>
 where
     I: Iterator<Item = u8> + ExactSizeIterator,
 {
     // Requests.
     GetInfo,
-    AddImage { refresh_rate: u32, reader: I },
+    AddImage {
+        refresh_rate: u32,
+        strip_len: usize,
+        bytes: I,
+    },
+    ClearImages,
 
     // Responses.
     Info(FirmwareInfo),
@@ -102,7 +119,7 @@ where
     I: Iterator<Item = u8> + ExactSizeIterator,
 {
     assert!(it.len() >= len);
-    assert!(len <= buf.len());
+    assert!(buf.len() >= len);
 
     (0..len).for_each(|i| buf[i] = it.next().unwrap());
 }

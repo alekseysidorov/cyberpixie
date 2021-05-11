@@ -7,3 +7,9 @@ edition = "2018"
 postcard = { version = "0.6.1", default-features = false }
 serde = { version = "1", default-features = false, features = ["derive"] }
 nb = "1.0"
+
+[dev-dependencies]
+anyhow = "1.0"
+embedded-hal = "0.2"
+serialport = "4"
+esp8266-softap = { path = "../esp8266-softap" }

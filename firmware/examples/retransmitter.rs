@@ -65,7 +65,7 @@ fn main() -> ! {
         match (usb_rx.read(), esp_rx.read()) {
             (Ok(u), Ok(w)) => {
                 esp_tx.write(u).ok();
-                stdio::write_byte(w).ok();
+                stdio_serial::write_byte(w).ok();
                 continue;
             }
             (Ok(u), Err(nb::Error::WouldBlock)) => {
@@ -73,7 +73,7 @@ fn main() -> ! {
                 continue;
             }
             (Err(nb::Error::WouldBlock), Ok(w)) => {
-                stdio::write_byte(w).ok();
+                stdio_serial::write_byte(w).ok();
                 continue;
             }
             (Err(nb::Error::WouldBlock), Err(nb::Error::WouldBlock)) => continue,

@@ -2,13 +2,18 @@
 resolver = "2"
 
 members = [
-    "firmware", 
-    "crates/proto", 
     "crates/esp8266-softap", 
+    "crates/proto", 
     "crates/stdio-serial",
+    "utils/image_sender",
+
+    "firmware", 
 ]
 default-members = [
+    "crates/esp8266-softap", 
     "crates/proto", 
+    "crates/stdio-serial",
+    "utils/image_sender",
 ]
 
 [profile.release]

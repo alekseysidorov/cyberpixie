@@ -1,3 +1,5 @@
+cargo-features = ["per-package-target"]
+
 [package]
 name = "cyberpixie-firmware"
 version = "0.1.0"
@@ -5,11 +7,14 @@ authors = ["Aleksei Sidorov <gorthauer87@yandex.ru>"]
 edition = "2018"
 resolver = "2"
 
+forced-target = "riscv32imac-unknown-none-elf"
+
 [dependencies]
 embedded-hal = "0.2"
 embedded-sdmmc = "0.3"
 endian_codec = "0.1"
 gd32vf103xx-hal = "0.4"
+heapless = "0.7"
 nb = "1.0"
 riscv = "0.6"
 riscv-rt = "0.8"
@@ -17,7 +22,8 @@ smart-leds = "0.3"
 ws2812-spi = { version = "0.4" }
 
 stdio-serial = { path = "../crates/stdio-serial" }
-esp8266-softap = { version = "0.1", path = "../crates/esp8266-softap" }
+esp8266-softap = { path = "../crates/esp8266-softap" }
+cyberpixie-proto = { path = "../crates/proto" }
 
 [dependencies.linked_list_allocator]
 version = "0.9"

@@ -1,8 +1,9 @@
-use self::types::{Header, ImageDescriptor};
 use embedded_sdmmc::{Block, BlockDevice, BlockIdx};
 use endian_codec::{DecodeLE, EncodeLE, PackedSize};
 use gd32vf103xx_hal::time::Hertz;
 use smart_leds::RGB8;
+
+use self::types::{Header, ImageDescriptor};
 
 mod types;
 
@@ -28,11 +29,12 @@ where
     /// is has been initialized.
     const INIT_MSG: &'static [u8] = b"POI_STORAGE";
     /// This block contains the repository header.
-    const HEADER_BLOCK: BlockIdx = BlockIdx(1);
+    const HEADER_BLOCK: BlockIdx = BlockIdx(10);
 
     pub fn open(device: &'a mut B) -> Result<Self, B::Error> {
-        let (block, device) = Self::get_or_init(device)?;
-        Ok(Self { device, block })
+        let mut repository = Self { device, block: HeaderBlock { inner: Default::default() } };
+        repository.get_or_init()?;
+        Ok(repository)
     }
 
     pub fn add_image<I>(&mut self, data: I, refresh_rate: Hertz) -> Result<(), B::Error>
@@ -88,32 +90,40 @@ where
         self.block.header().images_count as usize
     }
 
-    fn get_or_init(device: &'a mut B) -> Result<(HeaderBlock, &'a mut B), B::Error> {
-        let mut header_block = HeaderBlock {
-            inner: [Block::new()],
-        };
+    pub fn reset(mut self) -> Result<Self, B::Error> {
+        self.init()?;
+        Ok(self)
+    }
 
-        device.read(&mut header_block.inner, Self::INIT_BLOCK, "Load INIT block")?;
-        if !header_block.inner[0].contents.starts_with(Self::INIT_MSG) {
-            // Write INIT message to the first block.
-            header_block.inner[0].contents[0..Self::INIT_MSG.len()].copy_from_slice(Self::INIT_MSG);
-            device.write(&header_block.inner, Self::INIT_BLOCK)?;
-            // Create and write a new header_block block of the images repository.
-            header_block.set_header(Header {
-                version: Header::VERSION,
-                images_count: 0,
-                vacant_block: (Self::HEADER_BLOCK.0 + 1) as u16,
-            });
-            device.write(&header_block.inner, Self::HEADER_BLOCK)?;
+    fn get_or_init(&mut self) -> Result<(), B::Error> {
+        self.device
+            .read(&mut self.block.inner, Self::INIT_BLOCK, "Load INIT block")?;
+
+        if !self.block.inner[0].contents.starts_with(Self::INIT_MSG) {
+            self.init()?;
         } else {
-            device.read(
-                &mut header_block.inner,
+            self.device.read(
+                &mut self.block.inner,
                 Self::HEADER_BLOCK,
                 "Load HEADER block",
             )?;
         }
 
-        Ok((header_block, device))
+        Ok(())
+    }
+
+    fn init(&mut self) -> Result<(), B::Error> {
+        // Write INIT message to the first block.
+        self.block.inner[0].contents[0..Self::INIT_MSG.len()].copy_from_slice(Self::INIT_MSG);
+        self.device.write(&self.block.inner, Self::INIT_BLOCK)?;
+        // Create and write a new header_block block of the images repository.
+        self.block.set_header(Header {
+            version: Header::VERSION,
+            images_count: 0,
+            vacant_block: (Self::HEADER_BLOCK.0 + 1) as u16,
+        });
+        self.device.write(&self.block.inner, Self::HEADER_BLOCK)?;
+        Ok(())
     }
 
     fn image_descriptor_at(&self, index: usize) -> ImageDescriptor {
@@ -251,3 +261,47 @@ impl<'a, B: BlockDevice> Iterator for ReadImageIter<'a, B> {
 }
 
 impl<'a, B: BlockDevice> ExactSizeIterator for ReadImageIter<'a, B> {}
+
+pub struct RgbWriter<I>
+where
+    I: Iterator<Item = u8> + ExactSizeIterator,
+{
+    inner: I,
+}
+
+impl<I> RgbWriter<I>
+where
+    I: Iterator<Item = u8> + ExactSizeIterator,
+{
+    pub fn new(inner: I) -> Self {
+        assert_eq!(
+            inner.len() % 3,
+            0,
+            "Iterator length must be a multiple of 3."
+        );
+
+        Self { inner }
+    }
+}
+
+impl<I> Iterator for RgbWriter<I>
+where
+    I: Iterator<Item = u8> + ExactSizeIterator,
+{
+    type Item = RGB8;
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let rgb_count = self.inner.len() / 3;
+        (rgb_count, Some(rgb_count))
+    }
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let rgb = RGB8 {
+            r: self.inner.next()?,
+            g: self.inner.next().unwrap(),
+            b: self.inner.next().unwrap(),
+        };
+
+        Some(rgb)
+    }
+}
