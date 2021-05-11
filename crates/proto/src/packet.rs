@@ -83,12 +83,6 @@ impl PacketReader {
             MessageHeader::ClearImages => IncomingMessage::ClearImages,
 
             MessageHeader::AddImage(img) => {
-                // assert_eq!(
-                //     img.image_len as usize,
-                //     bytes.len(),
-                //     "The expected amount of bytes doesn't match the image size."
-                // );
-
                 IncomingMessage::AddImage {
                     refresh_rate: img.refresh_rate,
                     bytes,

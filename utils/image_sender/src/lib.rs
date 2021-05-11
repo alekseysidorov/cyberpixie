@@ -47,3 +47,18 @@ pub fn send_image<T: ToSocketAddrs + Display + Copy>(
     log::trace!("Sent image to {}: {:?}", to, msg);
     Ok(())
 }
+
+pub fn send_clear_images<T: ToSocketAddrs + Display + Copy>(to: T) -> anyhow::Result<()> {
+    let mut header_buf = vec![0_u8; MAX_HEADER_LEN];
+    let msg = MessageHeader::ClearImages;
+
+    let total_len = write_message_header(&mut header_buf, &msg, 0)
+        .map_err(|e| anyhow::format_err!("Unable to write message header: {:?}", e))?;
+    header_buf.truncate(total_len);
+
+    let mut stream = TcpStream::connect(to)?;
+    stream.write_all(&header_buf)?;
+
+    log::trace!("Sent reset cmd to {}: {:?}", to, msg);
+    Ok(())
+}

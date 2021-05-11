@@ -2,7 +2,7 @@ use std::{net::SocketAddr, path::PathBuf};
 
 use structopt::StructOpt;
 
-use image_sender::{convert_image_to_raw, send_image};
+use image_sender::{convert_image_to_raw, send_clear_images, send_image};
 
 #[derive(Debug, StructOpt)]
 enum Commands {
@@ -17,6 +17,9 @@ enum Commands {
         #[structopt(short, long = "refresh-rate", default_value = "50")]
         refresh_rate: u32,
     },
+    /// Send clear images command to the device.
+    #[structopt(name = "clear")]
+    ClearImages { address: SocketAddr },
     /// Generate completions
     #[structopt(name = "gen-completions")]
     GenCompletions,
@@ -37,6 +40,11 @@ fn main() -> anyhow::Result<()> {
 
             let raw = convert_image_to_raw(image_path)?;
             send_image(strip_len, refresh_rate, raw, address)?;
+        }
+
+        Commands::ClearImages { address } => {
+            log::info!("Sending clear images command to {}", address);
+            send_clear_images(address)?;
         }
 
         Commands::GenCompletions => {
