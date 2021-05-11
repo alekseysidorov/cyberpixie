@@ -106,6 +106,7 @@ fn message_reader_unsized() -> postcard::Result<()> {
 }
 
 #[test]
+#[ignore = "This test depends on the manual manipulations with the device."]
 fn test_soft_ap() {
     let port = serialport::new("/dev/ttyUSB0", 115200).open().unwrap();
     let (rx, tx) = EmbeddedSerial::new(port).into_rx_tx();
@@ -123,8 +124,8 @@ fn test_soft_ap() {
     eprintln!("Serial port established");
     let mut start = Instant::now();
     loop {
-        if start.elapsed() > Duration::from_secs(30) {
-            eprintln!("Ignored: this test depends on the manual manipulations with the device.");
+        if start.elapsed() > Duration::from_secs(15) {
+            eprintln!("Timeouted");
             break;
         }
 

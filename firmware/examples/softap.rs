@@ -16,12 +16,12 @@ use cyberpixie_firmware::{
     storage::{ImagesRepository, RgbWriter},
 };
 use cyberpixie_proto::{IncomingMessage, PacketReader};
-use embedded_hal::{digital::v2::OutputPin, serial::Read, spi::MODE_0};
-use esp8266_softap::{adapter::ReadPart, Adapter, BytesIter, Event, SoftAp, SoftApConfig};
+use embedded_hal::{digital::v2::OutputPin, spi::MODE_0};
+use esp8266_softap::{Adapter, BytesIter, Event, SoftAp, SoftApConfig};
 use gd32vf103xx_hal::{delay::McycleDelay, pac::Peripherals, prelude::*, serial::Serial, spi::Spi};
 use heapless::Vec;
 use smart_leds::RGB8;
-use stdio_serial::{uprint, uprintln};
+use stdio_serial::uprintln;
 
 #[global_allocator]
 static ALLOCATOR: RiscVHeap = RiscVHeap::empty();
@@ -123,6 +123,7 @@ fn main() -> ! {
                 uprintln!("closed {}, buf_len: {}", link_id, buf.len());
                 images.add_image(buf.iter().copied(), rate.hz()).unwrap();
                 buf.clear();
+                uprintln!("Images count: {}", images.count());
             }
             Event::DataAvailable {
                 link_id,

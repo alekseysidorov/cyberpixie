@@ -1,11 +1,4 @@
-use std::time::{Duration, Instant};
-
-use crate::{
-    adapter::Adapter,
-    parser::CommandResponse,
-    softap::{Event, SoftAp, SoftApConfig},
-    BytesIter,
-};
+use crate::parser::CommandResponse;
 
 #[test]
 fn test_parse_connect() {
