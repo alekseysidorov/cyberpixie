@@ -32,7 +32,12 @@ where
     const HEADER_BLOCK: BlockIdx = BlockIdx(10);
 
     pub fn open(device: &'a mut B) -> Result<Self, B::Error> {
-        let mut repository = Self { device, block: HeaderBlock { inner: Default::default() } };
+        let mut repository = Self {
+            device,
+            block: HeaderBlock {
+                inner: Default::default(),
+            },
+        };
         repository.get_or_init()?;
         Ok(repository)
     }

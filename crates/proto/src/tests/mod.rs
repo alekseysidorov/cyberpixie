@@ -55,11 +55,9 @@ fn message_reader_scalar() -> postcard::Result<()> {
 
         let mut bytes = buf.iter_mut().map(|x| *x);
         let (header_len, payload_len) = reader.read_message_len(&mut bytes);
-
-        dbg!(header_len, payload_len);
-
         assert_eq!(payload_len, 0);
         assert!(header_len < bytes.len());
+
         let mut bytes = bytes.take(header_len);
         reader.read_message(&mut bytes, header_len)?;
     }
@@ -68,7 +66,7 @@ fn message_reader_scalar() -> postcard::Result<()> {
 }
 
 #[test]
-fn message_reader_unsized() -> postcard::Result<()> {
+fn message_read_unsized() -> postcard::Result<()> {
     let mut buf = [8_u8; 512];
 
     let image_len = 200;

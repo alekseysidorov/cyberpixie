@@ -82,13 +82,11 @@ impl PacketReader {
             MessageHeader::Error(code) => IncomingMessage::Error(code),
             MessageHeader::ClearImages => IncomingMessage::ClearImages,
 
-            MessageHeader::AddImage(img) => {
-                IncomingMessage::AddImage {
-                    refresh_rate: img.refresh_rate,
-                    bytes,
-                    strip_len: img.strip_len as usize,
-                }
-            }
+            MessageHeader::AddImage(img) => IncomingMessage::AddImage {
+                refresh_rate: img.refresh_rate,
+                bytes,
+                strip_len: img.strip_len as usize,
+            },
         };
 
         Ok(msg)

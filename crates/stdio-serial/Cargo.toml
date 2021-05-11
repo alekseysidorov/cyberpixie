@@ -7,7 +7,7 @@ edition = "2018"
 embedded-hal = "0.2"
 bare-metal = "1.0"
 nb = "1.0"
-static-box = { version = "0.0.1", optional = true }
+static-box = { version = "0.0.2", optional = true }
 
 [target.'cfg(target_arch = "riscv32")'.dependencies]
 riscv = "0.6"
