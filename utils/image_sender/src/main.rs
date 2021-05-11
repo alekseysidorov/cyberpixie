@@ -1,5 +1,6 @@
 use std::{net::SocketAddr, path::PathBuf};
 
+use cyberpixie_proto::types::Hertz;
 use structopt::StructOpt;
 
 use image_sender::{convert_image_to_raw, send_clear_images, send_image};
@@ -15,7 +16,7 @@ enum Commands {
         #[structopt(short, long, default_value = "24")]
         strip_len: u16,
         #[structopt(short, long = "refresh-rate", default_value = "50")]
-        refresh_rate: u32,
+        refresh_rate: Hertz,
     },
     /// Send clear images command to the device.
     #[structopt(name = "clear")]

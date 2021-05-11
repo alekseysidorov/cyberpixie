@@ -1,5 +1,6 @@
 use core::{array::IntoIter, convert::TryInto};
 
+use cyberpixie_proto::types::Hertz;
 use smart_leds::RGB8;
 
 use crate::{
@@ -28,7 +29,7 @@ pub struct FixedImage {
 }
 
 impl FixedImage {
-    pub fn from_raw<I>(raw: I, rate_hz: u32) -> Self
+    pub fn from_raw<I>(raw: I, rate: Hertz) -> Self
     where
         I: Iterator<Item = RGB8> + ExactSizeIterator,
     {
@@ -52,7 +53,7 @@ impl FixedImage {
 
         // Calculate the duration of the glow of a single strip.
         let height = image_len / Self::LINE_LENGTH;
-        let mut duration = Microseconds::from_hertz(rate_hz);
+        let mut duration = Microseconds::from(rate);
         duration.0 /= height as u32;
         assert!(
             duration.0 > 1,

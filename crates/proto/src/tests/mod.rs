@@ -2,12 +2,7 @@ use std::time::{Duration, Instant};
 
 use esp8266_softap::{Adapter, BytesIter, Event, SoftAp, SoftApConfig};
 
-use crate::{
-    packet::write_message_header,
-    tests::serial::EmbeddedSerial,
-    types::{AddImage, FirmwareInfo, MessageHeader},
-    IncomingMessage, PacketReader, MAX_HEADER_LEN,
-};
+use crate::{IncomingMessage, MAX_HEADER_LEN, PacketReader, packet::write_message_header, tests::serial::EmbeddedSerial, types::{AddImage, FirmwareInfo, Hertz, MessageHeader}};
 
 mod serial;
 
@@ -22,7 +17,7 @@ fn postcard_messages() -> postcard::Result<()> {
         }),
         MessageHeader::Error(42),
         MessageHeader::AddImage(AddImage {
-            refresh_rate: 32,
+            refresh_rate: Hertz(50),
             strip_len: 24,
         }),
     ];
@@ -72,7 +67,7 @@ fn message_read_unsized() -> postcard::Result<()> {
     let image_len = 200;
     let message = MessageHeader::AddImage(AddImage {
         strip_len: 24,
-        refresh_rate: 32,
+        refresh_rate: Hertz(32),
     });
     let msg_len = write_message_header(&mut buf, &message, image_len)?;
 
@@ -88,7 +83,7 @@ fn message_read_unsized() -> postcard::Result<()> {
         strip_len,
     } = msg
     {
-        assert_eq!(refresh_rate, 32);
+        assert_eq!(refresh_rate, Hertz(32));
         assert_eq!(strip_len, 24);
         assert_eq!(bytes.len(), image_len);
         assert_eq!(bytes.len(), payload_len);

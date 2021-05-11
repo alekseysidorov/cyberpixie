@@ -10,7 +10,7 @@ use cyberpixie_firmware::{
     config::{MAX_LINES_COUNT, SERIAL_PORT_CONFIG, STRIP_LEDS_COUNT},
     storage::{ImagesRepository, RgbWriter},
 };
-use cyberpixie_proto::{IncomingMessage, PacketReader};
+use cyberpixie_proto::{types::Hertz, IncomingMessage, PacketReader};
 use embedded_hal::{digital::v2::OutputPin, spi::MODE_0};
 use esp8266_softap::{Adapter, BytesIter, Event, SoftAp, SoftApConfig};
 use gd32vf103xx_hal::{delay::McycleDelay, pac::Peripherals, prelude::*, serial::Serial, spi::Spi};
@@ -91,7 +91,7 @@ fn main() -> ! {
 
     const LEN: usize = MAX_LINES_COUNT * STRIP_LEDS_COUNT;
     let mut buf: Vec<RGB8, LEN> = Vec::new();
-    let mut rate = 0;
+    let mut rate = Hertz(0);
 
     loop {
         let event = if let Ok(event) = net_reader.poll_data() {
