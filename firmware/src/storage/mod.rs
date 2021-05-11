@@ -1,6 +1,5 @@
 use embedded_sdmmc::{Block, BlockDevice, BlockIdx};
 use endian_codec::{DecodeLE, EncodeLE, PackedSize};
-use gd32vf103xx_hal::time::Hertz;
 use smart_leds::RGB8;
 
 use self::types::{Header, ImageDescriptor};
@@ -42,7 +41,7 @@ where
         Ok(repository)
     }
 
-    pub fn add_image<I>(&mut self, data: I, refresh_rate: Hertz) -> Result<(), B::Error>
+    pub fn add_image<I>(&mut self, data: I, refresh_rate: u32) -> Result<(), B::Error>
     where
         B: BlockDevice,
         I: Iterator<Item = RGB8>,
@@ -61,7 +60,7 @@ where
         let descriptor = ImageDescriptor {
             block_number: header.vacant_block,
             image_len: image_len as u16,
-            refresh_rate: refresh_rate.0,
+            refresh_rate,
         };
         let descriptor_pos =
             Header::PACKED_LEN + header.images_count as usize * ImageDescriptor::PACKED_LEN;
@@ -79,10 +78,10 @@ where
     pub fn read_image(
         &mut self,
         index: usize,
-    ) -> (Hertz, impl Iterator<Item = RGB8> + ExactSizeIterator + '_) {
+    ) -> (u32, impl Iterator<Item = RGB8> + ExactSizeIterator + '_) {
         let descriptor = self.image_descriptor_at(index);
 
-        let refresh_rate = Hertz(descriptor.refresh_rate);
+        let refresh_rate = descriptor.refresh_rate;
         let read_iter = ReadImageIter::new(
             self.device,
             BlockIdx(descriptor.block_number as u32),

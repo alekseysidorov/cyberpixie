@@ -1,17 +1,12 @@
 #![no_std]
 #![no_main]
-#![feature(alloc_error_handler)]
-
-extern crate alloc;
 
 use core::{
-    alloc::Layout,
     panic::PanicInfo,
     sync::atomic::{self, Ordering},
 };
 
 use cyberpixie_firmware::{
-    allocator::{heap_bottom, RiscVHeap},
     config::{MAX_LINES_COUNT, SERIAL_PORT_CONFIG, STRIP_LEDS_COUNT},
     storage::{ImagesRepository, RgbWriter},
 };
@@ -23,20 +18,8 @@ use heapless::Vec;
 use smart_leds::RGB8;
 use stdio_serial::uprintln;
 
-#[global_allocator]
-static ALLOCATOR: RiscVHeap = RiscVHeap::empty();
-
-unsafe fn init_alloc() {
-    // Initialize the allocator BEFORE you use it.
-    let start = heap_bottom();
-    let size = 128; // in bytes
-    ALLOCATOR.init(start, size)
-}
-
 #[riscv_rt::entry]
 fn main() -> ! {
-    unsafe { init_alloc() }
-
     // Hardware initialization step.
     let dp = Peripherals::take().unwrap();
 
@@ -121,7 +104,7 @@ fn main() -> ! {
             Event::Connected { .. } => {}
             Event::Closed { link_id } => {
                 uprintln!("closed {}, buf_len: {}", link_id, buf.len());
-                images.add_image(buf.iter().copied(), rate.hz()).unwrap();
+                images.add_image(buf.iter().copied(), rate).unwrap();
                 buf.clear();
                 uprintln!("Images count: {}", images.count());
             }
@@ -163,14 +146,5 @@ fn panic(info: &PanicInfo) -> ! {
 
     loop {
         atomic::compiler_fence(Ordering::SeqCst);
-    }
-}
-
-#[alloc_error_handler]
-fn oom(layout: Layout) -> ! {
-    uprintln!("OOM: {:?}", layout);
-
-    loop {
-        continue;
     }
 }

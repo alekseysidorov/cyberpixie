@@ -1,17 +1,12 @@
 #![no_std]
 #![no_main]
-#![feature(alloc_error_handler)]
-
-extern crate alloc;
 
 use core::{
-    alloc::Layout,
     panic::PanicInfo,
     sync::atomic::{self, Ordering},
 };
 
 use cyberpixie_firmware::{
-    allocator::{heap_bottom, RiscVHeap},
     config::SERIAL_PORT_CONFIG,
     storage::ImagesRepository,
     strip::{FixedImage, StripLineSource},
@@ -28,20 +23,8 @@ use smart_leds::{SmartLedsWrite, RGB8};
 use stdio_serial::uprintln;
 use ws2812_spi::Ws2812;
 
-#[global_allocator]
-static ALLOCATOR: RiscVHeap = RiscVHeap::empty();
-
-unsafe fn init_alloc() {
-    // Initialize the allocator BEFORE you use it.
-    let start = heap_bottom();
-    let size = 128; // in bytes
-    ALLOCATOR.init(start, size)
-}
-
 #[riscv_rt::entry]
 fn main() -> ! {
-    unsafe { init_alloc() }
-
     // Hardware initialization step.
     let dp = pac::Peripherals::take().unwrap();
 
@@ -119,15 +102,6 @@ fn main() -> ! {
         let (us, line) = source.next_line();
         strip.write(line).ok();
         delay.delay_us(us.0);
-    }
-}
-
-#[alloc_error_handler]
-fn oom(layout: Layout) -> ! {
-    uprintln!("OOM: {:?}", layout);
-
-    loop {
-        continue;
     }
 }
 

@@ -28,10 +28,9 @@ pub struct FixedImage {
 }
 
 impl FixedImage {
-    pub fn from_raw<I, T>(raw: I, duration: T) -> Self
+    pub fn from_raw<I>(raw: I, rate_hz: u32) -> Self
     where
         I: Iterator<Item = RGB8> + ExactSizeIterator,
-        T: Into<Microseconds>,
     {
         let image_len = raw.len();
 
@@ -53,7 +52,7 @@ impl FixedImage {
 
         // Calculate the duration of the glow of a single strip.
         let height = image_len / Self::LINE_LENGTH;
-        let mut duration = duration.into();
+        let mut duration = Microseconds::from_hertz(rate_hz);
         duration.0 /= height as u32;
         assert!(
             duration.0 > 1,
