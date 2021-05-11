@@ -7,7 +7,7 @@ use core::{
 };
 
 use cyberpixie_firmware::{
-    config::SERIAL_PORT_CONFIG,
+    config::{MAX_LINES_COUNT, SERIAL_PORT_CONFIG, STRIP_LEDS_COUNT},
     storage::ImagesRepository,
     strip::{FixedImage, StripLineSource},
 };
@@ -95,7 +95,9 @@ fn main() -> ! {
 
     let image_num = 3;
     let (refresh_rate, data) = images.read_image(image_num);
-    let mut source = FixedImage::from_raw(data, refresh_rate);
+
+    let mut buf = [RGB8::default(); MAX_LINES_COUNT * STRIP_LEDS_COUNT];
+    let mut source = FixedImage::from_raw(&mut buf, data, refresh_rate);
     uprintln!("Loaded {} image from the repository", image_num);
 
     loop {

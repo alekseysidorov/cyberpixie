@@ -99,7 +99,11 @@ where
     {
         if self.cmd_read_finished {
             self.cmd_read_finished = false;
-            self.reader.buf.clear();
+            // Safety: `u8` is aprimitive type and doesn't have drop implementation so we can just
+            // modify the buffer length.
+            unsafe {
+                self.reader.buf.set_len(0);
+            }
         }
 
         loop {
