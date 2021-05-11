@@ -1,21 +1,16 @@
 #![no_std]
 #![no_main]
-#![feature(alloc_error_handler)]
-
-extern crate alloc;
 
 use core::{
-    alloc::Layout,
     panic::PanicInfo,
     sync::atomic::{self, Ordering},
 };
 
 use cyberpixie_firmware::{
-    allocator::{heap_bottom, RiscVHeap},
     config::{MAX_LINES_COUNT, SERIAL_PORT_CONFIG, STRIP_LEDS_COUNT},
     storage::{ImagesRepository, RgbWriter},
 };
-use cyberpixie_proto::{IncomingMessage, PacketReader};
+use cyberpixie_proto::{types::Hertz, IncomingMessage, PacketReader};
 use embedded_hal::{digital::v2::OutputPin, spi::MODE_0};
 use esp8266_softap::{Adapter, BytesIter, Event, SoftAp, SoftApConfig};
 use gd32vf103xx_hal::{delay::McycleDelay, pac::Peripherals, prelude::*, serial::Serial, spi::Spi};
@@ -23,20 +18,8 @@ use heapless::Vec;
 use smart_leds::RGB8;
 use stdio_serial::uprintln;
 
-#[global_allocator]
-static ALLOCATOR: RiscVHeap = RiscVHeap::empty();
-
-unsafe fn init_alloc() {
-    // Initialize the allocator BEFORE you use it.
-    let start = heap_bottom();
-    let size = 128; // in bytes
-    ALLOCATOR.init(start, size)
-}
-
 #[riscv_rt::entry]
 fn main() -> ! {
-    unsafe { init_alloc() }
-
     // Hardware initialization step.
     let dp = Peripherals::take().unwrap();
 
@@ -108,7 +91,7 @@ fn main() -> ! {
 
     const LEN: usize = MAX_LINES_COUNT * STRIP_LEDS_COUNT;
     let mut buf: Vec<RGB8, LEN> = Vec::new();
-    let mut rate = 0;
+    let mut rate = Hertz(0);
 
     loop {
         let event = if let Ok(event) = net_reader.poll_data() {
@@ -121,7 +104,7 @@ fn main() -> ! {
             Event::Connected { .. } => {}
             Event::Closed { link_id } => {
                 uprintln!("closed {}, buf_len: {}", link_id, buf.len());
-                images.add_image(buf.iter().copied(), rate.hz()).unwrap();
+                images.add_image(buf.iter().copied(), rate).unwrap();
                 buf.clear();
                 uprintln!("Images count: {}", images.count());
             }
@@ -163,14 +146,5 @@ fn panic(info: &PanicInfo) -> ! {
 
     loop {
         atomic::compiler_fence(Ordering::SeqCst);
-    }
-}
-
-#[alloc_error_handler]
-fn oom(layout: Layout) -> ! {
-    uprintln!("OOM: {:?}", layout);
-
-    loop {
-        continue;
     }
 }

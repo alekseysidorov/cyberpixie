@@ -1,18 +1,13 @@
 #![no_std]
 #![no_main]
-#![feature(alloc_error_handler)]
-
-extern crate alloc;
 
 use core::{
-    alloc::Layout,
     panic::PanicInfo,
     sync::atomic::{self, Ordering},
 };
 
 use cyberpixie_firmware::{
-    allocator::{heap_bottom, RiscVHeap},
-    config::SERIAL_PORT_CONFIG,
+    config::{MAX_LINES_COUNT, SERIAL_PORT_CONFIG, STRIP_LEDS_COUNT},
     storage::ImagesRepository,
     strip::{FixedImage, StripLineSource},
 };
@@ -28,20 +23,8 @@ use smart_leds::{SmartLedsWrite, RGB8};
 use stdio_serial::uprintln;
 use ws2812_spi::Ws2812;
 
-#[global_allocator]
-static ALLOCATOR: RiscVHeap = RiscVHeap::empty();
-
-unsafe fn init_alloc() {
-    // Initialize the allocator BEFORE you use it.
-    let start = heap_bottom();
-    let size = 128; // in bytes
-    ALLOCATOR.init(start, size)
-}
-
 #[riscv_rt::entry]
 fn main() -> ! {
-    unsafe { init_alloc() }
-
     // Hardware initialization step.
     let dp = pac::Peripherals::take().unwrap();
 
@@ -112,22 +95,15 @@ fn main() -> ! {
 
     let image_num = 3;
     let (refresh_rate, data) = images.read_image(image_num);
-    let mut source = FixedImage::from_raw(data, refresh_rate);
+
+    let mut buf = [RGB8::default(); MAX_LINES_COUNT * STRIP_LEDS_COUNT];
+    let mut source = FixedImage::from_raw(&mut buf, data, refresh_rate);
     uprintln!("Loaded {} image from the repository", image_num);
 
     loop {
         let (us, line) = source.next_line();
         strip.write(line).ok();
         delay.delay_us(us.0);
-    }
-}
-
-#[alloc_error_handler]
-fn oom(layout: Layout) -> ! {
-    uprintln!("OOM: {:?}", layout);
-
-    loop {
-        continue;
     }
 }
 

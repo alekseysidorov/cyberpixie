@@ -2,7 +2,7 @@ use core::convert::TryInto;
 
 pub use crate::types::FirmwareInfo;
 
-use crate::types::MessageHeader;
+use crate::types::{Hertz, MessageHeader};
 
 pub const MAX_HEADER_LEN: usize = 80;
 
@@ -101,7 +101,7 @@ where
     // Requests.
     GetInfo,
     AddImage {
-        refresh_rate: u32,
+        refresh_rate: Hertz,
         strip_len: usize,
         bytes: I,
     },

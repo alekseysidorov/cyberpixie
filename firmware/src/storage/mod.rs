@@ -1,6 +1,6 @@
+use cyberpixie_proto::types::Hertz;
 use embedded_sdmmc::{Block, BlockDevice, BlockIdx};
 use endian_codec::{DecodeLE, EncodeLE, PackedSize};
-use gd32vf103xx_hal::time::Hertz;
 use smart_leds::RGB8;
 
 use self::types::{Header, ImageDescriptor};
@@ -82,7 +82,7 @@ where
     ) -> (Hertz, impl Iterator<Item = RGB8> + ExactSizeIterator + '_) {
         let descriptor = self.image_descriptor_at(index);
 
-        let refresh_rate = Hertz(descriptor.refresh_rate);
+        let refresh_rate = Hertz::from(descriptor.refresh_rate);
         let read_iter = ReadImageIter::new(
             self.device,
             BlockIdx(descriptor.block_number as u32),

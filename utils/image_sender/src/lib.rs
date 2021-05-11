@@ -6,7 +6,7 @@ use std::{
 };
 
 use cyberpixie_proto::{
-    types::{AddImage, MessageHeader},
+    types::{AddImage, Hertz, MessageHeader},
     write_message_header, MAX_HEADER_LEN,
 };
 use image::io::Reader;
@@ -26,7 +26,7 @@ pub fn convert_image_to_raw(path: impl AsRef<Path>) -> anyhow::Result<Vec<u8>> {
 
 pub fn send_image<T: ToSocketAddrs + Display + Copy>(
     strip_len: u16,
-    refresh_rate: u32,
+    refresh_rate: Hertz,
     raw: Vec<u8>,
     to: T,
 ) -> anyhow::Result<()> {

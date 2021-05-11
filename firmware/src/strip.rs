@@ -1,5 +1,6 @@
 use core::{array::IntoIter, convert::TryInto};
 
+use cyberpixie_proto::types::Hertz;
 use smart_leds::RGB8;
 
 use crate::{
@@ -19,19 +20,24 @@ const FIXED_IMAGE_BUF_LEN: usize = MAX_LINES_COUNT * STRIP_LEDS_COUNT;
 
 /// Fixed image.
 #[derive(Debug)]
-pub struct FixedImage {
+pub struct FixedImage<B>
+where
+    B: AsRef<[RGB8]> + AsMut<[RGB8]>,
+{
     image_len: u16,
     current_line: u16,
     duration: Microseconds,
 
-    buf: [RGB8; FIXED_IMAGE_BUF_LEN],
+    buf: B,
 }
 
-impl FixedImage {
-    pub fn from_raw<I, T>(raw: I, duration: T) -> Self
+impl<B> FixedImage<B>
+where
+    B: AsRef<[RGB8]> + AsMut<[RGB8]>,
+{
+    pub fn from_raw<I>(mut buf: B, raw: I, rate: Hertz) -> Self
     where
         I: Iterator<Item = RGB8> + ExactSizeIterator,
-        T: Into<Microseconds>,
     {
         let image_len = raw.len();
 
@@ -46,14 +52,13 @@ impl FixedImage {
             "The picture length must be multiple of the strip length."
         );
 
-        let mut buf = [RGB8::default(); FIXED_IMAGE_BUF_LEN];
         for (idx, color) in raw.enumerate() {
-            buf[idx] = color;
+            buf.as_mut()[idx] = color;
         }
 
         // Calculate the duration of the glow of a single strip.
         let height = image_len / Self::LINE_LENGTH;
-        let mut duration = duration.into();
+        let mut duration = Microseconds::from(rate);
         duration.0 /= height as u32;
         assert!(
             duration.0 > 1,
@@ -73,16 +78,20 @@ impl FixedImage {
     }
 }
 
-impl StripLineSource for FixedImage {
+impl<B> StripLineSource for FixedImage<B>
+where
+    B: AsRef<[RGB8]> + AsMut<[RGB8]>,
+{
     const LINE_LENGTH: usize = STRIP_LEDS_COUNT;
-    type Iter = IntoIter<RGB8, { Self::LINE_LENGTH }>;
+    type Iter = IntoIter<RGB8, { STRIP_LEDS_COUNT }>;
 
     fn next_line(&mut self) -> (Microseconds, Self::Iter) {
         let start = self.current_line as usize;
         let end = start + Self::LINE_LENGTH;
         self.current_line = (self.current_line + Self::LINE_LENGTH as u16) % self.image_len;
 
-        let buf: [RGB8; Self::LINE_LENGTH] = self.buf[start..end].as_ref().try_into().unwrap();
+        let buf: [RGB8; STRIP_LEDS_COUNT] =
+            self.buf.as_ref()[start..end].as_ref().try_into().unwrap();
         (self.duration, IntoIter::new(buf))
     }
 }
