@@ -17,13 +17,3 @@ mod parser;
 mod tests;
 
 pub const ADAPTER_BUF_CAPACITY: usize = 512;
-
-#[macro_export]
-macro_rules! poll_continue {
-    ($e:expr) => {
-        match $e {
-            Err(nb::Error::WouldBlock) => continue,
-            other => other,
-        }
-    };
-}
