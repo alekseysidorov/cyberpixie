@@ -10,7 +10,7 @@ impl EmbeddedSerial {
         Self(inner)
     }
 
-    pub fn into_rx_tx(self) -> (impl serial::Read<u8>, impl serial::Write<u8>) {
+    pub fn into_rx_tx(self) -> (Self, Self) {
         let rx = self.0.try_clone().unwrap();
 
         (Self(rx), self)

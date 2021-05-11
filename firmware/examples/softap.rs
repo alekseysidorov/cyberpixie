@@ -17,7 +17,7 @@ use cyberpixie_firmware::{
 };
 use cyberpixie_proto::{IncomingMessage, PacketReader};
 use embedded_hal::{digital::v2::OutputPin, serial::Read, spi::MODE_0};
-use esp8266_softap::{adapter::ReadPart, Adapter, Event, SoftAp, SoftApConfig, BytesIter};
+use esp8266_softap::{adapter::ReadPart, Adapter, BytesIter, Event, SoftAp, SoftApConfig};
 use gd32vf103xx_hal::{delay::McycleDelay, pac::Peripherals, prelude::*, serial::Serial, spi::Spi};
 use heapless::Vec;
 use stdio_serial::{uprint, uprintln};
@@ -132,12 +132,11 @@ fn main() -> ! {
                             refresh_rate,
                             strip_len,
                             reader,
-                            len,
                         } => {
-                            for byte in BytesIter::new(link_id, reader, len) {
-                                // uprint!("{}", byte as char);
-                                // buf.push(byte).unwrap();
-                            }
+                            // for byte in BytesIter::new(link_id, reader, len) {
+                            // uprint!("{}", byte as char);
+                            // buf.push(byte).unwrap();
+                            // }
 
                             // let img_reader = RgbWriter::new(buf.as_slice().into_iter().copied());
                             // images.add_image(img_reader, refresh_rate.hz()).unwrap();

@@ -38,7 +38,7 @@ where
             writer: WriterPart { tx },
             cmd_read_finished: false,
         };
-        // adapter.init()?;
+        adapter.init()?;
         Ok(adapter)
     }
 

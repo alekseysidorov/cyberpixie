@@ -9,7 +9,7 @@ use embedded_hal::serial::Write;
 #[cfg_attr(feature = "std", path = "std_impl.rs")]
 #[cfg_attr(
     not(any(target_arch = "riscv32", target_arch = "arm", feature = "std")),
-    path = "std_impl.rs"
+    path = "dummy_impl.rs"
 )]
 mod inner;
 

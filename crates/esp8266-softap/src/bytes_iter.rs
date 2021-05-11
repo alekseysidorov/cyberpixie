@@ -1,9 +1,6 @@
-use core::convert::Infallible;
-
 use embedded_hal::serial;
-use stdio_serial::uprint;
 
-use crate::{DataReader, Event, ReadPart};
+use crate::{DataReader, Event};
 
 pub struct BytesIter<'a, Rx>
 where
@@ -13,16 +10,6 @@ where
     data: DataReader<'a, Rx>,
     link_id: usize,
     bytes_remaining: usize,
-}
-
-fn read_next_packet<'a, Rx>(id: usize, data: &mut DataReader<'a, Rx>)
-where
-    Rx: serial::Read<u8> + 'static,
-    Rx::Error: core::fmt::Debug,
-{
-    loop {
-        let event = nb::block!(data.reader.poll_data()).unwrap();
-    }
 }
 
 impl<'a, Rx> BytesIter<'a, Rx>

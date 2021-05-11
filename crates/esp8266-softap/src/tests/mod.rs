@@ -1,9 +1,11 @@
-use embedded_hal::serial::{Read, Write};
+use std::time::{Duration, Instant};
+
 use serial::EmbeddedSerial;
 
 use crate::{
     adapter::Adapter,
     parser::CommandResponse,
+    poll_continue,
     softap::{Event, SoftAp, SoftApConfig},
 };
 
@@ -15,7 +17,7 @@ fn test_soft_ap() {
     let (rx, tx) = EmbeddedSerial::new(port).into_rx_tx();
 
     let adapter = Adapter::new(rx, tx).unwrap();
-    let (mut rx, tx) = SoftAp::new(adapter)
+    let (mut rx, _tx) = SoftAp::new(adapter)
         .start(SoftApConfig {
             ssid: "cyberpixie",
             password: "12345678",
@@ -25,8 +27,14 @@ fn test_soft_ap() {
         .unwrap();
 
     eprintln!("Serial port established");
+    let start = Instant::now();
     loop {
-        let event = nb::block!(rx.poll_data()).unwrap();
+        if start.elapsed() == Duration::from_secs(60) {
+            eprintln!("Ignored due timeout");
+            break;
+        }
+
+        let event = poll_continue!(rx.poll_data()).unwrap();
         match event {
             Event::Connected { link_id } => eprintln!("Event::Connected {}", link_id),
             Event::Closed { link_id } => {

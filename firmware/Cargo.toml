@@ -1,9 +1,13 @@
+cargo-features = ["per-package-target"]
+
 [package]
 name = "cyberpixie-firmware"
 version = "0.1.0"
 authors = ["Aleksei Sidorov <gorthauer87@yandex.ru>"]
 edition = "2018"
 resolver = "2"
+
+forced-target = "riscv32imac-unknown-none-elf"
 
 [dependencies]
 embedded-hal = "0.2"

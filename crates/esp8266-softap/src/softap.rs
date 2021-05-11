@@ -38,7 +38,7 @@ where
         mut self,
         config: SoftApConfig<'_>,
     ) -> crate::Result<(ReadPart<Rx>, WriterPart<Tx>), Rx::Error, Tx::Error> {
-        // self.init(config)?;
+        self.init(config)?;
         Ok(self.adapter.into_parts())
     }
 

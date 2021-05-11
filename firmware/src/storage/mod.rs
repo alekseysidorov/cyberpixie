@@ -271,13 +271,14 @@ where
             "Iterator length must be a multiple of 3."
         );
 
-        Self {
-            inner,
-        }
+        Self { inner }
     }
 }
 
-impl<I> Iterator for RgbWriter<I> where I: Iterator<Item = u8> + ExactSizeIterator {
+impl<I> Iterator for RgbWriter<I>
+where
+    I: Iterator<Item = u8> + ExactSizeIterator,
+{
     type Item = RGB8;
 
     fn size_hint(&self) -> (usize, Option<usize>) {

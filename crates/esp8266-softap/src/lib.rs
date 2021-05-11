@@ -2,9 +2,9 @@
 
 pub use crate::{
     adapter::{Adapter, ReadPart, WriterPart},
-    error::{Error, Result},
-    softap::{Event, SoftAp, SoftApConfig, DataReader},
     bytes_iter::BytesIter,
+    error::{Error, Result},
+    softap::{DataReader, Event, SoftAp, SoftApConfig},
 };
 
 pub mod adapter;
@@ -17,3 +17,13 @@ mod parser;
 mod tests;
 
 pub const ADAPTER_BUF_CAPACITY: usize = 512;
+
+#[macro_export]
+macro_rules! poll_continue {
+    ($e:expr) => {
+        match $e {
+            Err(nb::Error::WouldBlock) => continue,
+            other => other,
+        }
+    };
+}

@@ -75,7 +75,6 @@ impl PacketReader {
                 // );
 
                 IncomingMessage::AddImage {
-                    len: img.image_len as usize,
                     refresh_rate: img.refresh_rate,
                     reader: bytes,
                     strip_len: img.strip_len as usize,
@@ -95,7 +94,6 @@ where
     // Requests.
     GetInfo,
     AddImage {
-        len: usize,
         refresh_rate: u32,
         strip_len: usize,
         reader: I,
