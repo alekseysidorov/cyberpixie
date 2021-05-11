@@ -17,9 +17,11 @@ pub struct Adapter<Rx, Tx>
 where
     Rx: serial::Read<u8> + 'static,
     Tx: serial::Write<u8> + 'static,
+    Rx::Error: core::fmt::Debug,
+    Tx::Error: core::fmt::Debug,
 {
     reader: ReadPart<Rx>,
-    writer: WriterPart<Tx>,
+    writer: WritePart<Tx>,
     cmd_read_finished: bool,
 }
 
@@ -28,6 +30,7 @@ where
     Rx: serial::Read<u8> + 'static,
     Tx: serial::Write<u8> + 'static,
     Rx::Error: core::fmt::Debug,
+    Tx::Error: core::fmt::Debug,
 {
     pub fn new(rx: Rx, tx: Tx) -> Result<Self, Rx::Error, Tx::Error> {
         let mut adapter = Self {
@@ -35,7 +38,7 @@ where
                 buf: Vec::default(),
                 rx,
             },
-            writer: WriterPart { tx },
+            writer: WritePart { tx },
             cmd_read_finished: false,
         };
         adapter.init()?;
@@ -79,7 +82,7 @@ where
         self.read_until(OkCondition)
     }
 
-    pub(crate) fn into_parts(mut self) -> (ReadPart<Rx>, WriterPart<Tx>) {
+    pub(crate) fn into_parts(mut self) -> (ReadPart<Rx>, WritePart<Tx>) {
         self.reader.buf.clear();
         (self.reader, self.writer)
     }
@@ -207,13 +210,14 @@ where
 }
 
 #[derive(Debug)]
-pub struct WriterPart<Tx> {
+pub struct WritePart<Tx> {
     tx: Tx,
 }
 
-impl<Tx> WriterPart<Tx>
+impl<Tx> WritePart<Tx>
 where
     Tx: serial::Write<u8> + 'static,
+    Tx::Error: core::fmt::Debug,
 {
     fn write_fmt(&mut self, args: core::fmt::Arguments) -> core::fmt::Result {
         let writer = &mut self.tx as &mut (dyn serial::Write<u8, Error = Tx::Error> + 'static);

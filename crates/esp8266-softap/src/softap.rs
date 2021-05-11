@@ -2,7 +2,7 @@ use embedded_hal::serial;
 use heapless::Vec;
 
 use crate::{
-    adapter::{Adapter, ReadPart, WriterPart},
+    adapter::{Adapter, ReadPart, WritePart},
     parser::CommandResponse,
     Error,
 };
@@ -19,6 +19,8 @@ pub struct SoftAp<Rx, Tx>
 where
     Rx: serial::Read<u8> + 'static,
     Tx: serial::Write<u8> + 'static,
+    Rx::Error: core::fmt::Debug,
+    Tx::Error: core::fmt::Debug,
 {
     adapter: Adapter<Rx, Tx>,
 }
@@ -28,6 +30,7 @@ where
     Rx: serial::Read<u8> + 'static,
     Tx: serial::Write<u8> + 'static,
     Rx::Error: core::fmt::Debug,
+    Tx::Error: core::fmt::Debug,
 {
     pub fn new(adapter: Adapter<Rx, Tx>) -> Self {
         Self { adapter }
@@ -37,7 +40,7 @@ where
     pub fn start(
         mut self,
         config: SoftApConfig<'_>,
-    ) -> crate::Result<(ReadPart<Rx>, WriterPart<Tx>), Rx::Error, Tx::Error> {
+    ) -> crate::Result<(ReadPart<Rx>, WritePart<Tx>), Rx::Error, Tx::Error> {
         self.init(config)?;
         Ok(self.adapter.into_parts())
     }

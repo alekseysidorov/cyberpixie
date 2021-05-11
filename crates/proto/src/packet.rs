@@ -68,7 +68,7 @@ impl PacketReader {
         &mut self,
         mut bytes: I,
         header_len: usize,
-    ) -> postcard::Result<IncomingMessage<I>>
+    ) -> postcard::Result<Message<I>>
     where
         I: Iterator<Item = u8> + ExactSizeIterator,
     {
@@ -77,15 +77,18 @@ impl PacketReader {
 
         let header: MessageHeader = postcard::from_bytes(&self.header)?;
         let msg = match header {
-            MessageHeader::GetInfo => IncomingMessage::GetInfo,
-            MessageHeader::Info(info) => IncomingMessage::Info(info),
-            MessageHeader::Error(code) => IncomingMessage::Error(code),
-            MessageHeader::ClearImages => IncomingMessage::ClearImages,
-
-            MessageHeader::AddImage(img) => IncomingMessage::AddImage {
+            MessageHeader::GetInfo => Message::GetInfo,
+            MessageHeader::Info(info) => Message::Info(info),
+            MessageHeader::Error(code) => Message::Error(code),
+            MessageHeader::ClearImages => Message::ClearImages,
+            MessageHeader::AddImage(img) => Message::AddImage {
                 refresh_rate: img.refresh_rate,
                 bytes,
                 strip_len: img.strip_len as usize,
+            },
+            MessageHeader::Ok => Message::Ok,
+            MessageHeader::ImageAdded(index) => Message::ImageAdded {
+                index: index as usize,
             },
         };
 
@@ -94,7 +97,7 @@ impl PacketReader {
 }
 
 #[derive(Debug)]
-pub enum IncomingMessage<I>
+pub enum Message<I>
 where
     I: Iterator<Item = u8> + ExactSizeIterator,
 {
@@ -108,6 +111,10 @@ where
     ClearImages,
 
     // Responses.
+    Ok,
+    ImageAdded {
+        index: usize,
+    },
     Info(FirmwareInfo),
     Error(u16),
 }

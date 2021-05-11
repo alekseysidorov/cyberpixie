@@ -2,7 +2,12 @@ use std::time::{Duration, Instant};
 
 use esp8266_softap::{Adapter, BytesIter, Event, SoftAp, SoftApConfig};
 
-use crate::{IncomingMessage, MAX_HEADER_LEN, PacketReader, packet::write_message_header, tests::serial::EmbeddedSerial, types::{AddImage, FirmwareInfo, Hertz, MessageHeader}};
+use crate::{
+    packet::write_message_header,
+    tests::serial::EmbeddedSerial,
+    types::{AddImage, FirmwareInfo, Hertz, MessageHeader},
+    Message, PacketReader, MAX_HEADER_LEN,
+};
 
 mod serial;
 
@@ -77,7 +82,7 @@ fn message_read_unsized() -> postcard::Result<()> {
 
     let mut bytes = bytes.take(header_len + payload_len);
     let msg = reader.read_message(&mut bytes, header_len)?;
-    if let IncomingMessage::AddImage {
+    if let Message::AddImage {
         refresh_rate,
         bytes,
         strip_len,
@@ -148,8 +153,8 @@ fn test_soft_ap() {
                 let msg = packet_reader.read_message(bytes, header_len).unwrap();
 
                 match msg {
-                    IncomingMessage::GetInfo => {}
-                    IncomingMessage::AddImage { bytes, .. } => {
+                    Message::GetInfo => {}
+                    Message::AddImage { bytes, .. } => {
                         let size = bytes.len();
                         for _byte in bytes {}
 
@@ -157,9 +162,11 @@ fn test_soft_ap() {
 
                         start = Instant::now();
                     }
-                    IncomingMessage::ClearImages => {}
-                    IncomingMessage::Info(_) => {}
-                    IncomingMessage::Error(_) => {}
+                    Message::ClearImages => {}
+                    Message::Info(_) => {}
+                    Message::Error(_) => {}
+                    Message::Ok => {}
+                    Message::ImageAdded { .. } => {}
                 };
             }
         }

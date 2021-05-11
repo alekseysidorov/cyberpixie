@@ -10,7 +10,7 @@ use cyberpixie_firmware::{
     config::{MAX_LINES_COUNT, SERIAL_PORT_CONFIG, STRIP_LEDS_COUNT},
     storage::{ImagesRepository, RgbWriter},
 };
-use cyberpixie_proto::{types::Hertz, IncomingMessage, PacketReader};
+use cyberpixie_proto::{types::Hertz, Message, PacketReader, Service, ServiceEvent};
 use embedded_hal::{digital::v2::OutputPin, spi::MODE_0};
 use esp8266_softap::{Adapter, BytesIter, Event, SoftAp, SoftApConfig};
 use gd32vf103xx_hal::{delay::McycleDelay, pac::Peripherals, prelude::*, serial::Serial, spi::Spi};
@@ -64,6 +64,7 @@ fn main() -> ! {
             mode: 4,
         })
         .unwrap();
+    let mut service = cyberpixie_firmware::network::into_service(net_reader, net_writer);
     uprintln!("SoftAP has been successfuly configured.");
 
     // SPI1_SCK(PB13), SPI1_MISO(PB14) and SPI1_MOSI(PB15) GPIO pin configuration
@@ -94,45 +95,38 @@ fn main() -> ! {
     let mut rate = Hertz(0);
 
     loop {
-        let event = if let Ok(event) = net_reader.poll_data() {
+        let event = if let Ok(event) = service.poll_next() {
             event
         } else {
             continue;
         };
 
         match event {
-            Event::Connected { .. } => {}
-            Event::Closed { link_id } => {
-                uprintln!("closed {}, buf_len: {}", link_id, buf.len());
+            ServiceEvent::Connected { .. } => {}
+            ServiceEvent::Disconnected { address } => {
+                uprintln!("closed {}, buf_len: {}", address, buf.len());
                 images.add_image(buf.iter().copied(), rate).unwrap();
                 buf.clear();
                 uprintln!("Images count: {}", images.count());
             }
-            Event::DataAvailable {
-                link_id,
-                mut reader,
-            } => {
-                let mut packet_reader = PacketReader::default();
-                let (header_len, payload_len) = packet_reader.read_message_len(&mut reader);
+            ServiceEvent::Data { address, payload } => match payload {
+                Message::GetInfo => {}
+                Message::AddImage {
+                    refresh_rate,
+                    bytes,
+                    ..
+                } => {
+                    rate = refresh_rate;
+                    buf.extend(RgbWriter::new(bytes));
 
-                let bytes = BytesIter::new(link_id, reader, payload_len + header_len);
-                let msg = packet_reader.read_message(bytes, header_len).unwrap();
-
-                match msg {
-                    IncomingMessage::GetInfo => {}
-                    IncomingMessage::AddImage {
-                        bytes,
-                        refresh_rate,
-                        ..
-                    } => {
-                        rate = refresh_rate;
-                        buf.extend(RgbWriter::new(bytes));
-                    }
-                    IncomingMessage::ClearImages => images = images.reset().unwrap(),
-                    IncomingMessage::Info(_) => {}
-                    IncomingMessage::Error(_) => {}
-                };
-            }
+                    service.send_message(address, Message::GetInfo);
+                }
+                Message::ClearImages => images = images.reset().unwrap(),
+                Message::Info(_) => {}
+                Message::Error(_) => {},                
+                Message::Ok => {},
+                Message::ImageAdded { index } => {},
+            },
         }
     }
 }
