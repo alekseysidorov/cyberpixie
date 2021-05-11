@@ -1,5 +1,6 @@
 use std::time::{Duration, Instant};
 
+use cyberpixie_proto::{IncomingMessage, PacketReader};
 use serial::EmbeddedSerial;
 
 use crate::{
@@ -7,6 +8,7 @@ use crate::{
     parser::CommandResponse,
     poll_continue,
     softap::{Event, SoftAp, SoftApConfig},
+    BytesIter,
 };
 
 mod serial;
@@ -41,12 +43,33 @@ fn test_soft_ap() {
                 eprintln!("Event::Closed {}", link_id);
                 break;
             }
-            Event::DataAvailable { link_id, reader } => {
-                eprintln!("Event::BytesReceived {} count: {}", link_id, reader.len());
-                for byte in reader {
-                    eprint!("{}", byte as char);
-                }
-                eprintln!();
+            Event::DataAvailable { link_id, mut reader } => {
+                let mut packet_reader = PacketReader::default();
+                let msg_len = packet_reader.read_message_len(&mut reader);
+                let msg = packet_reader.read_message(reader, msg_len).unwrap();
+
+                match msg {
+                    IncomingMessage::GetInfo => {}
+                    IncomingMessage::AddImage {
+                        refresh_rate,
+                        strip_len,
+                        reader,
+                        len,
+                    } => {
+                        for byte in BytesIter::new(link_id, reader, len) {
+                            // eprint!("{} ", byte as char);
+                            // buf.push(byte).unwrap();
+                        }
+                        eprintln!("Image read finished");
+
+                        // let img_reader = RgbWriter::new(buf.as_slice().into_iter().copied());
+                        // images.add_image(img_reader, refresh_rate.hz()).unwrap();
+                        // uprintln!("Write image: total images count: {}", images.count());
+                    }
+                    IncomingMessage::ClearImages => {}
+                    IncomingMessage::Info(_) => {}
+                    IncomingMessage::Error(_) => {}
+                };
             }
         }
     }

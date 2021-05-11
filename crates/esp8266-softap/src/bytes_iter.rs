@@ -62,8 +62,8 @@ where
         if self.bytes_remaining == 0 {
             return None;
         }
-
         self.bytes_remaining -= 1;
+
         if let Some(byte) = self.data.next() {
             return Some(byte);
         }
@@ -78,4 +78,16 @@ where
     Rx: serial::Read<u8> + 'static,
     Rx::Error: core::fmt::Debug,
 {
+}
+
+impl<'a, Rx> Drop for BytesIter<'a, Rx>
+where
+    Rx: serial::Read<u8> + 'static,
+    Rx::Error: core::fmt::Debug,
+{
+    fn drop(&mut self) {
+        // In order to use the reader further, we must read all of the remaining bytes.
+        // Otherwise, the reader will be in an inconsistent state.
+        for _ in &mut self.data {}
+    }
 }

@@ -80,11 +80,14 @@ fn message_reader_unsized() -> postcard::Result<()> {
         refresh_rate,
         reader,
         strip_len,
+        len,
     } = msg
     {
         assert_eq!(refresh_rate, 32);
         assert_eq!(strip_len, 24);
         assert_eq!(reader.len(), image_len);
+        assert_eq!(len, image_len);
+        
         for byte in reader {
             assert_eq!(byte, 8);
         }
