@@ -70,11 +70,12 @@ where
         // Refresh header values.
         header.vacant_block = vacant_block.0 as u16;
         header.images_count += 1;
+        let images_count = header.images_count;
         self.block.set_header(header);
 
         // Store updated header block.
         self.device.write(&self.block.inner, Self::HEADER_BLOCK)?;
-        Ok(header.images_count)
+        Ok(images_count)
     }
 
     pub fn read_image(
