@@ -14,7 +14,7 @@ enum Commands {
         image_path: PathBuf,
         address: SocketAddr,
         #[structopt(short, long, default_value = "24")]
-        strip_len: u16,
+        strip_len: usize,
         #[structopt(short, long = "refresh-rate", default_value = "50")]
         refresh_rate: Hertz,
     },

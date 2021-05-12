@@ -42,15 +42,17 @@ impl Default for PacketReader {
 }
 
 impl PacketReader {
+    pub const PACKET_LEN_BUF_SIZE: usize = PAYLOAD_LEN_BYTES + 1;
+
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn read_message_len<I>(&mut self, bytes: &mut I) -> (usize, usize)
+    pub fn read_message_len<I>(&self, bytes: &mut I) -> (usize, usize)
     where
         I: Iterator<Item = u8> + ExactSizeIterator,
     {
-        assert!(bytes.len() > (PAYLOAD_LEN_BYTES + 1));
+        assert!(bytes.len() >= Self::PACKET_LEN_BUF_SIZE);
 
         let header_len = bytes.next().unwrap() as usize;
         let payload_len = {
@@ -168,6 +170,10 @@ where
 impl Message<Empty<u8>> {
     pub fn get_info() -> Self {
         Self::GetInfo
+    }
+
+    pub fn image_added(index: usize) -> Self {
+        Self::ImageAdded { index }
     }
 }
 

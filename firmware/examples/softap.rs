@@ -108,9 +108,6 @@ fn main() -> ! {
                 ServiceEvent::Connected { .. } => {}
                 ServiceEvent::Disconnected { address } => {
                     uprintln!("closed {}, buf_len: {}", address, buf.len());
-                    images.add_image(buf.iter().copied(), rate).unwrap();
-                    buf.clear();
-                    uprintln!("Images count: {}", images.count());
                 }
                 ServiceEvent::Data { address, payload } => match payload {
                     Message::GetInfo => {}
@@ -121,7 +118,11 @@ fn main() -> ! {
                     } => {
                         rate = refresh_rate;
                         buf.extend(RgbWriter::new(bytes));
-                        response = Some((address, Message::get_info()));
+
+                        let index = images.add_image(buf.iter().copied(), rate).unwrap() as usize;
+                        buf.clear();
+
+                        response = Some((address, Message::image_added(index)));
                     }
                     Message::ClearImages => images = images.reset().unwrap(),
                     Message::Info(_) => {}
