@@ -9,8 +9,7 @@ use std::{
 };
 
 use cyberpixie_proto::{
-    types::{Hertz, MessageHeader},
-    write_message_header, Message, PacketReader, Service, ServiceEvent, MAX_HEADER_LEN,
+    types::Hertz, Message, PacketReader, Service, ServiceEvent, MAX_HEADER_LEN,
 };
 use image::io::Reader;
 
@@ -83,9 +82,18 @@ impl Service for ServiceImpl {
         }?;
         self.next_msg.extend_from_slice(&read_buf[0..bytes_read]);
 
-        if self.next_msg.len() > PacketReader::PACKET_LEN_BUF_SIZE {
+        log::debug!(
+            "Got {} bytes, next_msg_len: {} (should be {})",
+            bytes_read,
+            self.next_msg.len(),
+            PacketReader::PACKET_LEN_BUF_SIZE
+        );
+
+        if self.next_msg.len() < PacketReader::PACKET_LEN_BUF_SIZE {
             return Err(nb::Error::WouldBlock);
         }
+
+        log::debug!("Reading message...");
 
         let mut reader = PacketReader::new();
         let (header_len, payload_len) = reader.read_message_len(
@@ -93,13 +101,24 @@ impl Service for ServiceImpl {
                 .iter()
                 .copied(),
         );
-        // Now we know exactly how many bytes we must read from the stream
-        // to get the message.
-        self.next_msg.resize(header_len + payload_len, 0);
-        self.stream
-            .read_exact(&mut self.next_msg)
-            .map_err(Self::Error::from)
-            .map_err(nb::Error::Other)?;
+        log::debug!(
+            "Got packet sizes, hdr: {}, pld: {}",
+            header_len,
+            payload_len
+        );
+
+        let total_len = header_len + payload_len + PacketReader::PACKET_LEN_BUF_SIZE;
+        if self.next_msg.len() < total_len {
+            // Now we know exactly how many bytes we must read from the stream
+            // to get the message.
+            self.next_msg.resize(header_len + payload_len, 0);
+            self.stream
+                .read_exact(&mut self.next_msg[header_len + PacketReader::PACKET_LEN_BUF_SIZE..])
+                .map_err(Self::Error::from)
+                .map_err(nb::Error::Other)?;
+        }
+
+        log::debug!("Message bytes read");
 
         let read_iter = BytesIter {
             vec: &mut self.next_msg,
@@ -172,16 +191,18 @@ pub fn send_image<T: ToSocketAddrs + Display + Copy>(
 }
 
 pub fn send_clear_images<T: ToSocketAddrs + Display + Copy>(to: T) -> anyhow::Result<()> {
-    let mut header_buf = vec![0_u8; MAX_HEADER_LEN];
-    let msg = MessageHeader::ClearImages;
+    let mut service = ServiceImpl::new(TcpStream::connect(to)?);
+    service.send_message((), Message::clear_images())?;
+    log::trace!("Sent image to {}", to);
 
-    let total_len = write_message_header(&mut header_buf, &msg, 0)
-        .map_err(|e| anyhow::format_err!("Unable to write message header: {:?}", e))?;
-    header_buf.truncate(total_len);
+    let response = nb::block!(service.poll_next())?;
+    if let ServiceEvent::Data {
+        payload: Message::Ok,
+        ..
+    } = response
+    {
+        log::info!("Ok response received")
+    }
 
-    let mut stream = TcpStream::connect(to)?;
-    stream.write_all(&header_buf)?;
-
-    log::trace!("Sent reset cmd to {}: {:?}", to, msg);
     Ok(())
 }

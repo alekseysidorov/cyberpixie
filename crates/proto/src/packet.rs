@@ -175,6 +175,10 @@ impl Message<Empty<u8>> {
     pub fn image_added(index: usize) -> Self {
         Self::ImageAdded { index }
     }
+
+    pub fn clear_images() -> Self {
+        Self::ClearImages
+    }
 }
 
 pub struct MessageBytes<I>
