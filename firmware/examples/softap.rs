@@ -10,9 +10,9 @@ use cyberpixie_firmware::{
     config::{MAX_LINES_COUNT, SERIAL_PORT_CONFIG, STRIP_LEDS_COUNT},
     storage::{ImagesRepository, RgbWriter},
 };
-use cyberpixie_proto::{types::Hertz, Message, Service, ServiceEvent};
+use cyberpixie_proto::{Message, Service, ServiceEvent};
 use embedded_hal::{digital::v2::OutputPin, spi::MODE_0};
-use esp8266_softap::{Adapter, SoftAp, SoftApConfig};
+use esp8266_softap::{Adapter, SoftApConfig};
 use gd32vf103xx_hal::{delay::McycleDelay, pac::Peripherals, prelude::*, serial::Serial, spi::Spi};
 use heapless::Vec;
 use smart_leds::RGB8;
@@ -116,13 +116,18 @@ fn main() -> ! {
                         ..
                     } => {
                         buf.extend(RgbWriter::new(bytes));
-                        let index = images.add_image(buf.iter().copied(), refresh_rate).unwrap() as usize;
+                        let index =
+                            images.add_image(buf.iter().copied(), refresh_rate).unwrap() as usize;
                         buf.clear();
 
                         uprintln!("Got image {}", index);
                         response = Some((address, Message::image_added(index)));
                     }
-                    Message::ClearImages => images = images.reset().unwrap(),
+                    Message::ClearImages => {
+                        images = images.reset().unwrap();
+                        uprintln!("Clear images");
+                        response = Some((address, Message::Ok));
+                    }
                     Message::Info(_) => {}
                     Message::Error(_) => {}
                     Message::Ok => {}
