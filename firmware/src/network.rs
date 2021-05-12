@@ -2,19 +2,16 @@ use core::fmt::Debug;
 
 use cyberpixie_proto::{Message, PacketReader, PayloadError, Service, ServiceEvent};
 use embedded_hal::serial::{Read, Write};
-use esp8266_softap::{BytesIter, Event, ReadPart, WritePart};
+use esp8266_softap::{BytesIter, Event, SoftAp};
 
-pub fn into_service<Rx, Tx>(
-    reader: ReadPart<Rx>,
-    writer: WritePart<Tx>,
-) -> impl Service<Address = usize>
+pub fn into_service<Rx, Tx>(ap: SoftAp<Rx, Tx>) -> impl Service<Address = usize>
 where
     Rx: Read<u8> + 'static,
     Tx: Write<u8> + 'static,
     Rx::Error: Debug,
     Tx::Error: Debug,
 {
-    ServiceImpl { reader, writer }
+    ServiceImpl(ap)
 }
 
 #[derive(Debug)]
@@ -24,16 +21,12 @@ enum Error<R: Debug, W: Debug> {
     Payload(PayloadError),
 }
 
-struct ServiceImpl<Rx, Tx>
+struct ServiceImpl<Rx, Tx>(SoftAp<Rx, Tx>)
 where
     Rx: Read<u8> + 'static,
     Tx: Write<u8> + 'static,
     Rx::Error: Debug,
-    Tx::Error: Debug,
-{
-    reader: ReadPart<Rx>,
-    writer: WritePart<Tx>,
-}
+    Tx::Error: Debug;
 
 impl<Rx, Tx> Service for ServiceImpl<Rx, Tx>
 where
@@ -49,11 +42,10 @@ where
 
     fn poll_next(
         &mut self,
-    ) -> nb::Result<cyberpixie_proto::ServiceEvent<Self::Address, Self::BytesReader<'_>>, Self::Error>
-    {
+    ) -> nb::Result<ServiceEvent<Self::Address, Self::BytesReader<'_>>, Self::Error> {
         let event = self
-            .reader
-            .poll_data()
+            .0
+            .poll_next_event()
             .map_err(|x| x.map(Self::Error::Read))?;
 
         Ok(match event {

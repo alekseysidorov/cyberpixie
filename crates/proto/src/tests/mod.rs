@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use esp8266_softap::{Adapter, BytesIter, Event, SoftAp, SoftApConfig};
+use esp8266_softap::{Adapter, BytesIter, Event, SoftApConfig};
 
 use crate::{
     packet::write_message_header,
@@ -104,20 +104,19 @@ fn message_read_unsized() -> postcard::Result<()> {
 }
 
 #[test]
-#[ignore = "This test depends on the manual manipulations with the device."]
+// #[ignore = "This test depends on the manual manipulations with the device."]
 fn test_soft_ap() {
     let port = serialport::new("/dev/ttyUSB0", 115200).open().unwrap();
     let (rx, tx) = EmbeddedSerial::new(port).into_rx_tx();
 
-    let adapter = Adapter::new(rx, tx).unwrap();
-    let (mut rx, _tx) = SoftAp::new(adapter)
-        .start(SoftApConfig {
-            ssid: "cyberpixie",
-            password: "12345678",
-            channel: 5,
-            mode: 4,
-        })
-        .unwrap();
+    let mut ap = SoftApConfig {
+        ssid: "cyberpixie",
+        password: "12345678",
+        channel: 5,
+        mode: 4,
+    }
+    .start(Adapter::new(rx, tx).unwrap())
+    .unwrap();
 
     eprintln!("Serial port established");
     let mut start = Instant::now();
@@ -127,7 +126,7 @@ fn test_soft_ap() {
             break;
         }
 
-        let event = match rx.poll_data() {
+        let event = match ap.poll_next_event() {
             Ok(event) => event,
             Err(nb::Error::WouldBlock) => continue,
             Err(err) => panic!("{:?}", err),

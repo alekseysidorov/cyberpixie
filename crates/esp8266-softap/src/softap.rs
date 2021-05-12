@@ -2,7 +2,7 @@ use embedded_hal::serial;
 use heapless::Vec;
 
 use crate::{
-    adapter::{Adapter, ReadPart, WritePart},
+    adapter::{Adapter, ReadPart},
     parser::CommandResponse,
     Error,
 };
@@ -13,6 +13,23 @@ pub struct SoftApConfig<'a> {
     pub password: &'a str,
     pub channel: u8,
     pub mode: u8,
+}
+
+impl<'a> SoftApConfig<'a> {
+    pub fn start<Rx, Tx>(
+        self,
+        adapter: Adapter<Rx, Tx>,
+    ) -> crate::Result<SoftAp<Rx, Tx>, Rx::Error, Tx::Error>
+    where
+        Rx: serial::Read<u8> + 'static,
+        Tx: serial::Write<u8> + 'static,
+        Rx::Error: core::fmt::Debug,
+        Tx::Error: core::fmt::Debug,
+    {
+        let mut ap = SoftAp { adapter };
+        ap.init(self)?;
+        Ok(ap)
+    }
 }
 
 pub struct SoftAp<Rx, Tx>
@@ -34,15 +51,6 @@ where
 {
     pub fn new(adapter: Adapter<Rx, Tx>) -> Self {
         Self { adapter }
-    }
-
-    #[allow(clippy::type_complexity)]
-    pub fn start(
-        mut self,
-        config: SoftApConfig<'_>,
-    ) -> crate::Result<(ReadPart<Rx>, WritePart<Tx>), Rx::Error, Tx::Error> {
-        self.init(config)?;
-        Ok(self.adapter.into_parts())
     }
 
     fn init(&mut self, config: SoftApConfig<'_>) -> crate::Result<(), Rx::Error, Tx::Error> {
@@ -83,8 +91,17 @@ where
                 cmd: "CWSAP",
                 msg: "Incorrect soft AP configuration",
             })?;
+        self.adapter.clear_reader_buf();
 
         Ok(())
+    }
+
+    pub fn read_bytes(&mut self) -> nb::Result<(), Rx::Error> {
+        self.adapter.reader.read_bytes()
+    }
+
+    pub fn poll_next_event(&mut self) -> nb::Result<Event<'_, Rx>, Rx::Error> {
+        self.adapter.reader.poll_next_event()
     }
 }
 
@@ -111,19 +128,10 @@ where
     Rx: serial::Read<u8> + 'static,
     Rx::Error: core::fmt::Debug,
 {
-    pub fn poll_bytes(&mut self) -> Result<(), Rx::Error> {
-        if let Err(nb::Error::Other(e)) = self.read_bytes() {
-            Err(e)
-        } else {
-            Ok(())
-        }
-    }
-
-    pub fn poll_data(&mut self) -> nb::Result<Event<'_, Rx>, Rx::Error> {
-        self.poll_bytes()?;
-
+    pub(crate) fn poll_next_event(&mut self) -> nb::Result<Event<'_, Rx>, Rx::Error> {
         let response =
             CommandResponse::parse(&self.buf).map(|(remainder, event)| (remainder.len(), event));
+
         if let Some((remaining_bytes, response)) = response {
             let pos = self.buf.len() - remaining_bytes;
             truncate_buf(&mut self.buf, pos);
@@ -144,6 +152,7 @@ where
             return Ok(event);
         }
 
+        self.read_bytes()?;
         Err(nb::Error::WouldBlock)
     }
 }

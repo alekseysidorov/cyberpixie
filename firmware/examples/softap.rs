@@ -10,9 +10,9 @@ use cyberpixie_firmware::{
     config::{MAX_LINES_COUNT, SERIAL_PORT_CONFIG, STRIP_LEDS_COUNT},
     storage::{ImagesRepository, RgbWriter},
 };
-use cyberpixie_proto::{types::Hertz, Message, PacketReader, Service, ServiceEvent};
+use cyberpixie_proto::{types::Hertz, Message, Service, ServiceEvent};
 use embedded_hal::{digital::v2::OutputPin, spi::MODE_0};
-use esp8266_softap::{Adapter, BytesIter, Event, SoftAp, SoftApConfig};
+use esp8266_softap::{Adapter, SoftAp, SoftApConfig};
 use gd32vf103xx_hal::{delay::McycleDelay, pac::Peripherals, prelude::*, serial::Serial, spi::Spi};
 use heapless::Vec;
 use smart_leds::RGB8;
@@ -55,16 +55,17 @@ fn main() -> ! {
     };
     uprintln!("esp32 serial communication port configured.");
 
-    let adapter = Adapter::new(esp_rx, esp_tx).unwrap();
-    let (mut net_reader, _net_writer) = SoftAp::new(adapter)
-        .start(SoftApConfig {
+    let ap = {
+        let adapter = Adapter::new(esp_rx, esp_tx).unwrap();
+        let config = SoftApConfig {
             ssid: "cyberpixie",
             password: "12345678",
             channel: 5,
             mode: 4,
-        })
-        .unwrap();
-    let mut service = cyberpixie_firmware::network::into_service(net_reader, net_writer);
+        };
+        config.start(adapter).unwrap()
+    };
+    let mut service = cyberpixie_firmware::network::into_service(ap);
     uprintln!("SoftAP has been successfuly configured.");
 
     // SPI1_SCK(PB13), SPI1_MISO(PB14) and SPI1_MOSI(PB15) GPIO pin configuration
@@ -95,38 +96,46 @@ fn main() -> ! {
     let mut rate = Hertz(0);
 
     loop {
-        let event = if let Ok(event) = service.poll_next() {
-            event
-        } else {
-            continue;
+        let response = {
+            let event = if let Ok(event) = service.poll_next() {
+                event
+            } else {
+                continue;
+            };
+
+            let mut response = None;
+            match event {
+                ServiceEvent::Connected { .. } => {}
+                ServiceEvent::Disconnected { address } => {
+                    uprintln!("closed {}, buf_len: {}", address, buf.len());
+                    images.add_image(buf.iter().copied(), rate).unwrap();
+                    buf.clear();
+                    uprintln!("Images count: {}", images.count());
+                }
+                ServiceEvent::Data { address, payload } => match payload {
+                    Message::GetInfo => {}
+                    Message::AddImage {
+                        refresh_rate,
+                        bytes,
+                        ..
+                    } => {
+                        rate = refresh_rate;
+                        buf.extend(RgbWriter::new(bytes));
+                        response = Some((address, Message::get_info()));
+                    }
+                    Message::ClearImages => images = images.reset().unwrap(),
+                    Message::Info(_) => {}
+                    Message::Error(_) => {}
+                    Message::Ok => {}
+                    Message::ImageAdded { .. } => {}
+                },
+            }
+
+            response
         };
 
-        match event {
-            ServiceEvent::Connected { .. } => {}
-            ServiceEvent::Disconnected { address } => {
-                uprintln!("closed {}, buf_len: {}", address, buf.len());
-                images.add_image(buf.iter().copied(), rate).unwrap();
-                buf.clear();
-                uprintln!("Images count: {}", images.count());
-            }
-            ServiceEvent::Data { address, payload } => match payload {
-                Message::GetInfo => {}
-                Message::AddImage {
-                    refresh_rate,
-                    bytes,
-                    ..
-                } => {
-                    rate = refresh_rate;
-                    buf.extend(RgbWriter::new(bytes));
-
-                    service.send_message(address, Message::GetInfo);
-                }
-                Message::ClearImages => images = images.reset().unwrap(),
-                Message::Info(_) => {}
-                Message::Error(_) => {},                
-                Message::Ok => {},
-                Message::ImageAdded { index } => {},
-            },
+        if let Some((to, message)) = response {
+            service.send_message(to, message).unwrap();
         }
     }
 }

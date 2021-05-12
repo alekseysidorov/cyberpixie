@@ -25,17 +25,16 @@ where
         }
     }
 
-    fn wait_for_next_data(&mut self) {
+    fn wait_for_next_data(&mut self) -> Result<(), Rx::Error> {
         loop {
-            let event =
-                nb::block!(self.data.reader.poll_data()).expect("Unable to read next packet");
+            let event = nb::block!(self.data.reader.poll_next_event())?;
 
             match event {
                 Event::DataAvailable { link_id, reader } if link_id == self.link_id => {
                     // FIXME: Rewrite this code without breaking encapsulation rules.
                     self.data.bytes_remaining = reader.bytes_remaining;
                     self.data.read_pos = reader.read_pos;
-                    return;
+                    return Ok(());
                 }
                 // We do not support simultaneous multiple connections.
                 Event::DataAvailable { link_id, reader } if link_id != self.link_id => {
@@ -68,7 +67,8 @@ where
             return Some(byte);
         }
 
-        self.wait_for_next_data();
+        self.wait_for_next_data()
+            .expect("Panic in the bytes reader");
         self.data.next()
     }
 }

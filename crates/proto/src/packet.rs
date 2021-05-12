@@ -1,11 +1,10 @@
-use core::convert::TryInto;
-
 pub use crate::types::FirmwareInfo;
+
+use core::{convert::TryInto, iter::Empty};
 
 use crate::types::{Hertz, MessageHeader};
 
 pub const MAX_HEADER_LEN: usize = 80;
-
 pub type PayloadLength = u32;
 
 const PAYLOAD_LEN_BYTES: usize = core::mem::size_of::<PayloadLength>();
@@ -97,7 +96,7 @@ impl PacketReader {
 }
 
 #[derive(Debug)]
-pub enum Message<I>
+pub enum Message<I = Empty<u8>>
 where
     I: Iterator<Item = u8> + ExactSizeIterator,
 {
@@ -117,6 +116,13 @@ where
     },
     Info(FirmwareInfo),
     Error(u16),
+}
+
+impl Message<Empty<u8>>
+{
+    pub fn get_info() -> Self {
+        Self::GetInfo
+    }
 }
 
 fn fill_buf<I>(buf: &mut [u8], it: &mut I, len: usize)

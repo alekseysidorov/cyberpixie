@@ -20,8 +20,8 @@ where
     Rx::Error: core::fmt::Debug,
     Tx::Error: core::fmt::Debug,
 {
-    reader: ReadPart<Rx>,
-    writer: WritePart<Tx>,
+    pub(crate) reader: ReadPart<Rx>,
+    pub(crate) writer: WritePart<Tx>,
     cmd_read_finished: bool,
 }
 
@@ -52,6 +52,7 @@ where
         for _ in 0..50 {
             self.send_at_command_str(b"ATE1").ok();
         }
+        self.reader.buf.clear();
 
         self.disable_echo()?;
         Ok(())
@@ -82,11 +83,6 @@ where
         self.read_until(OkCondition)
     }
 
-    pub(crate) fn into_parts(mut self) -> (ReadPart<Rx>, WritePart<Tx>) {
-        self.reader.buf.clear();
-        (self.reader, self.writer)
-    }
-
     fn disable_echo(&mut self) -> Result<(), Rx::Error, Tx::Error> {
         self.send_at_command_str(b"ATE0").map(drop)
     }
@@ -96,17 +92,21 @@ where
         self.writer.write_bytes(NEWLINE).map_err(Error::Write)
     }
 
+    pub(crate) fn clear_reader_buf(&mut self) {
+        self.cmd_read_finished = false;
+        // Safety: `u8` is aprimitive type and doesn't have drop implementation so we can just
+        // modify the buffer length.
+        unsafe {
+            self.reader.buf.set_len(0);
+        }
+    }
+
     fn read_until<'a, C>(&'a mut self, condition: C) -> Result<C::Output, Rx::Error, Tx::Error>
     where
         C: Condition<'a>,
     {
         if self.cmd_read_finished {
-            self.cmd_read_finished = false;
-            // Safety: `u8` is aprimitive type and doesn't have drop implementation so we can just
-            // modify the buffer length.
-            unsafe {
-                self.reader.buf.set_len(0);
-            }
+            self.clear_reader_buf();
         }
 
         loop {
@@ -117,7 +117,10 @@ where
                     }
                 }
                 Err(nb::Error::WouldBlock) => {}
-                Err(nb::Error::Other(err)) => return Err(Error::Read(err)),
+                Err(nb::Error::Other(err)) => {
+                    self.cmd_read_finished = true;
+                    return Err(Error::Read(err));
+                }
             };
 
             if condition.is_performed(&self.reader.buf) {
