@@ -103,6 +103,36 @@ where
     pub fn poll_next_event(&mut self) -> nb::Result<Event<'_, Rx>, Rx::Error> {
         self.adapter.reader.poll_next_event()
     }
+
+    pub fn send_packet_to_link<I>(
+        &mut self,
+        link_id: usize,
+        bytes: I,
+    ) -> crate::Result<(), Rx::Error, Tx::Error>
+    where
+        I: Iterator<Item = u8> + ExactSizeIterator,
+    {
+        // TODO Implement sending of the whole bytes by splitting them into chunks.
+        assert!(
+            bytes.len() < 2048,
+            "Total packet size should not be greater than the 2048 bytes"
+        );
+
+        let bytes_len = bytes.len();
+        self.adapter
+            .send_at_command_fmt(core::format_args!("AT+CIPSEND={},{}", link_id, bytes_len))?
+            .map_err(|_| Error::MalformedCommand {
+                cmd: "CIPSEND",
+                msg: "Incorrect usage of the CIPSEND (with link_id) command",
+            })?;
+        self.adapter.clear_reader_buf();
+
+        for byte in bytes {
+            nb::block!(self.adapter.writer.write_byte(byte)).map_err(Error::Write)?;
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Debug)]

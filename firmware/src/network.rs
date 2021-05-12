@@ -19,6 +19,17 @@ enum Error<R: Debug, W: Debug> {
     Read(R),
     Write(W),
     Payload(PayloadError),
+    Other,
+}
+
+impl<R: Debug, W: Debug> From<esp8266_softap::Error<R, W>> for Error<R, W> {
+    fn from(inner: esp8266_softap::Error<R, W>) -> Self {
+        match inner {
+            esp8266_softap::Error::Read(r) => Self::Read(r),
+            esp8266_softap::Error::Write(w) => Self::Write(w),
+            _ => Self::Other,
+        }
+    }
 }
 
 struct ServiceImpl<Rx, Tx>(SoftAp<Rx, Tx>)
@@ -75,6 +86,8 @@ where
     where
         I: Iterator<Item = u8> + ExactSizeIterator,
     {
-        Ok(())
+        self.0
+            .send_packet_to_link(to, message.into_bytes())
+            .map_err(From::from)
     }
 }

@@ -65,6 +65,7 @@ where
         Ok(())
     }
 
+    // FIXME: Get rid of the necessity of the manual `clear_reader_buf` invocations.
     pub fn send_at_command_str(
         &mut self,
         cmd: impl AsRef<[u8]>,
@@ -226,11 +227,15 @@ where
         let writer = &mut self.tx as &mut (dyn serial::Write<u8, Error = Tx::Error> + 'static);
         writer.write_fmt(args)
     }
+    
+    pub(crate) fn write_byte(&mut self, byte: u8) -> nb::Result<(), Tx::Error> {
+        stdio_serial::dprint!("{}", byte as char);
+        self.tx.write(byte)
+    }
 
     fn write_bytes(&mut self, bytes: &[u8]) -> core::result::Result<(), Tx::Error> {
         for byte in bytes.iter() {
-            stdio_serial::dprint!("{}", *byte as char);
-            nb::block!(self.tx.write(*byte))?;
+            nb::block!(self.write_byte(*byte))?;
         }
         Ok(())
     }
