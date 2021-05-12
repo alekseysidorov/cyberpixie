@@ -137,6 +137,7 @@ where
                 cmd: "CIPSEND",
                 msg: "Incorrect usage of the CIPSEND (with link_id) command",
             })?;
+        self.adapter.clear_reader_buf();
         Ok(())
     }
 }
