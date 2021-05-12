@@ -97,7 +97,7 @@ impl PacketReader {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Message<I = Empty<u8>>
 where
     I: Iterator<Item = u8> + ExactSizeIterator,

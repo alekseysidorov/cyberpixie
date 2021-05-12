@@ -59,7 +59,7 @@ where
     }
 
     pub fn reset(&mut self) -> Result<(), Rx::Error, Tx::Error> {
-        self.send_command_impl(b"AT+RST")?;
+        self.write_command(b"AT+RST")?;
         self.read_until(ReadyCondition)?;
 
         Ok(())
@@ -70,7 +70,7 @@ where
         &mut self,
         cmd: impl AsRef<[u8]>,
     ) -> Result<RawResponse<'_>, Rx::Error, Tx::Error> {
-        self.send_command_impl(cmd.as_ref())?;
+        self.write_command(cmd.as_ref())?;
         self.read_until(OkCondition)
     }
 
@@ -78,9 +78,7 @@ where
         &mut self,
         args: core::fmt::Arguments,
     ) -> Result<RawResponse<'_>, Rx::Error, Tx::Error> {
-        self.writer.write_fmt(args).map_err(|_| Error::Format)?;
-        self.writer.write_bytes(NEWLINE).map_err(Error::Write)?;
-
+        self.write_command_fmt(args)?;
         self.read_until(OkCondition)
     }
 
@@ -88,8 +86,16 @@ where
         self.send_at_command_str(b"ATE0").map(drop)
     }
 
-    fn send_command_impl(&mut self, cmd: &[u8]) -> Result<(), Rx::Error, Tx::Error> {
+    pub(crate) fn write_command(&mut self, cmd: &[u8]) -> Result<(), Rx::Error, Tx::Error> {
         self.writer.write_bytes(cmd).map_err(Error::Write)?;
+        self.writer.write_bytes(NEWLINE).map_err(Error::Write)
+    }
+
+    pub(crate) fn write_command_fmt(
+        &mut self,
+        args: core::fmt::Arguments,
+    ) -> Result<(), Rx::Error, Tx::Error> {
+        self.writer.write_fmt(args).map_err(|_| Error::Format)?;
         self.writer.write_bytes(NEWLINE).map_err(Error::Write)
     }
 
@@ -102,7 +108,10 @@ where
         }
     }
 
-    fn read_until<'a, C>(&'a mut self, condition: C) -> Result<C::Output, Rx::Error, Tx::Error>
+    pub(crate) fn read_until<'a, C>(
+        &'a mut self,
+        condition: C,
+    ) -> Result<C::Output, Rx::Error, Tx::Error>
     where
         C: Condition<'a>,
     {
@@ -134,7 +143,7 @@ where
     }
 }
 
-trait Condition<'a>: Copy + Clone {
+pub(crate) trait Condition<'a>: Copy + Clone {
     type Output: 'a;
 
     fn is_performed(self, buf: &[u8]) -> bool;
@@ -162,7 +171,26 @@ impl<'a> Condition<'a> for ReadyCondition {
 }
 
 #[derive(Clone, Copy)]
-struct OkCondition;
+pub(crate) struct CarretCondition;
+
+impl CarretCondition {
+    const MSG: &'static [u8] = b"> ";
+}
+
+impl<'a> Condition<'a> for CarretCondition {
+    type Output = &'a [u8];
+
+    fn is_performed(self, buf: &[u8]) -> bool {
+        buf.ends_with(Self::MSG)
+    }
+
+    fn output(self, buf: &'a [u8]) -> Self::Output {
+        &buf[0..buf.len() - Self::MSG.len()]
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct OkCondition;
 
 impl OkCondition {
     const OK: &'static [u8] = b"OK\r\n";
@@ -227,7 +255,7 @@ where
         let writer = &mut self.tx as &mut (dyn serial::Write<u8, Error = Tx::Error> + 'static);
         writer.write_fmt(args)
     }
-    
+
     pub(crate) fn write_byte(&mut self, byte: u8) -> nb::Result<(), Tx::Error> {
         stdio_serial::dprint!("{}", byte as char);
         self.tx.write(byte)

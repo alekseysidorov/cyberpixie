@@ -2,7 +2,7 @@ use embedded_hal::serial;
 use heapless::Vec;
 
 use crate::{
-    adapter::{Adapter, ReadPart},
+    adapter::{Adapter, CarretCondition, OkCondition, ReadPart},
     parser::CommandResponse,
     Error,
 };
@@ -112,25 +112,31 @@ where
     where
         I: Iterator<Item = u8> + ExactSizeIterator,
     {
+        let bytes_len = bytes.len();
         // TODO Implement sending of the whole bytes by splitting them into chunks.
         assert!(
-            bytes.len() < 2048,
+            bytes_len < 2048,
             "Total packet size should not be greater than the 2048 bytes"
         );
+        assert!(self.adapter.reader.buf.is_empty());
 
-        let bytes_len = bytes.len();
-        self.adapter
-            .send_at_command_fmt(core::format_args!("AT+CIPSEND={},{}", link_id, bytes_len))?
-            .map_err(|_| Error::MalformedCommand {
-                cmd: "CIPSEND",
-                msg: "Incorrect usage of the CIPSEND (with link_id) command",
-            })?;
-        self.adapter.clear_reader_buf();
+        self.adapter.write_command_fmt(core::format_args!(
+            "AT+CIPSEND={},{}",
+            link_id,
+            bytes_len
+        ))?;
+        self.adapter.read_until(CarretCondition)?;
 
         for byte in bytes {
             nb::block!(self.adapter.writer.write_byte(byte)).map_err(Error::Write)?;
         }
 
+        self.adapter
+            .read_until(OkCondition)?
+            .map_err(|_| Error::MalformedCommand {
+                cmd: "CIPSEND",
+                msg: "Incorrect usage of the CIPSEND (with link_id) command",
+            })?;
         Ok(())
     }
 }

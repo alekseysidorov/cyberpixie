@@ -1,4 +1,7 @@
-use std::time::{Duration, Instant};
+use std::{
+    iter::Empty,
+    time::{Duration, Instant},
+};
 
 use esp8266_softap::{Adapter, BytesIter, Event, SoftApConfig};
 
@@ -66,7 +69,7 @@ fn message_reader_scalar() -> postcard::Result<()> {
 }
 
 #[test]
-fn message_read_unsized() -> postcard::Result<()> {
+fn message_reader_unsized() -> postcard::Result<()> {
     let mut buf = [8_u8; 512];
 
     let image_len = 200;
@@ -101,6 +104,42 @@ fn message_read_unsized() -> postcard::Result<()> {
     }
 
     Ok(())
+}
+
+#[test]
+fn message_into_bytes_scalar() {
+    let messages: [Message<Empty<u8>>; 3] = [
+        Message::Info(FirmwareInfo {
+            version: 1,
+            strip_len: 24,
+        }),
+        Message::Error(42),
+        Message::GetInfo,
+    ];
+
+    for message in messages {
+        let mut bytes = message.into_bytes();
+
+        let mut reader = PacketReader::default();
+        let (header_len, _) = reader.read_message_len(&mut bytes);
+        reader.read_message(&mut bytes, header_len).unwrap();
+    }
+}
+
+#[test]
+fn message_into_bytes_vector() {
+    let buf = [42; 200];
+
+    let msg = Message::AddImage {
+        refresh_rate: Hertz(50),
+        strip_len: 48,
+        bytes: buf.iter().copied(),
+    };
+
+    let mut bytes = msg.into_bytes();
+    let mut reader = PacketReader::default();
+    let (header_len, _) = reader.read_message_len(&mut bytes);    
+    reader.read_message(&mut bytes, header_len).unwrap();    
 }
 
 #[test]

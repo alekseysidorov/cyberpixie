@@ -93,7 +93,6 @@ fn main() -> ! {
 
     const LEN: usize = MAX_LINES_COUNT * STRIP_LEDS_COUNT;
     let mut buf: Vec<RGB8, LEN> = Vec::new();
-    let mut rate = Hertz(0);
 
     loop {
         let response = {
@@ -116,12 +115,11 @@ fn main() -> ! {
                         bytes,
                         ..
                     } => {
-                        rate = refresh_rate;
                         buf.extend(RgbWriter::new(bytes));
-
-                        let index = images.add_image(buf.iter().copied(), rate).unwrap() as usize;
+                        let index = images.add_image(buf.iter().copied(), refresh_rate).unwrap() as usize;
                         buf.clear();
 
+                        uprintln!("Got image {}", index);
                         response = Some((address, Message::image_added(index)));
                     }
                     Message::ClearImages => images = images.reset().unwrap(),
@@ -136,6 +134,7 @@ fn main() -> ! {
         };
 
         if let Some((to, message)) = response {
+            uprintln!("Sending response to {}", to);
             service.send_message(to, message).unwrap();
         }
     }
