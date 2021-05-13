@@ -42,7 +42,7 @@ where
         Ok(repository)
     }
 
-    pub fn add_image<I>(&mut self, data: I, refresh_rate: Hertz) -> Result<(), B::Error>
+    pub fn add_image<I>(&mut self, data: I, refresh_rate: Hertz) -> Result<u16, B::Error>
     where
         B: BlockDevice,
         I: Iterator<Item = RGB8>,
@@ -70,10 +70,12 @@ where
         // Refresh header values.
         header.vacant_block = vacant_block.0 as u16;
         header.images_count += 1;
+        let images_count = header.images_count;
         self.block.set_header(header);
 
         // Store updated header block.
-        self.device.write(&self.block.inner, Self::HEADER_BLOCK)
+        self.device.write(&self.block.inner, Self::HEADER_BLOCK)?;
+        Ok(images_count)
     }
 
     pub fn read_image(

@@ -1,11 +1,10 @@
-use core::convert::TryInto;
-
 pub use crate::types::FirmwareInfo;
 
-use crate::types::{Hertz, MessageHeader};
+use core::{convert::TryInto, iter::Empty, mem::MaybeUninit};
+
+use crate::types::{AddImage, Hertz, MessageHeader};
 
 pub const MAX_HEADER_LEN: usize = 80;
-
 pub type PayloadLength = u32;
 
 const PAYLOAD_LEN_BYTES: usize = core::mem::size_of::<PayloadLength>();
@@ -25,8 +24,8 @@ pub fn write_message_header(
     buf[0] = header_len as u8;
     buf[1..header_pos].copy_from_slice(&packet_len.to_le_bytes());
 
-    let total_len = header_len + PAYLOAD_LEN_BYTES + 1;
-    Ok(total_len)
+    let total_header_len = header_len + PAYLOAD_LEN_BYTES + 1;
+    Ok(total_header_len)
 }
 
 #[derive(Debug)]
@@ -43,15 +42,17 @@ impl Default for PacketReader {
 }
 
 impl PacketReader {
+    pub const PACKET_LEN_BUF_SIZE: usize = PAYLOAD_LEN_BYTES + 1;
+
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn read_message_len<I>(&mut self, bytes: &mut I) -> (usize, usize)
+    pub fn read_message_len<I>(&self, bytes: &mut I) -> (usize, usize)
     where
         I: Iterator<Item = u8> + ExactSizeIterator,
     {
-        assert!(bytes.len() > (PAYLOAD_LEN_BYTES + 1));
+        assert!(bytes.len() >= Self::PACKET_LEN_BUF_SIZE);
 
         let header_len = bytes.next().unwrap() as usize;
         let payload_len = {
@@ -68,7 +69,7 @@ impl PacketReader {
         &mut self,
         mut bytes: I,
         header_len: usize,
-    ) -> postcard::Result<IncomingMessage<I>>
+    ) -> postcard::Result<Message<I>>
     where
         I: Iterator<Item = u8> + ExactSizeIterator,
     {
@@ -77,15 +78,18 @@ impl PacketReader {
 
         let header: MessageHeader = postcard::from_bytes(&self.header)?;
         let msg = match header {
-            MessageHeader::GetInfo => IncomingMessage::GetInfo,
-            MessageHeader::Info(info) => IncomingMessage::Info(info),
-            MessageHeader::Error(code) => IncomingMessage::Error(code),
-            MessageHeader::ClearImages => IncomingMessage::ClearImages,
-
-            MessageHeader::AddImage(img) => IncomingMessage::AddImage {
+            MessageHeader::GetInfo => Message::GetInfo,
+            MessageHeader::Info(info) => Message::Info(info),
+            MessageHeader::Error(code) => Message::Error(code),
+            MessageHeader::ClearImages => Message::ClearImages,
+            MessageHeader::AddImage(img) => Message::AddImage {
                 refresh_rate: img.refresh_rate,
                 bytes,
                 strip_len: img.strip_len as usize,
+            },
+            MessageHeader::Ok => Message::Ok,
+            MessageHeader::ImageAdded(index) => Message::ImageAdded {
+                index: index as usize,
             },
         };
 
@@ -93,8 +97,8 @@ impl PacketReader {
     }
 }
 
-#[derive(Debug)]
-pub enum IncomingMessage<I>
+#[derive(Debug, PartialEq, Eq)]
+pub enum Message<I = Empty<u8>>
 where
     I: Iterator<Item = u8> + ExactSizeIterator,
 {
@@ -108,9 +112,130 @@ where
     ClearImages,
 
     // Responses.
+    Ok,
+    ImageAdded {
+        index: usize,
+    },
     Info(FirmwareInfo),
     Error(u16),
 }
+
+impl<I> Message<I>
+where
+    I: Iterator<Item = u8> + ExactSizeIterator,
+{
+    fn into_header_payload(self) -> (MessageHeader, Option<I>) {
+        match self {
+            Message::GetInfo => (MessageHeader::GetInfo, None),
+            Message::AddImage {
+                refresh_rate,
+                strip_len,
+                bytes,
+            } => (
+                MessageHeader::AddImage(AddImage {
+                    refresh_rate,
+                    strip_len: strip_len as u16,
+                }),
+                Some(bytes),
+            ),
+            Message::ClearImages => (MessageHeader::ClearImages, None),
+            Message::Ok => (MessageHeader::Ok, None),
+            Message::ImageAdded { index } => (MessageHeader::ImageAdded(index as u16), None),
+            Message::Info(info) => (MessageHeader::Info(info), None),
+            Message::Error(code) => (MessageHeader::Error(code), None),
+        }
+    }
+
+    pub fn into_bytes(self) -> MessageBytes<I> {
+        let mut header_buf = {
+            let uninit: MaybeUninit<[u8; MAX_HEADER_LEN]> = MaybeUninit::uninit();
+            // Safety: We know how many bytes will be used and primitive types
+            // don't have drop implementation.
+            unsafe { uninit.assume_init() }
+        };
+
+        let (header, payload) = self.into_header_payload();
+        let payload_len = payload
+            .as_ref()
+            .map(|payload| payload.len())
+            .unwrap_or_default();
+
+        let header_len = write_message_header(&mut header_buf, &header, payload_len)
+            .expect("Unable to serialize message");
+
+        MessageBytes::new(header_buf, header_len, payload)
+    }
+}
+
+impl Message<Empty<u8>> {
+    pub fn get_info() -> Self {
+        Self::GetInfo
+    }
+
+    pub fn image_added(index: usize) -> Self {
+        Self::ImageAdded { index }
+    }
+
+    pub fn clear_images() -> Self {
+        Self::ClearImages
+    }
+}
+
+pub struct MessageBytes<I>
+where
+    I: Iterator<Item = u8> + ExactSizeIterator,
+{
+    buf: [u8; MAX_HEADER_LEN],
+    len: usize,
+    current_byte: usize,
+    payload: Option<I>,
+}
+
+impl<I> MessageBytes<I>
+where
+    I: Iterator<Item = u8> + ExactSizeIterator,
+{
+    fn new(buf: [u8; MAX_HEADER_LEN], len: usize, payload: Option<I>) -> Self {
+        Self {
+            buf,
+            len,
+            current_byte: 0,
+            payload,
+        }
+    }
+}
+
+impl<I> Iterator for MessageBytes<I>
+where
+    I: Iterator<Item = u8> + ExactSizeIterator,
+{
+    type Item = u8;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_byte < self.len {
+            let byte = self.buf[self.current_byte];
+            self.current_byte += 1;
+            return Some(byte);
+        }
+
+        if let Some(payload) = self.payload.as_mut() {
+            payload.next()
+        } else {
+            None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let mut len = self.len - self.current_byte;
+        if let Some(payload) = self.payload.as_ref() {
+            len += payload.len();
+        }
+
+        (len, Some(len))
+    }
+}
+
+impl<I> ExactSizeIterator for MessageBytes<I> where I: Iterator<Item = u8> + ExactSizeIterator {}
 
 fn fill_buf<I>(buf: &mut [u8], it: &mut I, len: usize)
 where

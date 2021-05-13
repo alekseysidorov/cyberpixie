@@ -1,8 +1,16 @@
-use std::time::{Duration, Instant};
+use std::{
+    iter::Empty,
+    time::{Duration, Instant},
+};
 
-use esp8266_softap::{Adapter, BytesIter, Event, SoftAp, SoftApConfig};
+use esp8266_softap::{Adapter, BytesIter, Event, SoftApConfig};
 
-use crate::{IncomingMessage, MAX_HEADER_LEN, PacketReader, packet::write_message_header, tests::serial::EmbeddedSerial, types::{AddImage, FirmwareInfo, Hertz, MessageHeader}};
+use crate::{
+    packet::write_message_header,
+    tests::serial::EmbeddedSerial,
+    types::{AddImage, FirmwareInfo, Hertz, MessageHeader},
+    Message, PacketReader, MAX_HEADER_LEN,
+};
 
 mod serial;
 
@@ -61,7 +69,7 @@ fn message_reader_scalar() -> postcard::Result<()> {
 }
 
 #[test]
-fn message_read_unsized() -> postcard::Result<()> {
+fn message_reader_unsized() -> postcard::Result<()> {
     let mut buf = [8_u8; 512];
 
     let image_len = 200;
@@ -77,7 +85,7 @@ fn message_read_unsized() -> postcard::Result<()> {
 
     let mut bytes = bytes.take(header_len + payload_len);
     let msg = reader.read_message(&mut bytes, header_len)?;
-    if let IncomingMessage::AddImage {
+    if let Message::AddImage {
         refresh_rate,
         bytes,
         strip_len,
@@ -99,20 +107,55 @@ fn message_read_unsized() -> postcard::Result<()> {
 }
 
 #[test]
-#[ignore = "This test depends on the manual manipulations with the device."]
+fn message_into_bytes_scalar() {
+    let messages: [Message<Empty<u8>>; 3] = [
+        Message::Info(FirmwareInfo {
+            version: 1,
+            strip_len: 24,
+        }),
+        Message::Error(42),
+        Message::GetInfo,
+    ];
+
+    for message in messages {
+        let mut bytes = message.into_bytes();
+
+        let mut reader = PacketReader::default();
+        let (header_len, _) = reader.read_message_len(&mut bytes);
+        reader.read_message(&mut bytes, header_len).unwrap();
+    }
+}
+
+#[test]
+fn message_into_bytes_vector() {
+    let buf = [42; 200];
+
+    let msg = Message::AddImage {
+        refresh_rate: Hertz(50),
+        strip_len: 48,
+        bytes: buf.iter().copied(),
+    };
+
+    let mut bytes = msg.into_bytes();
+    let mut reader = PacketReader::default();
+    let (header_len, _) = reader.read_message_len(&mut bytes);    
+    reader.read_message(&mut bytes, header_len).unwrap();    
+}
+
+#[test]
+// #[ignore = "This test depends on the manual manipulations with the device."]
 fn test_soft_ap() {
     let port = serialport::new("/dev/ttyUSB0", 115200).open().unwrap();
     let (rx, tx) = EmbeddedSerial::new(port).into_rx_tx();
 
-    let adapter = Adapter::new(rx, tx).unwrap();
-    let (mut rx, _tx) = SoftAp::new(adapter)
-        .start(SoftApConfig {
-            ssid: "cyberpixie",
-            password: "12345678",
-            channel: 5,
-            mode: 4,
-        })
-        .unwrap();
+    let mut ap = SoftApConfig {
+        ssid: "cyberpixie",
+        password: "12345678",
+        channel: 5,
+        mode: 4,
+    }
+    .start(Adapter::new(rx, tx).unwrap())
+    .unwrap();
 
     eprintln!("Serial port established");
     let mut start = Instant::now();
@@ -122,7 +165,7 @@ fn test_soft_ap() {
             break;
         }
 
-        let event = match rx.poll_data() {
+        let event = match ap.poll_next_event() {
             Ok(event) => event,
             Err(nb::Error::WouldBlock) => continue,
             Err(err) => panic!("{:?}", err),
@@ -148,8 +191,8 @@ fn test_soft_ap() {
                 let msg = packet_reader.read_message(bytes, header_len).unwrap();
 
                 match msg {
-                    IncomingMessage::GetInfo => {}
-                    IncomingMessage::AddImage { bytes, .. } => {
+                    Message::GetInfo => {}
+                    Message::AddImage { bytes, .. } => {
                         let size = bytes.len();
                         for _byte in bytes {}
 
@@ -157,9 +200,11 @@ fn test_soft_ap() {
 
                         start = Instant::now();
                     }
-                    IncomingMessage::ClearImages => {}
-                    IncomingMessage::Info(_) => {}
-                    IncomingMessage::Error(_) => {}
+                    Message::ClearImages => {}
+                    Message::Info(_) => {}
+                    Message::Error(_) => {}
+                    Message::Ok => {}
+                    Message::ImageAdded { .. } => {}
                 };
             }
         }

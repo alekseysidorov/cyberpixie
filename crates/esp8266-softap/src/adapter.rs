@@ -17,9 +17,11 @@ pub struct Adapter<Rx, Tx>
 where
     Rx: serial::Read<u8> + 'static,
     Tx: serial::Write<u8> + 'static,
+    Rx::Error: core::fmt::Debug,
+    Tx::Error: core::fmt::Debug,
 {
-    reader: ReadPart<Rx>,
-    writer: WriterPart<Tx>,
+    pub(crate) reader: ReadPart<Rx>,
+    pub(crate) writer: WritePart<Tx>,
     cmd_read_finished: bool,
 }
 
@@ -28,6 +30,7 @@ where
     Rx: serial::Read<u8> + 'static,
     Tx: serial::Write<u8> + 'static,
     Rx::Error: core::fmt::Debug,
+    Tx::Error: core::fmt::Debug,
 {
     pub fn new(rx: Rx, tx: Tx) -> Result<Self, Rx::Error, Tx::Error> {
         let mut adapter = Self {
@@ -35,7 +38,7 @@ where
                 buf: Vec::default(),
                 rx,
             },
-            writer: WriterPart { tx },
+            writer: WritePart { tx },
             cmd_read_finished: false,
         };
         adapter.init()?;
@@ -49,23 +52,25 @@ where
         for _ in 0..50 {
             self.send_at_command_str(b"ATE1").ok();
         }
+        self.reader.buf.clear();
 
         self.disable_echo()?;
         Ok(())
     }
 
     pub fn reset(&mut self) -> Result<(), Rx::Error, Tx::Error> {
-        self.send_command_impl(b"AT+RST")?;
+        self.write_command(b"AT+RST")?;
         self.read_until(ReadyCondition)?;
 
         Ok(())
     }
 
+    // FIXME: Get rid of the necessity of the manual `clear_reader_buf` invocations.
     pub fn send_at_command_str(
         &mut self,
         cmd: impl AsRef<[u8]>,
     ) -> Result<RawResponse<'_>, Rx::Error, Tx::Error> {
-        self.send_command_impl(cmd.as_ref())?;
+        self.write_command(cmd.as_ref())?;
         self.read_until(OkCondition)
     }
 
@@ -73,37 +78,45 @@ where
         &mut self,
         args: core::fmt::Arguments,
     ) -> Result<RawResponse<'_>, Rx::Error, Tx::Error> {
-        self.writer.write_fmt(args).map_err(|_| Error::Format)?;
-        self.writer.write_bytes(NEWLINE).map_err(Error::Write)?;
-
+        self.write_command_fmt(args)?;
         self.read_until(OkCondition)
-    }
-
-    pub(crate) fn into_parts(mut self) -> (ReadPart<Rx>, WriterPart<Tx>) {
-        self.reader.buf.clear();
-        (self.reader, self.writer)
     }
 
     fn disable_echo(&mut self) -> Result<(), Rx::Error, Tx::Error> {
         self.send_at_command_str(b"ATE0").map(drop)
     }
 
-    fn send_command_impl(&mut self, cmd: &[u8]) -> Result<(), Rx::Error, Tx::Error> {
+    pub(crate) fn write_command(&mut self, cmd: &[u8]) -> Result<(), Rx::Error, Tx::Error> {
         self.writer.write_bytes(cmd).map_err(Error::Write)?;
         self.writer.write_bytes(NEWLINE).map_err(Error::Write)
     }
 
-    fn read_until<'a, C>(&'a mut self, condition: C) -> Result<C::Output, Rx::Error, Tx::Error>
+    pub(crate) fn write_command_fmt(
+        &mut self,
+        args: core::fmt::Arguments,
+    ) -> Result<(), Rx::Error, Tx::Error> {
+        self.writer.write_fmt(args).map_err(|_| Error::Format)?;
+        self.writer.write_bytes(NEWLINE).map_err(Error::Write)
+    }
+
+    pub(crate) fn clear_reader_buf(&mut self) {
+        self.cmd_read_finished = false;
+        // Safety: `u8` is aprimitive type and doesn't have drop implementation so we can just
+        // modify the buffer length.
+        unsafe {
+            self.reader.buf.set_len(0);
+        }
+    }
+
+    pub(crate) fn read_until<'a, C>(
+        &'a mut self,
+        condition: C,
+    ) -> Result<C::Output, Rx::Error, Tx::Error>
     where
         C: Condition<'a>,
     {
         if self.cmd_read_finished {
-            self.cmd_read_finished = false;
-            // Safety: `u8` is aprimitive type and doesn't have drop implementation so we can just
-            // modify the buffer length.
-            unsafe {
-                self.reader.buf.set_len(0);
-            }
+            self.clear_reader_buf();
         }
 
         loop {
@@ -114,7 +127,10 @@ where
                     }
                 }
                 Err(nb::Error::WouldBlock) => {}
-                Err(nb::Error::Other(err)) => return Err(Error::Read(err)),
+                Err(nb::Error::Other(err)) => {
+                    self.cmd_read_finished = true;
+                    return Err(Error::Read(err));
+                }
             };
 
             if condition.is_performed(&self.reader.buf) {
@@ -127,7 +143,7 @@ where
     }
 }
 
-trait Condition<'a>: Copy + Clone {
+pub(crate) trait Condition<'a>: Copy + Clone {
     type Output: 'a;
 
     fn is_performed(self, buf: &[u8]) -> bool;
@@ -155,7 +171,26 @@ impl<'a> Condition<'a> for ReadyCondition {
 }
 
 #[derive(Clone, Copy)]
-struct OkCondition;
+pub(crate) struct CarretCondition;
+
+impl CarretCondition {
+    const MSG: &'static [u8] = b"> ";
+}
+
+impl<'a> Condition<'a> for CarretCondition {
+    type Output = &'a [u8];
+
+    fn is_performed(self, buf: &[u8]) -> bool {
+        buf.ends_with(Self::MSG)
+    }
+
+    fn output(self, buf: &'a [u8]) -> Self::Output {
+        &buf[0..buf.len() - Self::MSG.len()]
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct OkCondition;
 
 impl OkCondition {
     const OK: &'static [u8] = b"OK\r\n";
@@ -207,23 +242,28 @@ where
 }
 
 #[derive(Debug)]
-pub struct WriterPart<Tx> {
+pub struct WritePart<Tx> {
     tx: Tx,
 }
 
-impl<Tx> WriterPart<Tx>
+impl<Tx> WritePart<Tx>
 where
     Tx: serial::Write<u8> + 'static,
+    Tx::Error: core::fmt::Debug,
 {
     fn write_fmt(&mut self, args: core::fmt::Arguments) -> core::fmt::Result {
         let writer = &mut self.tx as &mut (dyn serial::Write<u8, Error = Tx::Error> + 'static);
         writer.write_fmt(args)
     }
 
+    pub(crate) fn write_byte(&mut self, byte: u8) -> nb::Result<(), Tx::Error> {
+        stdio_serial::dprint!("{}", byte as char);
+        self.tx.write(byte)
+    }
+
     fn write_bytes(&mut self, bytes: &[u8]) -> core::result::Result<(), Tx::Error> {
         for byte in bytes.iter() {
-            stdio_serial::dprint!("{}", *byte as char);
-            nb::block!(self.tx.write(*byte))?;
+            nb::block!(self.write_byte(*byte))?;
         }
         Ok(())
     }

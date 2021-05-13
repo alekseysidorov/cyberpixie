@@ -2,7 +2,7 @@ use embedded_hal::serial;
 use heapless::Vec;
 
 use crate::{
-    adapter::{Adapter, ReadPart, WriterPart},
+    adapter::{Adapter, CarretCondition, OkCondition, ReadPart},
     parser::CommandResponse,
     Error,
 };
@@ -15,10 +15,29 @@ pub struct SoftApConfig<'a> {
     pub mode: u8,
 }
 
+impl<'a> SoftApConfig<'a> {
+    pub fn start<Rx, Tx>(
+        self,
+        adapter: Adapter<Rx, Tx>,
+    ) -> crate::Result<SoftAp<Rx, Tx>, Rx::Error, Tx::Error>
+    where
+        Rx: serial::Read<u8> + 'static,
+        Tx: serial::Write<u8> + 'static,
+        Rx::Error: core::fmt::Debug,
+        Tx::Error: core::fmt::Debug,
+    {
+        let mut ap = SoftAp { adapter };
+        ap.init(self)?;
+        Ok(ap)
+    }
+}
+
 pub struct SoftAp<Rx, Tx>
 where
     Rx: serial::Read<u8> + 'static,
     Tx: serial::Write<u8> + 'static,
+    Rx::Error: core::fmt::Debug,
+    Tx::Error: core::fmt::Debug,
 {
     adapter: Adapter<Rx, Tx>,
 }
@@ -28,18 +47,10 @@ where
     Rx: serial::Read<u8> + 'static,
     Tx: serial::Write<u8> + 'static,
     Rx::Error: core::fmt::Debug,
+    Tx::Error: core::fmt::Debug,
 {
     pub fn new(adapter: Adapter<Rx, Tx>) -> Self {
         Self { adapter }
-    }
-
-    #[allow(clippy::type_complexity)]
-    pub fn start(
-        mut self,
-        config: SoftApConfig<'_>,
-    ) -> crate::Result<(ReadPart<Rx>, WriterPart<Tx>), Rx::Error, Tx::Error> {
-        self.init(config)?;
-        Ok(self.adapter.into_parts())
     }
 
     fn init(&mut self, config: SoftApConfig<'_>) -> crate::Result<(), Rx::Error, Tx::Error> {
@@ -80,7 +91,53 @@ where
                 cmd: "CWSAP",
                 msg: "Incorrect soft AP configuration",
             })?;
+        self.adapter.clear_reader_buf();
 
+        Ok(())
+    }
+
+    pub fn read_bytes(&mut self) -> nb::Result<(), Rx::Error> {
+        self.adapter.reader.read_bytes()
+    }
+
+    pub fn poll_next_event(&mut self) -> nb::Result<Event<'_, Rx>, Rx::Error> {
+        self.adapter.reader.poll_next_event()
+    }
+
+    pub fn send_packet_to_link<I>(
+        &mut self,
+        link_id: usize,
+        bytes: I,
+    ) -> crate::Result<(), Rx::Error, Tx::Error>
+    where
+        I: Iterator<Item = u8> + ExactSizeIterator,
+    {
+        let bytes_len = bytes.len();
+        // TODO Implement sending of the whole bytes by splitting them into chunks.
+        assert!(
+            bytes_len < 2048,
+            "Total packet size should not be greater than the 2048 bytes"
+        );
+        assert!(self.adapter.reader.buf.is_empty());
+
+        self.adapter.write_command_fmt(core::format_args!(
+            "AT+CIPSEND={},{}",
+            link_id,
+            bytes_len
+        ))?;
+        self.adapter.read_until(CarretCondition)?;
+
+        for byte in bytes {
+            nb::block!(self.adapter.writer.write_byte(byte)).map_err(Error::Write)?;
+        }
+
+        self.adapter
+            .read_until(OkCondition)?
+            .map_err(|_| Error::MalformedCommand {
+                cmd: "CIPSEND",
+                msg: "Incorrect usage of the CIPSEND (with link_id) command",
+            })?;
+        self.adapter.clear_reader_buf();
         Ok(())
     }
 }
@@ -108,19 +165,10 @@ where
     Rx: serial::Read<u8> + 'static,
     Rx::Error: core::fmt::Debug,
 {
-    pub fn poll_bytes(&mut self) -> Result<(), Rx::Error> {
-        if let Err(nb::Error::Other(e)) = self.read_bytes() {
-            Err(e)
-        } else {
-            Ok(())
-        }
-    }
-
-    pub fn poll_data(&mut self) -> nb::Result<Event<'_, Rx>, Rx::Error> {
-        self.poll_bytes()?;
-
+    pub(crate) fn poll_next_event(&mut self) -> nb::Result<Event<'_, Rx>, Rx::Error> {
         let response =
             CommandResponse::parse(&self.buf).map(|(remainder, event)| (remainder.len(), event));
+
         if let Some((remaining_bytes, response)) = response {
             let pos = self.buf.len() - remaining_bytes;
             truncate_buf(&mut self.buf, pos);
@@ -141,6 +189,7 @@ where
             return Ok(event);
         }
 
+        self.read_bytes()?;
         Err(nb::Error::WouldBlock)
     }
 }

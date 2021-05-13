@@ -16,12 +16,14 @@ pub struct AddImage {
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug)]
 pub enum MessageHeader {
-    // Requests
+    // Requests.
     GetInfo,
     ClearImages,
     AddImage(AddImage),
 
     // Responses.
+    Ok,
+    ImageAdded(u16),
     Info(FirmwareInfo),
     Error(u16),
 }

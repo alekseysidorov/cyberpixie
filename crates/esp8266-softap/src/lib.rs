@@ -1,7 +1,7 @@
 #![cfg_attr(not(test), no_std)]
 
 pub use crate::{
-    adapter::{Adapter, ReadPart, WriterPart},
+    adapter::{Adapter, ReadPart, WritePart},
     bytes_iter::BytesIter,
     error::{Error, Result},
     softap::{DataReader, Event, SoftAp, SoftApConfig},
