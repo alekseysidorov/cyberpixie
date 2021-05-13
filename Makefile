@@ -11,6 +11,12 @@ hex:
 bin:
 	cargo objcopy --target ${target_arch} $(firmware_cmd) -- -O binary target/firmware.bin
 
+splash_bin:
+	cargo objcopy --target ${target_arch} $(firmware_cmd) --example splash -- -O binary target/splash.bin
+
+softap_bin:
+	cargo objcopy --target ${target_arch} $(firmware_cmd) --example softap -- -O binary target/softap.bin
+
 flash: hex
 	stm32flash -w target/firmware.hex -v -g 0x0 $(UART)
 
