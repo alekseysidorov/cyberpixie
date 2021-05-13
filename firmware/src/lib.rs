@@ -8,3 +8,4 @@ pub mod storage;
 pub mod strip;
 pub mod time;
 pub mod network;
+pub mod splash;
