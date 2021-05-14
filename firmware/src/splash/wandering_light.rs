@@ -99,7 +99,7 @@ impl<const N: usize> SplashState<N> for TickerState<N> {
             self.always_on += 1;
         }
 
-        Some((1, line))
+        Some((core::cmp::max(1, self.always_on as u32), line))
     }
 
     fn next_state(&self) -> Self::State {
@@ -120,7 +120,7 @@ impl<const N: usize> SplashState<N> for TickerState<N> {
         };
 
         let transitions = ColorTransitions::new(
-            20,
+            100,
             [
                 green,
                 red + blue,

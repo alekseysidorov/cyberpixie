@@ -6,28 +6,16 @@ use core::{
     sync::atomic::{self, Ordering},
 };
 
-use cyberpixie_firmware::{
-    config::{MAX_LINES_COUNT, SERIAL_PORT_CONFIG},
-    splash::WanderingLight,
-    storage::ImagesRepository,
-    strip::{FixedImage, StripLineSource},
-};
-use embedded_hal::digital::v2::OutputPin;
-use gd32vf103xx_hal::{
-    delay::McycleDelay,
-    pac,
-    prelude::*,
-    serial::Serial,
-    spi::{Spi, MODE_0},
-};
+use cyberpixie_firmware::{config::SERIAL_PORT_CONFIG, splash::WanderingLight, time::{DeadlineTimer, Microseconds, Milliseconds}};
+use gd32vf103xx_hal::{pac, prelude::*, serial::Serial, spi::Spi, timer::Timer};
 use smart_leds::{SmartLedsWrite, RGB8};
-use stdio_serial::uprintln;
+use stdio_serial::{uprint, uprintln};
 use ws2812_spi::Ws2812;
 
 const MAX_STRIP_LEN: usize = 144;
-const TICK_DELAY: u32 = (MAX_STRIP_LEN / STRIP_LEN) as u32;
+const TICK_DELAY: u32 = 1;
 
-const STRIP_LEN: usize = 144;
+const STRIP_LEN: usize = 48;
 
 #[riscv_rt::entry]
 fn main() -> ! {
@@ -37,7 +25,7 @@ fn main() -> ! {
     let mut rcu = dp.RCU.configure().sysclk(108.mhz()).freeze();
     let mut afio = dp.AFIO.constrain(&mut rcu);
 
-    let mut delay = McycleDelay::new(&rcu.clocks);
+    let mut timer = Timer::timer0(dp.TIMER0, 1.mhz(), &mut rcu);
 
     let gpioa = dp.GPIOA.split(&mut rcu);
     let (usb_tx, mut _usb_rx) = {
@@ -49,7 +37,7 @@ fn main() -> ! {
     };
     stdio_serial::init(usb_tx);
 
-    delay.delay_ms(1_000);
+    timer.delay(Milliseconds(1_000)).unwrap();
     uprintln!("Serial port configured.");
 
     let spi = {
@@ -76,11 +64,11 @@ fn main() -> ! {
         .ok();
     uprintln!("Led strip cleaned.");
 
-    let mut splash = WanderingLight::<STRIP_LEN>::default();
-
+    let splash = WanderingLight::<STRIP_LEN>::default();
     for (ticks, line) in splash.cycle() {
+        timer.deadline(Microseconds(TICK_DELAY * ticks));
         strip.write(core::array::IntoIter::new(line)).ok();
-        delay.delay_us(TICK_DELAY * ticks);
+        nb::block!(timer.wait_deadline()).unwrap();
     }
 
     loop {
