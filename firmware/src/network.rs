@@ -51,7 +51,7 @@ where
     type Address = usize;
     type BytesReader<'a> = BytesIter<'a, Rx>;
 
-    fn poll_next(
+    fn poll_next_event(
         &mut self,
     ) -> nb::Result<ServiceEvent<Self::Address, Self::BytesReader<'_>>, Self::Error> {
         let event = self

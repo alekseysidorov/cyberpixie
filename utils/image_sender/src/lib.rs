@@ -68,7 +68,7 @@ impl Service for ServiceImpl {
 
     type BytesReader<'a> = BytesIter<'a>;
 
-    fn poll_next(
+    fn poll_next_event(
         &mut self,
     ) -> nb::Result<ServiceEvent<Self::Address, Self::BytesReader<'_>>, Self::Error> {
         let mut read_buf = [0u8; MAX_HEADER_LEN];
@@ -178,12 +178,8 @@ pub fn send_image<T: ToSocketAddrs + Display + Copy>(
     )?;
     log::trace!("Sent image to {}", to);
 
-    let response = nb::block!(service.poll_next())?;
-    if let ServiceEvent::Data {
-        payload: Message::ImageAdded { index },
-        ..
-    } = response
-    {
+    let msg = nb::block!(service.poll_next_message())?.1;
+    if let Message::ImageAdded { index } = msg {
         log::info!("Message index is {}", index)
     }
 
@@ -195,12 +191,8 @@ pub fn send_clear_images<T: ToSocketAddrs + Display + Copy>(to: T) -> anyhow::Re
     service.send_message((), Message::clear_images())?;
     log::trace!("Sent image to {}", to);
 
-    let response = nb::block!(service.poll_next())?;
-    if let ServiceEvent::Data {
-        payload: Message::Ok,
-        ..
-    } = response
-    {
+    let msg = nb::block!(service.poll_next_message())?.1;
+    if let Message::Ok = msg {
         log::info!("Ok response received")
     }
 

@@ -96,7 +96,7 @@ fn main() -> ! {
 
     loop {
         let response = {
-            let event = if let Ok(event) = service.poll_next() {
+            let event = if let Ok(event) = service.poll_next_event() {
                 event
             } else {
                 continue;

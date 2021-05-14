@@ -6,19 +6,5 @@ members = [
     "crates/proto", 
     "crates/stdio-serial",
     "utils/image_sender",
-
-    "firmware", 
 ]
-default-members = [
-    "crates/esp8266-softap", 
-    "crates/proto", 
-    "crates/stdio-serial",
-    "utils/image_sender",
-]
-
-[profile.release]
-opt-level = 3
-debug = false
-debug-assertions = false
-overflow-checks = false
-lto = true
+exclude = ["firmware"]

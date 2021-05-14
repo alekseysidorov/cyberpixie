@@ -89,9 +89,9 @@ impl<const N: usize> SplashState<N> for TickerState<N> {
         line[self.wandering_index] = green;
 
         let always_on_pos = N - self.always_on;
-        for i in always_on_pos..N {
+        (always_on_pos..N).for_each(|i| {
             line[i] = green;
-        }
+        });
 
         self.wandering_index += 1;
         if self.wandering_index == always_on_pos {
@@ -150,7 +150,7 @@ impl<const N: usize> ColorTransitions<N> {
         let mut to = colors.next().unwrap();
 
         let mut transitions = Vec::new();
-        while let Some(from) = colors.next() {
+        for from in colors {
             transitions
                 .push(ColorTransition { from, to, ticks })
                 .map_err(drop)
