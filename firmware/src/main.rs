@@ -8,20 +8,24 @@ use core::{
 
 use cyberpixie_firmware::{
     config::{MAX_LINES_COUNT, SERIAL_PORT_CONFIG, STRIP_LEDS_COUNT},
-    storage::ImagesRepository,
-    strip::{FixedImage, StripLineSource},
+    images::ImagesRepository,
+    storage::ImagesStorage,
+    time::{DeadlineTimer, Milliseconds},
 };
 use embedded_hal::digital::v2::OutputPin;
 use gd32vf103xx_hal::{
-    delay::McycleDelay,
     pac,
     prelude::*,
     serial::Serial,
     spi::{Spi, MODE_0},
+    timer::Timer,
 };
+use heapless::Vec;
 use smart_leds::{SmartLedsWrite, RGB8};
 use stdio_serial::uprintln;
 use ws2812_spi::Ws2812;
+
+const MAX_IMAGE_BUF_SIZE: usize = MAX_LINES_COUNT * STRIP_LEDS_COUNT;
 
 #[riscv_rt::entry]
 fn main() -> ! {
@@ -31,7 +35,7 @@ fn main() -> ! {
     let mut rcu = dp.RCU.configure().sysclk(108.mhz()).freeze();
     let mut afio = dp.AFIO.constrain(&mut rcu);
 
-    let mut delay = McycleDelay::new(&rcu.clocks);
+    let mut timer = Timer::timer0(dp.TIMER0, 1.mhz(), &mut rcu);
 
     let gpioa = dp.GPIOA.split(&mut rcu);
     let (usb_tx, mut _usb_rx) = {
@@ -43,7 +47,7 @@ fn main() -> ! {
     };
     stdio_serial::init(usb_tx);
 
-    delay.delay_ms(1_000);
+    timer.delay(Milliseconds(1_000)).unwrap();
     uprintln!("Serial port configured.");
 
     let spi = {
@@ -90,20 +94,25 @@ fn main() -> ! {
     let mut device = embedded_sdmmc::SdMmcSpi::new(spi, cs);
     device.init().unwrap();
 
-    let mut images = ImagesRepository::open(&mut device).unwrap();
+    let mut images = ImagesStorage::open(&mut device).unwrap();
     uprintln!("Total images count: {}", images.count());
 
-    let image_num = 3;
-    let (refresh_rate, data) = images.read_image(image_num);
+    let mut buf: Vec<RGB8, MAX_IMAGE_BUF_SIZE> = Vec::new();
 
-    let mut buf = [RGB8::default(); MAX_LINES_COUNT * STRIP_LEDS_COUNT];
-    let mut source = FixedImage::from_raw(&mut buf, data, refresh_rate);
+    let image_num = 1;
+    let (refresh_rate, data) = images.read_image(image_num);
+    buf.extend(data);
+
     uprintln!("Loaded {} image from the repository", image_num);
 
+    let mut lines = buf.chunks_exact(STRIP_LEDS_COUNT).cycle();
     loop {
-        let (us, line) = source.next_line();
-        strip.write(line).ok();
-        delay.delay_us(us.0);
+        timer.deadline(refresh_rate);
+
+        let line = lines.next().unwrap();
+        strip.write(line.iter().copied()).unwrap();
+
+        nb::block!(timer.wait_deadline()).unwrap();
     }
 }
 

@@ -6,13 +6,16 @@ use core::{
     sync::atomic::{self, Ordering},
 };
 
-use cyberpixie_firmware::{config::SERIAL_PORT_CONFIG, splash::WanderingLight, time::{DeadlineTimer, Microseconds, Milliseconds}};
+use cyberpixie_firmware::{
+    config::SERIAL_PORT_CONFIG,
+    splash::WanderingLight,
+    time::{DeadlineTimer, Microseconds, Milliseconds},
+};
 use gd32vf103xx_hal::{pac, prelude::*, serial::Serial, spi::Spi, timer::Timer};
 use smart_leds::{SmartLedsWrite, RGB8};
-use stdio_serial::{uprint, uprintln};
+use stdio_serial::uprintln;
 use ws2812_spi::Ws2812;
 
-const MAX_STRIP_LEN: usize = 144;
 const TICK_DELAY: u32 = 1;
 
 const STRIP_LEN: usize = 48;
