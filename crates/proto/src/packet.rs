@@ -179,19 +179,7 @@ where
     }
 }
 
-impl Message<Empty<u8>> {
-    pub fn get_info() -> Self {
-        Self::GetInfo
-    }
-
-    pub fn image_added(index: usize) -> Self {
-        Self::ImageAdded { index }
-    }
-
-    pub fn clear_images() -> Self {
-        Self::ClearImages
-    }
-}
+pub type SimpleMessage = Message<Empty<u8>>;
 
 pub struct MessageBytes<I>
 where

@@ -9,7 +9,7 @@ use std::{
 };
 
 use cyberpixie_proto::{
-    types::Hertz, Message, PacketReader, Service, ServiceEvent, MAX_HEADER_LEN,
+    types::Hertz, Message, PacketReader, Service, ServiceEvent, SimpleMessage, MAX_HEADER_LEN,
 };
 use image::io::Reader;
 
@@ -188,7 +188,7 @@ pub fn send_image<T: ToSocketAddrs + Display + Copy>(
 
 pub fn send_clear_images<T: ToSocketAddrs + Display + Copy>(to: T) -> anyhow::Result<()> {
     let mut service = ServiceImpl::new(TcpStream::connect(to)?);
-    service.send_message((), Message::clear_images())?;
+    service.send_message((), SimpleMessage::ClearImages)?;
     log::trace!("Sent image to {}", to);
 
     let msg = nb::block!(service.poll_next_message())?.1;

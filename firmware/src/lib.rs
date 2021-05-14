@@ -1,7 +1,10 @@
 #![no_std]
 #![allow(incomplete_features)]
 #![feature(generic_associated_types)]
+#![feature(const_generics)]
+#![feature(const_evaluatable_checked)]
 
+pub mod app;
 pub mod config;
 pub mod network;
 pub mod splash;

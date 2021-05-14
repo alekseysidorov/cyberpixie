@@ -1,6 +1,8 @@
+pub use cyberpixie_proto::{Message, Service, ServiceEvent};
+
 use core::fmt::Debug;
 
-use cyberpixie_proto::{Message, PacketReader, PayloadError, Service, ServiceEvent};
+use cyberpixie_proto::{PacketReader, PayloadError};
 use embedded_hal::serial::{Read, Write};
 use esp8266_softap::{BytesIter, Event, SoftAp};
 
