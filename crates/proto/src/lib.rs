@@ -1,5 +1,4 @@
 #![cfg_attr(not(test), no_std)]
-
 #![allow(incomplete_features)]
 #![feature(generic_associated_types)]
 
