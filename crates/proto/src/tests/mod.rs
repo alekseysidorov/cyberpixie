@@ -143,7 +143,7 @@ fn message_into_bytes_vector() {
 }
 
 #[test]
-// #[ignore = "This test depends on the manual manipulations with the device."]
+#[ignore = "This test depends on the manual manipulations with the device."]
 fn test_soft_ap() {
     let port = serialport::new("/dev/ttyUSB0", 115200).open().unwrap();
     let (rx, tx) = EmbeddedSerial::new(port).into_rx_tx();
