@@ -1,11 +1,15 @@
-use core::fmt::Debug;
+use core::{fmt::Debug, mem::size_of};
+
+use cyberpixie_proto::FirmwareInfo;
 
 use crate::{
-    images::ImagesRepository,
+    images::{ImagesRepository, RgbIter},
     leds::{SmartLedsWrite, RGB8},
     proto::{types::Hertz, Message, Service, SimpleMessage},
     time::DeadlineTimer,
 };
+
+const CORE_VERSION: u32 = 1;
 
 pub struct AppConfig<Network, Timer, Images, Strip, const STRIP_LEN: usize>
 where
@@ -119,36 +123,23 @@ where
     Strip::Error: Debug,
     Network::Error: Debug,
     Timer::Error: Debug,
+    Images::Error: Debug,
 {
     pub fn run(mut self) -> ! {
         if self.inner.images_repository.count() > 0 {
             self.inner.load_image(0);
         }
 
-        todo!()
+        self.event_loop()
     }
 
-    pub fn event_loop(&mut self) -> ! {
+    fn event_loop(&mut self) -> ! {
         loop {
             self.event_loop_step();
-
-            // poll_condition!(self.inner.network.poll_next_message(), |(addr, msg)| {
-            //     self.handle_message(addr, msg);
-            // })
-            // .expect("Unable to poll next event");
-
-            // poll_condition!(self.inner.timer.wait_deadline(), |_| {
-            //     self.inner
-            //         .strip
-            //         .write(self.strip_state.next_line(self.buf))
-            //         .unwrap();
-            //     self.inner.timer.deadline(self.strip_state.refresh_rate);
-            // })
-            // .expect("Unable to write a next strip line");
         }
     }
 
-    pub fn event_loop_step(&mut self) {
+    fn event_loop_step(&mut self) {
         let mut response = None;
         poll_condition!(self.network.poll_next_message(), (addr, msg), {
             response = self.inner.handle_message(addr, msg);
@@ -179,12 +170,50 @@ where
     Timer: DeadlineTimer,
     Images: ImagesRepository,
     Strip: SmartLedsWrite<Color = RGB8>,
+
+    Images::Error: Debug,
 {
-    fn handle_message<A, I>(&mut self, _address: A, _msg: Message<I>) -> Option<(A, SimpleMessage)>
+    fn handle_message<A, I>(&mut self, address: A, msg: Message<I>) -> Option<(A, SimpleMessage)>
     where
         I: Iterator<Item = u8> + ExactSizeIterator,
     {
-        None
+        let response = match msg {
+            Message::GetInfo => Some(SimpleMessage::Info(FirmwareInfo {
+                strip_len: STRIP_LEN as u16,
+                version: CORE_VERSION,
+            })),
+            Message::ClearImages => {
+                self.clear_images();
+                Some(SimpleMessage::Ok)
+            }
+            Message::AddImage {
+                bytes,
+                refresh_rate,
+                strip_len,
+            } => {
+                // TODO Implement error codes.
+                if strip_len != STRIP_LEN {
+                    return Some((address, SimpleMessage::Error(1)));
+                }
+
+                if self.images_repository.count() >= Images::MAX_COUNT {
+                    return Some((address, SimpleMessage::Error(2)));
+                }
+
+                let line_len_in_bytes = STRIP_LEN * size_of::<RGB8>();
+                if bytes.len() % line_len_in_bytes != 0 {
+                    return Some((address, SimpleMessage::Error(3)));
+                }
+
+                let pixels = RgbIter::new(bytes);
+                let index = self.save_image(refresh_rate, pixels);
+                Some(Message::ImageAdded { index })
+            }
+
+            _ => None,
+        };
+
+        response.map(|msg| (address, msg))
     }
 
     fn load_image(&mut self, index: usize) {
@@ -195,5 +224,21 @@ where
         for (index, pixel) in pixels.enumerate() {
             self.buf[index] = pixel;
         }
+    }
+
+    fn save_image<I>(&mut self, refresh_rate: Hertz, bytes: I) -> usize
+    where
+        I: Iterator<Item = RGB8> + ExactSizeIterator,
+    {
+        self.images_repository
+            .add_image(bytes, refresh_rate)
+            .expect("Unable to save image")
+    }
+
+    fn clear_images(&mut self) {
+        self.strip_state.total_lines_count = 0;
+        self.images_repository
+            .clear()
+            .expect("Unable to clear images repository");
     }
 }

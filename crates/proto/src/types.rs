@@ -20,6 +20,7 @@ pub enum MessageHeader {
     GetInfo,
     ClearImages,
     AddImage(AddImage),
+    ShowImage(u16),
 
     // Responses.
     Ok,

@@ -8,8 +8,8 @@ use image_sender::{convert_image_to_raw, send_clear_images, send_image};
 #[derive(Debug, StructOpt)]
 enum Commands {
     /// Send image to the device.
-    #[structopt(name = "send")]
-    Send {
+    #[structopt(name = "add")]
+    AddImage {
         #[structopt(name = "image-file")]
         image_path: PathBuf,
         address: SocketAddr,
@@ -17,6 +17,13 @@ enum Commands {
         strip_len: usize,
         #[structopt(short, long = "refresh-rate", default_value = "50")]
         refresh_rate: Hertz,
+    },
+    /// Send show image command to the device.
+    #[structopt(name = "show")]
+    ShowImage {
+        address: SocketAddr,
+        #[structopt(short, long)]
+        index: usize,
     },
     /// Send clear images command to the device.
     #[structopt(name = "clear")]
@@ -31,7 +38,7 @@ fn main() -> anyhow::Result<()> {
 
     let opts = Commands::from_args();
     match opts {
-        Commands::Send {
+        Commands::AddImage {
             address,
             image_path,
             strip_len,
@@ -41,6 +48,10 @@ fn main() -> anyhow::Result<()> {
 
             let raw = convert_image_to_raw(image_path)?;
             send_image(strip_len, refresh_rate, raw, address)?;
+        }
+
+        Commands::ShowImage {address, index} => {
+            log::info!("Sending show image {} command to {}", index, address);
         }
 
         Commands::ClearImages { address } => {

@@ -91,15 +91,17 @@ impl PacketReader {
         let header: MessageHeader = postcard::from_bytes(&self.header)?;
         let msg = match header {
             MessageHeader::GetInfo => Message::GetInfo,
-            MessageHeader::Info(info) => Message::Info(info),
-            MessageHeader::Error(code) => Message::Error(code),
             MessageHeader::ClearImages => Message::ClearImages,
             MessageHeader::AddImage(img) => Message::AddImage {
                 refresh_rate: img.refresh_rate,
                 bytes,
                 strip_len: img.strip_len as usize,
             },
+            MessageHeader::ShowImage(index) => Message::ShowImage { index: index as usize },
+
+            MessageHeader::Info(info) => Message::Info(info),
             MessageHeader::Ok => Message::Ok,
+            MessageHeader::Error(code) => Message::Error(code),
             MessageHeader::ImageAdded(index) => Message::ImageAdded {
                 index: index as usize,
             },
@@ -121,6 +123,7 @@ where
         strip_len: usize,
         bytes: I,
     },
+    ShowImage { index: usize },
     ClearImages,
 
     // Responses.
@@ -151,8 +154,10 @@ where
                 Some(bytes),
             ),
             Message::ClearImages => (MessageHeader::ClearImages, None),
-            Message::Ok => (MessageHeader::Ok, None),
+            Message::ShowImage { index } => (MessageHeader::ShowImage(index as u16), None),
+
             Message::ImageAdded { index } => (MessageHeader::ImageAdded(index as u16), None),
+            Message::Ok => (MessageHeader::Ok, None),
             Message::Info(info) => (MessageHeader::Info(info), None),
             Message::Error(code) => (MessageHeader::Error(code), None),
         }

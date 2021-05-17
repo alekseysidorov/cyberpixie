@@ -205,6 +205,7 @@ fn test_soft_ap() {
                     Message::Error(_) => {}
                     Message::Ok => {}
                     Message::ImageAdded { .. } => {}
+                    Message::ShowImage { .. } => {}
                 };
             }
         }

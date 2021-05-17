@@ -187,3 +187,11 @@ pub fn send_clear_images<T: ToSocketAddrs + Display + Copy>(to: T) -> anyhow::Re
     log::trace!("Sent images clear command to {}", to);
     Ok(())
 }
+
+pub fn show_image<T: ToSocketAddrs + Display + Copy>(index: usize, to: T) -> anyhow::Result<()> {
+    let mut service = ServiceImpl::new(TcpStream::connect(to)?);
+
+    service.show_image((), index)?.ok_or_else(no_response)?;
+    log::trace!("Sent show image {} command to {}", index, to);
+    Ok(())
+}
