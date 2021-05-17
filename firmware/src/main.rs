@@ -70,6 +70,7 @@ fn main() -> ! {
             &mut rcu,
         )
     };
+
     let mut strip = Ws2812::new(spi);
 
     uprintln!("Led strip configured.");
@@ -104,6 +105,15 @@ fn main() -> ! {
 
     uprintln!("Total images count: {}", images_repository.count());
 
+    uprintln!("Showing splash...");
+    let splash = WanderingLight::<STRIP_LEDS_COUNT>::default();
+    for (ticks, line) in splash {
+        timer.set_deadline(Microseconds(ticks));
+        strip.write(core::array::IntoIter::new(line)).ok();
+        nb::block!(timer.wait_deadline()).unwrap();
+    }
+    uprintln!("Splash has been showed.");
+
     let (esp_tx, esp_rx) = {
         let tx = gpioa.pa2.into_alternate_push_pull();
         let rx = gpioa.pa3.into_floating_input();
@@ -125,15 +135,6 @@ fn main() -> ! {
     };
     let network = cyberpixie_firmware::network::into_service(ap);
     uprintln!("SoftAP has been successfuly configured.");
-    
-    uprintln!("Showing splash...");
-    let splash = WanderingLight::<STRIP_LEDS_COUNT>::default();
-    for (ticks, line) in splash {
-        timer.deadline(Microseconds(ticks));
-        strip.write(core::array::IntoIter::new(line)).ok();
-        nb::block!(timer.wait_deadline()).unwrap();
-    }
-    uprintln!("Splash has been showed.");
 
     let mut buf: [RGB8; MAX_IMAGE_BUF_SIZE] = [RGB8::default(); MAX_IMAGE_BUF_SIZE];
     let app = AppConfig::<_, _, _, _, STRIP_LEDS_COUNT> {
@@ -141,9 +142,10 @@ fn main() -> ! {
         timer,
         images_repository,
         strip,
-    }.into_app(&mut buf);
+    }
+    .into_app(&mut buf);
 
-    app.run()    
+    app.run()
 }
 
 #[inline(never)]

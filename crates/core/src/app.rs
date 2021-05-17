@@ -153,13 +153,15 @@ where
         }
 
         poll_condition!(self.inner.timer.wait_deadline(), _, {
+            let line = self.inner.strip_state.next_line(self.inner.buf);
             self.inner
                 .strip
-                .write(self.inner.strip_state.next_line(self.inner.buf))
-                .unwrap();
+                .write(line)
+                .expect("Unable to show the next strip line");
+                
             self.inner
                 .timer
-                .deadline(self.inner.strip_state.refresh_rate);
+                .set_deadline(self.inner.strip_state.refresh_rate);
         })
         .expect("Unable to write a next strip line");
     }

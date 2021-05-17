@@ -31,12 +31,12 @@ impl_time_unit!(Milliseconds, 1_000);
 pub trait DeadlineTimer {
     type Error;
 
-    fn deadline<I: Into<Hertz>>(&mut self, timeout: I);
+    fn set_deadline<I: Into<Hertz>>(&mut self, timeout: I);
 
     fn wait_deadline(&mut self) -> nb::Result<(), Self::Error>;
 
     fn delay<I: Into<Hertz>>(&mut self, timeout: I) -> Result<(), Self::Error> {
-        self.deadline(timeout);
+        self.set_deadline(timeout);
         nb::block!(self.wait_deadline())
     }
 }
