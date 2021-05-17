@@ -11,61 +11,46 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          components: rustfmt
           toolchain: nightly
+          components: rustfmt
           override: true
+
       - name: Run rustfmt
         uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: --all -- --check
 
-  check:
-    name: Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-          override: true
-      - name: Run check
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-
   test:
     name: Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - uses: ./.github/actions/install-deps
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: nightly
           override: true
-      - name: Test debug
+
+      - name: Test
         uses: actions-rs/cargo@v1
         with:
           command: test
-      - name: Test release
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --release          
 
   miri:
     name: Miri
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - uses: ./.github/actions/install-deps
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          components: miri
           toolchain: nightly
+          components: miri
           override: true
+
       - run: cargo install xargo
       - name: Run miri
         uses: actions-rs/cargo@v1
@@ -78,11 +63,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - uses: ./.github/actions/install-deps
       - uses: actions-rs/toolchain@v1
         with:
-          components: clippy
+          profile: minimal
           toolchain: nightly
+          components: clippy
           override: true
+
       - name: Run clippy
         uses: actions-rs/cargo@v1
         with:

@@ -3,7 +3,7 @@
 #![feature(generic_associated_types)]
 
 pub use crate::{
-    packet::{FirmwareInfo, Message, PacketReader, MAX_HEADER_LEN, SimpleMessage},
+    packet::{FirmwareInfo, Message, PacketReader, SimpleMessage, MAX_HEADER_LEN},
     service::{Service, ServiceEvent},
 };
 pub use postcard::Error as PayloadError;

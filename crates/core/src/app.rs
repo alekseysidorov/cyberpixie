@@ -1,8 +1,8 @@
 use core::fmt::Debug;
 
 use crate::{
-    leds::{SmartLedsWrite, RGB8},
     images::ImagesRepository,
+    leds::{SmartLedsWrite, RGB8},
     proto::{types::Hertz, Message, Service, SimpleMessage},
     time::DeadlineTimer,
 };
