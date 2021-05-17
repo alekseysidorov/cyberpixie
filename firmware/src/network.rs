@@ -1,6 +1,8 @@
+pub use cyberpixie::proto::{Message, Service, ServiceEvent};
+
 use core::fmt::Debug;
 
-use cyberpixie_proto::{Message, PacketReader, PayloadError, Service, ServiceEvent};
+use cyberpixie::proto::{PacketReader, PayloadError};
 use embedded_hal::serial::{Read, Write};
 use esp8266_softap::{BytesIter, Event, SoftAp};
 
@@ -51,7 +53,7 @@ where
     type Address = usize;
     type BytesReader<'a> = BytesIter<'a, Rx>;
 
-    fn poll_next(
+    fn poll_next_event(
         &mut self,
     ) -> nb::Result<ServiceEvent<Self::Address, Self::BytesReader<'_>>, Self::Error> {
         let event = self

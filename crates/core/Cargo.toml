@@ -1,0 +1,15 @@
+[package]
+name = "cyberpixie"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+nb = "1.0"
+embedded-hal = "0.2"
+smart-leds = "0.3"
+
+stdio-serial = { path = "../stdio-serial" }
+cyberpixie-proto = { path = "../proto" }
+
+
+[dev-dependencies]

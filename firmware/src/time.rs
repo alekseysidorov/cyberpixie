@@ -1,23 +1,39 @@
-use cyberpixie_proto::types::Hertz;
+use cyberpixie::{time::Hertz, DeadlineTimer};
+use embedded_hal::timer::CountDown;
+use gd32vf103xx_hal::time as gd32_time;
+use void::Void;
 
-/// Time unit
-#[derive(PartialEq, PartialOrd, Clone, Copy, Eq, Debug)]
-pub struct Microseconds(pub u32);
+pub struct TimerImpl<T: CountDown<Time = gd32_time::Hertz>>(T);
 
-impl Microseconds {
-    pub fn to_ms(self) -> u32 {
-        self.0 / 1_000
-    }
-}
-
-impl From<u32> for Microseconds {
-    fn from(inner: u32) -> Self {
+impl<T: CountDown<Time = gd32_time::Hertz>> TimerImpl<T> {
+    pub fn new(inner: T) -> Self {
         Self(inner)
     }
+
+    pub fn release(self) -> T {
+        self.0
+    }
 }
 
-impl From<Hertz> for Microseconds {
-    fn from(hz: Hertz) -> Self {
-        Self(1_000_000 / hz.0)
+impl<T: CountDown<Time = gd32_time::Hertz>> From<T> for TimerImpl<T> {
+    fn from(inner: T) -> Self {
+        Self::new(inner)
+    }
+}
+
+impl<T: CountDown<Time = gd32_time::Hertz>> DeadlineTimer for TimerImpl<T> {
+    type Error = Void;
+
+    fn deadline<I: Into<Hertz>>(&mut self, timeout: I) {
+        let hz = timeout.into();
+        let count = gd32_time::Hertz(hz.0);
+
+        if hz.0 > 0 {
+            self.0.start(count)
+        }
+    }
+
+    fn wait_deadline(&mut self) -> nb::Result<(), Self::Error> {
+        self.0.wait()
     }
 }

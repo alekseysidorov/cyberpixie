@@ -68,7 +68,7 @@ impl Service for ServiceImpl {
 
     type BytesReader<'a> = BytesIter<'a>;
 
-    fn poll_next(
+    fn poll_next_event(
         &mut self,
     ) -> nb::Result<ServiceEvent<Self::Address, Self::BytesReader<'_>>, Self::Error> {
         let mut read_buf = [0u8; MAX_HEADER_LEN];
@@ -161,6 +161,10 @@ pub fn convert_image_to_raw(path: impl AsRef<Path>) -> anyhow::Result<Vec<u8>> {
     Ok(raw)
 }
 
+fn no_response() -> anyhow::Error {
+    anyhow::format_err!("Expected response from the device")
+}
+
 pub fn send_image<T: ToSocketAddrs + Display + Copy>(
     strip_len: usize,
     refresh_rate: Hertz,
@@ -168,41 +172,18 @@ pub fn send_image<T: ToSocketAddrs + Display + Copy>(
     to: T,
 ) -> anyhow::Result<()> {
     let mut service = ServiceImpl::new(TcpStream::connect(to)?);
-    service.send_message(
-        (),
-        Message::AddImage {
-            refresh_rate,
-            strip_len,
-            bytes: raw.into_iter(),
-        },
-    )?;
-    log::trace!("Sent image to {}", to);
 
-    let response = nb::block!(service.poll_next())?;
-    if let ServiceEvent::Data {
-        payload: Message::ImageAdded { index },
-        ..
-    } = response
-    {
-        log::info!("Message index is {}", index)
-    }
-
+    let index = service
+        .add_image((), refresh_rate, strip_len, raw.into_iter())?
+        .ok_or_else(no_response)?;
+    log::trace!("Sent image to {}, image index is: {}", to, index);
     Ok(())
 }
 
 pub fn send_clear_images<T: ToSocketAddrs + Display + Copy>(to: T) -> anyhow::Result<()> {
     let mut service = ServiceImpl::new(TcpStream::connect(to)?);
-    service.send_message((), Message::clear_images())?;
-    log::trace!("Sent image to {}", to);
 
-    let response = nb::block!(service.poll_next())?;
-    if let ServiceEvent::Data {
-        payload: Message::Ok,
-        ..
-    } = response
-    {
-        log::info!("Ok response received")
-    }
-
+    service.clear_images(())?.ok_or_else(no_response)?;
+    log::trace!("Sent images clear command to {}", to);
     Ok(())
 }

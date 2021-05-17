@@ -1,7 +1,6 @@
-use cyberpixie_proto::types::Hertz;
+use cyberpixie::{proto::types::Hertz, ImagesRepository, leds::RGB8};
 use embedded_sdmmc::{Block, BlockDevice, BlockIdx};
 use endian_codec::{DecodeLE, EncodeLE, PackedSize};
-use smart_leds::RGB8;
 
 use self::types::{Header, ImageDescriptor};
 
@@ -12,14 +11,14 @@ pub const MAX_IMAGES_COUNT: usize = 60;
 
 const BLOCK_SIZE: usize = 512;
 
-pub struct ImagesRepository<'a, B> {
+pub struct ImagesStorage<'a, B> {
     device: &'a mut B,
     block: HeaderBlock,
 }
 
-impl<'a, B> ImagesRepository<'a, B>
+impl<'a, B> ImagesStorage<'a, B>
 where
-    B: BlockDevice,
+    B: BlockDevice + 'static,
 {
     /// This block is used to determine if the image repository has been initialized.
     /// If this block contains the `INIT_MSG` the repository is successfully initialized
@@ -40,61 +39,6 @@ where
         };
         repository.get_or_init()?;
         Ok(repository)
-    }
-
-    pub fn add_image<I>(&mut self, data: I, refresh_rate: Hertz) -> Result<u16, B::Error>
-    where
-        B: BlockDevice,
-        I: Iterator<Item = RGB8>,
-    {
-        let mut header = self.block.header();
-
-        // Sequentially write image bytes into the appropriate blocks.
-        let (image_len, vacant_block) = {
-            let bytes = data
-                .map(|c| core::array::IntoIter::new([c.r, c.g, c.b]))
-                .flatten();
-            write_bytes(self.device, bytes, BlockIdx(header.vacant_block as u32))?
-        };
-
-        // Create a new image descriptor and add it to the header block.
-        let descriptor = ImageDescriptor {
-            block_number: header.vacant_block,
-            image_len: image_len as u16,
-            refresh_rate: refresh_rate.0,
-        };
-        let descriptor_pos =
-            Header::PACKED_LEN + header.images_count as usize * ImageDescriptor::PACKED_LEN;
-        descriptor.encode_as_le_bytes(self.block.inner[0][descriptor_pos..].as_mut());
-
-        // Refresh header values.
-        header.vacant_block = vacant_block.0 as u16;
-        header.images_count += 1;
-        let images_count = header.images_count;
-        self.block.set_header(header);
-
-        // Store updated header block.
-        self.device.write(&self.block.inner, Self::HEADER_BLOCK)?;
-        Ok(images_count)
-    }
-
-    pub fn read_image(
-        &mut self,
-        index: usize,
-    ) -> (Hertz, impl Iterator<Item = RGB8> + ExactSizeIterator + '_) {
-        let descriptor = self.image_descriptor_at(index);
-
-        let refresh_rate = Hertz::from(descriptor.refresh_rate);
-        let read_iter = ReadImageIter::new(
-            self.device,
-            BlockIdx(descriptor.block_number as u32),
-            descriptor.image_len as usize,
-        );
-        (refresh_rate, read_iter)
-    }
-
-    pub fn count(&self) -> usize {
-        self.block.header().images_count as usize
     }
 
     pub fn reset(mut self) -> Result<Self, B::Error> {
@@ -195,7 +139,7 @@ where
     Ok((c, block_index))
 }
 
-struct ReadImageIter<'a, B> {
+pub struct ReadImageIter<'a, B> {
     device: &'a B,
     buf: [Block; 1],
     block_idx: BlockIdx,
@@ -268,6 +212,68 @@ impl<'a, B: BlockDevice> Iterator for ReadImageIter<'a, B> {
 }
 
 impl<'a, B: BlockDevice> ExactSizeIterator for ReadImageIter<'a, B> {}
+
+impl<'a, B> ImagesRepository for ImagesStorage<'a, B>
+where
+    B: BlockDevice + 'static,
+{
+    type Error = B::Error;
+
+    type ImageBytes<'b> = ReadImageIter<'b, B>;
+
+    fn add_image<I>(&mut self, data: I, refresh_rate: Hertz) -> Result<usize, Self::Error>
+    where
+        I: Iterator<Item = RGB8>,
+    {
+        assert!(self.count() < MAX_IMAGES_COUNT);
+
+        let mut header = self.block.header();
+
+        // Sequentially write image bytes into the appropriate blocks.
+        let (image_len, vacant_block) = {
+            let bytes = data
+                .map(|c| core::array::IntoIter::new([c.r, c.g, c.b]))
+                .flatten();
+            write_bytes(self.device, bytes, BlockIdx(header.vacant_block as u32))?
+        };
+
+        // Create a new image descriptor and add it to the header block.
+        let descriptor = ImageDescriptor {
+            block_number: header.vacant_block,
+            image_len: image_len as u16,
+            refresh_rate: refresh_rate.0,
+        };
+        let descriptor_pos =
+            Header::PACKED_LEN + header.images_count as usize * ImageDescriptor::PACKED_LEN;
+        descriptor.encode_as_le_bytes(self.block.inner[0][descriptor_pos..].as_mut());
+
+        // Refresh header values.
+        header.vacant_block = vacant_block.0 as u16;
+        header.images_count += 1;
+        let images_count = header.images_count;
+        self.block.set_header(header);
+
+        // Store updated header block.
+        self.device.write(&self.block.inner, Self::HEADER_BLOCK)?;
+        Ok(images_count as usize)
+    }
+
+    fn read_image(&mut self, index: usize) -> (Hertz, ReadImageIter<'_, B>) {
+        let descriptor = self.image_descriptor_at(index);
+
+        let refresh_rate = Hertz::from(descriptor.refresh_rate);
+        let read_iter = ReadImageIter::new(
+            self.device,
+            BlockIdx(descriptor.block_number as u32),
+            descriptor.image_len as usize,
+        );
+        (refresh_rate, read_iter)
+    }
+
+    fn count(&self) -> usize {
+        self.block.header().images_count as usize
+    }
+}
 
 pub struct RgbWriter<I>
 where

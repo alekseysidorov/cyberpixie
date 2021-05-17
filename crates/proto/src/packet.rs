@@ -5,27 +5,44 @@ use core::{convert::TryInto, iter::Empty, mem::MaybeUninit};
 use crate::types::{AddImage, Hertz, MessageHeader};
 
 pub const MAX_HEADER_LEN: usize = 80;
-pub type PayloadLength = u32;
+
+type PayloadLength = u32;
+type HeaderLength = u16;
 
 const PAYLOAD_LEN_BYTES: usize = core::mem::size_of::<PayloadLength>();
+const HEADER_LEN_BYTES: usize = core::mem::size_of::<HeaderLength>();
+
+macro_rules! read_le {
+    ($type:tt, &mut $bytes:expr) => {{
+        let mut val_buf = [0_u8; core::mem::size_of::<$type>()];
+        fill_buf(&mut val_buf, $bytes, core::mem::size_of::<$type>());
+        $type::from_le_bytes(val_buf)
+    }};
+}
+
+macro_rules! write_le {
+    ($type:tt, $value:expr, $bytes:expr) => {{
+        let value: $type = $value.try_into().unwrap();
+        let len = core::mem::size_of::<$type>();
+        $bytes[0..len].copy_from_slice(&value.to_le_bytes());
+        &mut $bytes[len..]
+    }};
+}
 
 pub fn write_message_header(
-    buf: &mut [u8],
+    mut buf: &mut [u8],
     header: &MessageHeader,
     payload_len: usize,
 ) -> postcard::Result<usize> {
-    let header_pos = PAYLOAD_LEN_BYTES + 1;
+    let header_pos = PAYLOAD_LEN_BYTES + HEADER_LEN_BYTES;
 
     let header_len = postcard::to_slice(header, &mut buf[header_pos..])?.len();
     assert!(header_len <= PayloadLength::MAX as usize);
+    let total_packet_len = header_len + PAYLOAD_LEN_BYTES + HEADER_LEN_BYTES;
 
-    let packet_len: PayloadLength = payload_len.try_into().unwrap();
-
-    buf[0] = header_len as u8;
-    buf[1..header_pos].copy_from_slice(&packet_len.to_le_bytes());
-
-    let total_header_len = header_len + PAYLOAD_LEN_BYTES + 1;
-    Ok(total_header_len)
+    buf = write_le!(HeaderLength, header_len, buf);
+    write_le!(PayloadLength, payload_len, buf);
+    Ok(total_packet_len)
 }
 
 #[derive(Debug)]
@@ -42,7 +59,7 @@ impl Default for PacketReader {
 }
 
 impl PacketReader {
-    pub const PACKET_LEN_BUF_SIZE: usize = PAYLOAD_LEN_BYTES + 1;
+    pub const PACKET_LEN_BUF_SIZE: usize = PAYLOAD_LEN_BYTES + HEADER_LEN_BYTES;
 
     pub fn new() -> Self {
         Self::default()
@@ -54,13 +71,8 @@ impl PacketReader {
     {
         assert!(bytes.len() >= Self::PACKET_LEN_BUF_SIZE);
 
-        let header_len = bytes.next().unwrap() as usize;
-        let payload_len = {
-            let mut val_buf = [0_u8; PAYLOAD_LEN_BYTES];
-            fill_buf(&mut val_buf, bytes, PAYLOAD_LEN_BYTES);
-
-            PayloadLength::from_le_bytes(val_buf) as usize
-        };
+        let header_len = read_le!(HeaderLength, &mut bytes) as usize;
+        let payload_len = read_le!(PayloadLength, &mut bytes) as usize;
 
         (header_len, payload_len)
     }
@@ -167,19 +179,7 @@ where
     }
 }
 
-impl Message<Empty<u8>> {
-    pub fn get_info() -> Self {
-        Self::GetInfo
-    }
-
-    pub fn image_added(index: usize) -> Self {
-        Self::ImageAdded { index }
-    }
-
-    pub fn clear_images() -> Self {
-        Self::ClearImages
-    }
-}
+pub type SimpleMessage = Message<Empty<u8>>;
 
 pub struct MessageBytes<I>
 where

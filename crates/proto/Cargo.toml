@@ -4,9 +4,9 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
+nb = "1.0"
 postcard = { version = "0.6.1", default-features = false }
 serde = { version = "1", default-features = false, features = ["derive"] }
-nb = "1.0"
 
 [dev-dependencies]
 embedded-hal = "0.2"

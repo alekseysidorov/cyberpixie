@@ -6,9 +6,7 @@ use core::{
     sync::atomic::{self, Ordering},
 };
 
-use cyberpixie_firmware::{
-    config::SERIAL_PORT_CONFIG,
-};
+use cyberpixie_firmware::config::SERIAL_PORT_CONFIG;
 use gd32vf103xx_hal::{delay::McycleDelay, pac::Peripherals, prelude::*, serial::Serial};
 use stdio_serial::uprintln;
 
