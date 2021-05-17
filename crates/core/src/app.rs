@@ -120,7 +120,11 @@ where
     Network::Error: Debug,
     Timer::Error: Debug,
 {
-    pub fn run(self) {
+    pub fn run(mut self) -> ! {
+        if self.inner.images_repository.count() > 0 {
+            self.inner.load_image(0);
+        }
+
         todo!()
     }
 
@@ -176,10 +180,20 @@ where
     Images: ImagesRepository,
     Strip: SmartLedsWrite<Color = RGB8>,
 {
-    fn handle_message<A, I>(&mut self, address: A, msg: Message<I>) -> Option<(A, SimpleMessage)>
+    fn handle_message<A, I>(&mut self, _address: A, _msg: Message<I>) -> Option<(A, SimpleMessage)>
     where
         I: Iterator<Item = u8> + ExactSizeIterator,
     {
         None
+    }
+
+    fn load_image(&mut self, index: usize) {
+        let (refresh_rate, pixels) = self.images_repository.read_image(index);
+
+        self.strip_state.refresh_rate = refresh_rate;
+        self.strip_state.total_lines_count = pixels.len();
+        for (index, pixel) in pixels.enumerate() {
+            self.buf[index] = pixel;
+        }
     }
 }
