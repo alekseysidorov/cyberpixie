@@ -3,10 +3,15 @@ use std::{net::SocketAddr, path::PathBuf};
 use cyberpixie_proto::types::Hertz;
 use structopt::StructOpt;
 
-use image_sender::{convert_image_to_raw, send_clear_images, send_image};
+use image_sender::{
+    convert_image_to_raw, send_clear_images, send_firmware_info, send_image, send_show_image,
+};
 
 #[derive(Debug, StructOpt)]
 enum Commands {
+    /// Send info command to the device.
+    #[structopt(name = "info")]
+    FirmwareInfo { address: SocketAddr },
     /// Send image to the device.
     #[structopt(name = "add")]
     AddImage {
@@ -21,9 +26,9 @@ enum Commands {
     /// Send show image command to the device.
     #[structopt(name = "show")]
     ShowImage {
-        address: SocketAddr,
-        #[structopt(short, long)]
+        /// Image index.
         index: usize,
+        address: SocketAddr,
     },
     /// Send clear images command to the device.
     #[structopt(name = "clear")]
@@ -50,13 +55,19 @@ fn main() -> anyhow::Result<()> {
             send_image(strip_len, refresh_rate, raw, address)?;
         }
 
-        Commands::ShowImage {address, index} => {
+        Commands::ShowImage { address, index } => {
             log::info!("Sending show image {} command to {}", index, address);
+            send_show_image(index, address)?;
         }
 
         Commands::ClearImages { address } => {
             log::info!("Sending clear images command to {}", address);
             send_clear_images(address)?;
+        }
+
+        Commands::FirmwareInfo { address } => {
+            log::info!("Sending firmare info request to {}", address);
+            send_firmware_info(address)?;
         }
 
         Commands::GenCompletions => {

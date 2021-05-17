@@ -97,7 +97,9 @@ impl PacketReader {
                 bytes,
                 strip_len: img.strip_len as usize,
             },
-            MessageHeader::ShowImage(index) => Message::ShowImage { index: index as usize },
+            MessageHeader::ShowImage(index) => Message::ShowImage {
+                index: index as usize,
+            },
 
             MessageHeader::Info(info) => Message::Info(info),
             MessageHeader::Ok => Message::Ok,
@@ -123,7 +125,9 @@ where
         strip_len: usize,
         bytes: I,
     },
-    ShowImage { index: usize },
+    ShowImage {
+        index: usize,
+    },
     ClearImages,
 
     // Responses.

@@ -176,7 +176,7 @@ pub fn send_image<T: ToSocketAddrs + Display + Copy>(
     let index = service
         .add_image((), refresh_rate, strip_len, raw.into_iter())?
         .ok_or_else(no_response)?;
-    log::trace!("Sent image to {}, image index is: {}", to, index);
+    log::info!("Image loaded into the device {} with index {}", to, index);
     Ok(())
 }
 
@@ -188,10 +188,21 @@ pub fn send_clear_images<T: ToSocketAddrs + Display + Copy>(to: T) -> anyhow::Re
     Ok(())
 }
 
-pub fn show_image<T: ToSocketAddrs + Display + Copy>(index: usize, to: T) -> anyhow::Result<()> {
+pub fn send_show_image<T: ToSocketAddrs + Display + Copy>(
+    index: usize,
+    to: T,
+) -> anyhow::Result<()> {
     let mut service = ServiceImpl::new(TcpStream::connect(to)?);
 
     service.show_image((), index)?.ok_or_else(no_response)?;
-    log::trace!("Sent show image {} command to {}", index, to);
+    log::trace!("Showing image at {} on device {}", index, to);
+    Ok(())
+}
+
+pub fn send_firmware_info<T: ToSocketAddrs + Display + Copy>(to: T) -> anyhow::Result<()> {
+    let mut service = ServiceImpl::new(TcpStream::connect(to)?);
+
+    let info = service.request_firmware_info(())?.ok_or_else(no_response)?;
+    log::info!("Got {:?} from {}", info, to);
     Ok(())
 }
