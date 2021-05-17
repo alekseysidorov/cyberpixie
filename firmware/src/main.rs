@@ -34,67 +34,51 @@ use gd32vf103xx_hal::{
     spi::{Spi, MODE_0},
     timer::Timer,
 };
-use heapless::mpmc::Q64;
+use heapless::{mpmc::Q64, spsc::Queue};
 use stdio_serial::uprintln;
 use ws2812_spi::Ws2812;
 
 const MAX_IMAGE_BUF_SIZE: usize = MAX_LINES_COUNT * STRIP_LEDS_COUNT;
 
-static UART_QUEUE: Q64<u8> = Q64::new();
+// Quick and dirty buffered serial port implementation.
+// FIXME Rewrite it on the USART1 interrupts.
+
+type UartError = <Rx<USART1> as Read<u8>>::Error;
+
+static UART_QUEUE: Q64<Result<u8, UartError>> = Q64::new();
+// static mut UART_QUEUE: Queue<Result<u8, UartError>, 2048> = Queue::new();
 static mut USART1_RX: Option<Rx<USART1>> = None;
 static mut UART_TIMER: Option<Timer<TIMER1>> = None;
 
 #[export_name = "TIMER1"]
 unsafe fn handle_timer_1_update() {
-    UART_TIMER.as_mut().unwrap().clear_update_interrupt_flag();
+    riscv::interrupt::free(|_| {
+        let rx = USART1_RX.as_mut().unwrap();
+        loop {
+            let mut res = match rx.read() {
+                Err(nb::Error::WouldBlock) => break,
+                Ok(byte) => Ok(byte),
+                Err(nb::Error::Other(err)) => Err(err),
+            };
 
-    let rx = USART1_RX.as_mut().unwrap();
-    let mut cnt = 0;
-    loop {
-        match rx.read() {
-            Ok(byte) => {
-                UART_QUEUE.enqueue(byte).expect("Buffer overrun");
-                cnt += 1;
-            }
-            Err(nb::Error::Other(err)) => {
-                panic!("An error in the serial rx occurred: {:?}", err)
-            }
-            v => {
-                if cnt > 0 {
-                    uprintln!("{:?}: Got {} bytes from the uart", v, cnt);
+            let attemts = 100;
+            for _ in 0..attemts {
+                if let Err(val) = UART_QUEUE.enqueue(res) {
+                    res = val;
+                } else {
+                    return;
                 }
-                break;
             }
+            // panic!("Queue buffer overrun after {} attempts (buffer total capacity is {})", attemts, UART_QUEUE.len());
+            panic!(
+                "Queue buffer overrun after {} attempts (buffer total capacity is {})",
+                attemts, 64
+            );
         }
-    }
+    });
+
+    UART_TIMER.as_mut().unwrap().clear_update_interrupt_flag();
 }
-
-// #[export_name = "USART1"]
-// unsafe fn handle_new_byte() {
-//     uprintln!("USART1 triggered");
-
-//     if ECLIC::is_pending(Interrupt::USART1) {
-//         ECLIC::unpend(Interrupt::USART1);
-
-//         let rx = USART1_RX.as_mut().unwrap();
-//         let mut cnt = 0;
-//         loop {
-//             match rx.read() {
-//                 Ok(byte) => {
-//                     UART_QUEUE.enqueue(byte).expect("Buffer overrun");
-//                     cnt += 1;
-//                 }
-//                 Err(nb::Error::Other(err)) => {
-//                     panic!("An error in the serial rx occurred: {:?}", err)
-//                 }
-//                 v => {
-//                     uprintln!("{:?}: Got {} bytes from the uart", v, cnt);
-//                     break;
-//                 }
-//             }
-//         }
-//     }
-// }
 
 struct BufferedRx;
 
@@ -102,70 +86,17 @@ impl Read<u8> for BufferedRx {
     type Error = <Rx<USART1> as Read<u8>>::Error;
 
     fn read(&mut self) -> nb::Result<u8, Self::Error> {
-        unsafe { USART1_RX.as_mut().unwrap().read() }
-        // UART_QUEUE.dequeue().ok_or(nb::Error::WouldBlock)
+        // let value = riscv::interrupt::free(|_| unsafe { UART_QUEUE.dequeue() });
+        let value = UART_QUEUE.dequeue();
+
+        value
+            .ok_or(nb::Error::WouldBlock)?
+            .map_err(nb::Error::Other)
     }
 }
 
 // Interrupts initialization step.
-// unsafe fn init_uart_1_interrupted_mode(
-//     tx: PA2<Alternate<PushPull>>,
-//     rx: PA3<Input<Floating>>,
-//     usart1: USART1,
-//     exti: EXTI,
-//     afio: &mut Afio,
-//     rcu: &mut Rcu,
-// ) -> (Tx<USART1>, BufferedRx) {
-//     // IRQ
-//     ECLIC::reset();
-//     ECLIC::set_threshold_level(Level::L0);
-//     // Use 3 bits for level, 1 for priority
-//     ECLIC::set_level_priority_bits(LevelPriorityBits::L3P1);
-
-//     // eclic_irq_enable(EXTI5_9_IRQn, 1, 1);
-//     ECLIC::setup(
-//         Interrupt::EXTI_LINE3,
-//         TriggerType::Level,
-//         Level::L1,
-//         Priority::P1,
-//     );
-
-//     // gpio_exti_source_select(GPIO_PORT_SOURCE_GPIOA, GPIO_PIN_SOURCE_8);
-//     let rx_pin = rx.pin_number();
-//     afio.extiss(rx.port(), rx_pin);
-
-//     // ECLIC::setup(Interrupt::TIMER0_UP, TriggerType::Level, Level::L0, Priority::P0);
-//     ECLIC::unmask(Interrupt::EXTI_LINE3);
-
-//     let mut exti = Exti::new(exti);
-
-//     let extiline = ExtiLine::from_gpio_line(rx_pin).unwrap();
-//     exti.listen(extiline, TriggerEdge::Both);
-//     Exti::clear(extiline);
-
-//     let serial = Serial::new(usart1, (tx, rx), SERIAL_PORT_CONFIG, afio, rcu);
-//     let (tx, rx) = serial.split();
-
-//     USART1_RX.replace(rx);
-//     USART1_GPIO_LINE = rx_pin;
-
-//     riscv::interrupt::enable();
-
-//     (tx, BufferedRx)
-// }
-
-// Interrupts initialization step.
-unsafe fn init_uart_1_interrupted_mode(
-    mut timer: Timer<TIMER1>,
-    tx: PA2<Alternate<PushPull>>,
-    rx: PA3<Input<Floating>>,
-    usart1: USART1,
-    afio: &mut Afio,
-    rcu: &mut Rcu,
-) -> (Tx<USART1>, BufferedRx) {
-    let serial = Serial::new(usart1, (tx, rx), SERIAL_PORT_CONFIG, afio, rcu);
-    let (tx, rx) = serial.split();
-
+unsafe fn init_uart_1_interrupted_mode(rx: Rx<USART1>, mut timer: Timer<TIMER1>) -> BufferedRx {
     timer.listen(gd32vf103xx_hal::timer::Event::Update);
     USART1_RX.replace(rx);
     UART_TIMER.replace(timer);
@@ -186,7 +117,7 @@ unsafe fn init_uart_1_interrupted_mode(
     ECLIC::unmask(Interrupt::TIMER1);
     riscv::interrupt::enable();
 
-    (tx, BufferedRx)
+    BufferedRx
 }
 
 #[riscv_rt::entry]
@@ -264,20 +195,28 @@ fn main() -> ! {
 
     uprintln!("Total images count: {}", images_repository.count());
 
-    let uart_timer = Timer::timer1(dp.TIMER1, 10.khz(), &mut rcu);
+    uprintln!("Showing splash...");
+    let splash = WanderingLight::<STRIP_LEDS_COUNT>::default();
+    for (ticks, line) in splash {
+        timer.set_deadline(Microseconds(ticks));
+        strip.write(core::array::IntoIter::new(line)).ok();
+        nb::block!(timer.wait_deadline()).unwrap();
+    }
+    uprintln!("Splash has been showed.");
 
-    let (esp_tx, esp_rx) = unsafe {
-        init_uart_1_interrupted_mode(
-            uart_timer,
-            gpioa.pa2.into_alternate_push_pull(),
-            gpioa.pa3,
-            dp.USART1,
-            &mut afio,
-            &mut rcu,
-        )
+    let (esp_tx, esp_rx) = {
+        let tx = gpioa.pa2.into_alternate_push_pull();
+        let rx = gpioa.pa3.into_floating_input();
+
+        let serial = Serial::new(dp.USART1, (tx, rx), SERIAL_PORT_CONFIG, &mut afio, &mut rcu);
+        let (tx, rx) = serial.split();
+
+        let uart_timer = Timer::timer1(dp.TIMER1, 20.khz(), &mut rcu);
+        let buf_rx = unsafe { init_uart_1_interrupted_mode(rx, uart_timer) };
+        (tx, buf_rx)
     };
-    uprintln!("esp32 serial communication port configured.");
 
+    uprintln!("esp32 serial communication port configured.");
     let ap = {
         let adapter = Adapter::new(esp_rx, esp_tx).unwrap();
         let config = SoftApConfig {
@@ -290,15 +229,6 @@ fn main() -> ! {
     };
     let network = cyberpixie_firmware::network::into_service(ap);
     uprintln!("SoftAP has been successfuly configured.");
-
-    uprintln!("Showing splash...");
-    let splash = WanderingLight::<STRIP_LEDS_COUNT>::default();
-    for (ticks, line) in splash {
-        timer.set_deadline(Microseconds(ticks));
-        strip.write(core::array::IntoIter::new(line)).ok();
-        nb::block!(timer.wait_deadline()).unwrap();
-    }
-    uprintln!("Splash has been showed.");
 
     let mut buf: [RGB8; MAX_IMAGE_BUF_SIZE] = [RGB8::default(); MAX_IMAGE_BUF_SIZE];
     let app = AppConfig::<_, _, _, _, STRIP_LEDS_COUNT> {

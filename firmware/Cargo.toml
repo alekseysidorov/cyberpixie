@@ -19,7 +19,7 @@ riscv-rt = "0.8"
 ws2812-spi = { version = "0.4" }
 void = { version = "1.0", default-features = false }
 
-# stdio-serial = { path = "../crates/stdio-serial" }
-stdio-serial = { path = "../crates/stdio-serial", features = [ "dprint"] }
+stdio-serial = { path = "../crates/stdio-serial" }
+# stdio-serial = { path = "../crates/stdio-serial", features = [ "dprint"] }
 esp8266-softap = { path = "../crates/esp8266-softap" }
 cyberpixie = { path = "../crates/core" }
