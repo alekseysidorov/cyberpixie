@@ -18,10 +18,10 @@ where
     Images: ImagesRepository,
     Strip: SmartLedsWrite<Color = RGB8>,
 {
-    network: Network,
-    timer: Timer,
-    images_repository: Images,
-    strip: Strip,
+    pub network: Network,
+    pub timer: Timer,
+    pub images_repository: Images,
+    pub strip: Strip,
 }
 
 macro_rules! poll_condition {
@@ -89,13 +89,13 @@ struct StripState<const STRIP_LEN: usize> {
 
 impl<const STRIP_LEN: usize> StripState<STRIP_LEN> {
     fn next_line<'a>(&mut self, src: &'a [RGB8]) -> impl Iterator<Item = RGB8> + 'a {
+        let from = self.current_line * STRIP_LEN;
+        let to = from + STRIP_LEN;
+
+        self.current_line += 1;
         if self.current_line == self.total_lines_count {
             self.current_line = 0;
         }
-
-        let from = self.current_line * STRIP_LEN;
-        let to = from + STRIP_LEN;
-        self.current_line += 1;
 
         src[from..to].as_ref().iter().copied()
     }
@@ -220,7 +220,7 @@ where
         let (refresh_rate, pixels) = self.images_repository.read_image(index);
 
         self.strip_state.refresh_rate = refresh_rate;
-        self.strip_state.total_lines_count = pixels.len();
+        self.strip_state.total_lines_count = pixels.len() / STRIP_LEN;
         for (index, pixel) in pixels.enumerate() {
             self.buf[index] = pixel;
         }

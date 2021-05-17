@@ -6,7 +6,7 @@ use cyberpixie::proto::{PacketReader, PayloadError};
 use embedded_hal::serial::{Read, Write};
 use esp8266_softap::{BytesIter, Event, SoftAp};
 
-pub fn into_service<Rx, Tx>(ap: SoftAp<Rx, Tx>) -> impl Service<Address = usize>
+pub fn into_service<Rx, Tx>(ap: SoftAp<Rx, Tx>) -> ServiceImpl<Rx, Tx>
 where
     Rx: Read<u8> + 'static,
     Tx: Write<u8> + 'static,
@@ -17,7 +17,7 @@ where
 }
 
 #[derive(Debug)]
-enum Error<R: Debug, W: Debug> {
+pub enum Error<R: Debug, W: Debug> {
     Read(R),
     Write(W),
     Payload(PayloadError),
@@ -34,7 +34,7 @@ impl<R: Debug, W: Debug> From<esp8266_softap::Error<R, W>> for Error<R, W> {
     }
 }
 
-struct ServiceImpl<Rx, Tx>(SoftAp<Rx, Tx>)
+pub struct ServiceImpl<Rx, Tx>(SoftAp<Rx, Tx>)
 where
     Rx: Read<u8> + 'static,
     Tx: Write<u8> + 'static,

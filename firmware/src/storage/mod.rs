@@ -1,4 +1,4 @@
-use cyberpixie::{proto::types::Hertz, ImagesRepository, leds::RGB8};
+use cyberpixie::{leds::RGB8, proto::types::Hertz, ImagesRepository};
 use embedded_sdmmc::{Block, BlockDevice, BlockIdx};
 use endian_codec::{DecodeLE, EncodeLE, PackedSize};
 
@@ -41,7 +41,7 @@ where
         Ok(repository)
     }
 
-    pub fn reset(mut self) -> Result<Self, B::Error> {
+    pub fn reset(&mut self) -> Result<&mut Self, B::Error> {
         self.init()?;
         Ok(self)
     }
@@ -219,7 +219,9 @@ where
 {
     type Error = B::Error;
 
-    type ImageBytes<'b> = ReadImageIter<'b, B>;
+    const MAX_COUNT: usize = MAX_IMAGES_COUNT;
+
+    type ImagePixels<'b> = ReadImageIter<'b, B>;
 
     fn add_image<I>(&mut self, data: I, refresh_rate: Hertz) -> Result<usize, Self::Error>
     where
@@ -273,48 +275,8 @@ where
     fn count(&self) -> usize {
         self.block.header().images_count as usize
     }
-}
 
-pub struct RgbWriter<I>
-where
-    I: Iterator<Item = u8> + ExactSizeIterator,
-{
-    inner: I,
-}
-
-impl<I> RgbWriter<I>
-where
-    I: Iterator<Item = u8> + ExactSizeIterator,
-{
-    pub fn new(inner: I) -> Self {
-        assert_eq!(
-            inner.len() % 3,
-            0,
-            "Iterator length must be a multiple of 3."
-        );
-
-        Self { inner }
-    }
-}
-
-impl<I> Iterator for RgbWriter<I>
-where
-    I: Iterator<Item = u8> + ExactSizeIterator,
-{
-    type Item = RGB8;
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let rgb_count = self.inner.len() / 3;
-        (rgb_count, Some(rgb_count))
-    }
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let rgb = RGB8 {
-            r: self.inner.next()?,
-            g: self.inner.next().unwrap(),
-            b: self.inner.next().unwrap(),
-        };
-
-        Some(rgb)
+    fn clear(&mut self) -> Result<(), Self::Error> {
+        self.reset().map(drop)
     }
 }
