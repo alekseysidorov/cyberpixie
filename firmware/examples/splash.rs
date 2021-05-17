@@ -6,11 +6,8 @@ use core::{
     sync::atomic::{self, Ordering},
 };
 
-use cyberpixie_firmware::{
-    config::SERIAL_PORT_CONFIG,
-    splash::WanderingLight,
-    time::{DeadlineTimer, Microseconds, Milliseconds},
-};
+use cyberpixie::time::{DeadlineTimer, Microseconds, Milliseconds};
+use cyberpixie_firmware::{config::SERIAL_PORT_CONFIG, splash::WanderingLight};
 use gd32vf103xx_hal::{pac, prelude::*, serial::Serial, spi::Spi, timer::Timer};
 use smart_leds::{SmartLedsWrite, RGB8};
 use stdio_serial::uprintln;

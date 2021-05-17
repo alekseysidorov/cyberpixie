@@ -10,7 +10,7 @@ use cyberpixie_firmware::{
     config::{MAX_LINES_COUNT, SERIAL_PORT_CONFIG, STRIP_LEDS_COUNT},
     storage::{ImagesRepository, RgbWriter},
 };
-use cyberpixie_proto::{Message, Service, ServiceEvent};
+use cyberpixie::proto::{Message, Service, ServiceEvent};
 use embedded_hal::{digital::v2::OutputPin, spi::MODE_0};
 use esp8266_softap::{Adapter, SoftApConfig};
 use gd32vf103xx_hal::{delay::McycleDelay, pac::Peripherals, prelude::*, serial::Serial, spi::Spi};

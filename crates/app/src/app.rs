@@ -1,9 +1,11 @@
 use core::fmt::Debug;
 
-use cyberpixie_proto::{types::Hertz, Message, SimpleMessage};
-use smart_leds::{SmartLedsWrite, RGB8};
-
-use crate::{images::ImagesRepository, network::Service, time::DeadlineTimer};
+use crate::{
+    leds::{SmartLedsWrite, RGB8},
+    images::ImagesRepository,
+    proto::{types::Hertz, Message, Service, SimpleMessage},
+    time::DeadlineTimer,
+};
 
 pub struct AppConfig<Network, Timer, Images, Strip, const STRIP_LEN: usize>
 where

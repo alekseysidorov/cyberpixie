@@ -6,11 +6,15 @@ use core::{
     sync::atomic::{self, Ordering},
 };
 
+use cyberpixie::{
+    leds::{SmartLedsWrite, RGB8},
+    time::Milliseconds,
+    DeadlineTimer, ImagesRepository,
+};
 use cyberpixie_firmware::{
     config::{MAX_LINES_COUNT, SERIAL_PORT_CONFIG, STRIP_LEDS_COUNT},
-    images::ImagesRepository,
     storage::ImagesStorage,
-    time::{DeadlineTimer, Milliseconds},
+    TimerImpl,
 };
 use embedded_hal::digital::v2::OutputPin;
 use gd32vf103xx_hal::{
@@ -21,7 +25,6 @@ use gd32vf103xx_hal::{
     timer::Timer,
 };
 use heapless::Vec;
-use smart_leds::{SmartLedsWrite, RGB8};
 use stdio_serial::uprintln;
 use ws2812_spi::Ws2812;
 
@@ -35,7 +38,7 @@ fn main() -> ! {
     let mut rcu = dp.RCU.configure().sysclk(108.mhz()).freeze();
     let mut afio = dp.AFIO.constrain(&mut rcu);
 
-    let mut timer = Timer::timer0(dp.TIMER0, 1.mhz(), &mut rcu);
+    let mut timer = TimerImpl::from(Timer::timer0(dp.TIMER0, 1.mhz(), &mut rcu));
 
     let gpioa = dp.GPIOA.split(&mut rcu);
     let (usb_tx, mut _usb_rx) = {

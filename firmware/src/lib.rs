@@ -1,16 +1,14 @@
 #![no_std]
 #![allow(incomplete_features)]
 #![feature(generic_associated_types)]
-#![feature(const_generics)]
-#![feature(const_evaluatable_checked)]
 
-pub mod app;
+pub use self::time::TimerImpl;
+
 pub mod config;
 pub mod network;
 pub mod splash;
 pub mod storage;
 pub mod time;
-pub mod images;
 
 #[derive(Clone, Copy)]
 pub struct LinesIter<I, const N: usize> {

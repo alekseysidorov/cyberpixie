@@ -1,9 +1,6 @@
-use cyberpixie_proto::types::Hertz;
+use cyberpixie::{proto::types::Hertz, ImagesRepository, leds::RGB8};
 use embedded_sdmmc::{Block, BlockDevice, BlockIdx};
 use endian_codec::{DecodeLE, EncodeLE, PackedSize};
-use smart_leds::RGB8;
-
-use crate::images::ImagesRepository;
 
 use self::types::{Header, ImageDescriptor};
 
