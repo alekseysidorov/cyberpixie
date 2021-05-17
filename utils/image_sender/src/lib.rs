@@ -9,7 +9,7 @@ use std::{
 };
 
 use cyberpixie_proto::{
-    types::Hertz, Message, PacketReader, Service, ServiceEvent, SimpleMessage, MAX_HEADER_LEN,
+    types::Hertz, Message, PacketReader, Service, ServiceEvent, MAX_HEADER_LEN,
 };
 use image::io::Reader;
 
@@ -161,6 +161,10 @@ pub fn convert_image_to_raw(path: impl AsRef<Path>) -> anyhow::Result<Vec<u8>> {
     Ok(raw)
 }
 
+fn no_response() -> anyhow::Error {
+    anyhow::format_err!("Expected response from the device")
+}
+
 pub fn send_image<T: ToSocketAddrs + Display + Copy>(
     strip_len: usize,
     refresh_rate: Hertz,
@@ -168,33 +172,18 @@ pub fn send_image<T: ToSocketAddrs + Display + Copy>(
     to: T,
 ) -> anyhow::Result<()> {
     let mut service = ServiceImpl::new(TcpStream::connect(to)?);
-    service.send_message(
-        (),
-        Message::AddImage {
-            refresh_rate,
-            strip_len,
-            bytes: raw.into_iter(),
-        },
-    )?;
-    log::trace!("Sent image to {}", to);
 
-    let msg = nb::block!(service.poll_next_message())?.1;
-    if let Message::ImageAdded { index } = msg {
-        log::info!("Message index is {}", index)
-    }
-
+    let index = service
+        .add_image((), refresh_rate, strip_len, raw.into_iter())?
+        .ok_or_else(no_response)?;
+    log::trace!("Sent image to {}, image index is: {}", to, index);
     Ok(())
 }
 
 pub fn send_clear_images<T: ToSocketAddrs + Display + Copy>(to: T) -> anyhow::Result<()> {
     let mut service = ServiceImpl::new(TcpStream::connect(to)?);
-    service.send_message((), SimpleMessage::ClearImages)?;
-    log::trace!("Sent image to {}", to);
 
-    let msg = nb::block!(service.poll_next_message())?.1;
-    if let Message::Ok = msg {
-        log::info!("Ok response received")
-    }
-
+    service.clear_images(())?.ok_or_else(no_response)?;
+    log::trace!("Sent images clear command to {}", to);
     Ok(())
 }
