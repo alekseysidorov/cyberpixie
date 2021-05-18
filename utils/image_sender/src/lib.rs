@@ -13,7 +13,7 @@ use cyberpixie_proto::{
 };
 use image::io::Reader;
 
-const TIMEOUT: Duration = Duration::from_secs(3);
+const TIMEOUT: Duration = Duration::from_secs(15);
 
 struct ServiceImpl {
     next_msg: Vec<u8>,
@@ -22,11 +22,12 @@ struct ServiceImpl {
 
 impl ServiceImpl {
     pub fn new(addr: &SocketAddr) -> anyhow::Result<Self> {
+        log::debug!("Connecting to the {}", addr);
         let stream = TcpStream::connect_timeout(addr, TIMEOUT)?;
+        log::debug!("Connected");
+
         stream.set_read_timeout(Some(TIMEOUT))?;
         stream.set_write_timeout(Some(TIMEOUT))?;
-        stream.set_nonblocking(true)?;
-
         stream.set_nodelay(true).ok();
 
         Ok(Self {
@@ -152,8 +153,13 @@ impl Service for ServiceImpl {
     where
         I: Iterator<Item = u8> + ExactSizeIterator,
     {
+        log::debug!("Sending message...");
+
         let next_msg = message.into_bytes().collect::<Vec<_>>();
-        self.stream.write_all(&next_msg).map_err(From::from)
+        self.stream.write_all(&next_msg)?;
+
+        log::debug!("Message sent");
+        Ok(())
     }
 }
 
