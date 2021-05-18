@@ -12,13 +12,13 @@ use cyberpixie::{
     AppConfig, DeadlineTimer, ImagesRepository,
 };
 use cyberpixie_firmware::{
-    config::{SERIAL_PORT_CONFIG, STRIP_LEDS_COUNT, MAX_IMAGE_BUF_SIZE},
+    config::{MAX_IMAGE_BUF_SIZE, SERIAL_PORT_CONFIG, SOFTAP_CONFIG, STRIP_LEDS_COUNT},
     splash::WanderingLight,
     storage::ImagesStorage,
     TimerImpl,
 };
 use embedded_hal::{digital::v2::OutputPin, serial::Read};
-use esp8266_softap::{Adapter, SoftApConfig};
+use esp8266_softap::Adapter;
 use gd32vf103xx_hal::{
     eclic::{EclicExt, Level, LevelPriorityBits, Priority, TriggerType},
     pac::{self, Interrupt, ECLIC, TIMER1, USART1},
@@ -202,13 +202,7 @@ fn main() -> ! {
     uprintln!("esp32 serial communication port configured.");
     let ap = {
         let adapter = Adapter::new(esp_rx, esp_tx).unwrap();
-        let config = SoftApConfig {
-            ssid: "cyberpixie",
-            password: "12345678",
-            channel: 5,
-            mode: 4,
-        };
-        config.start(adapter).unwrap()
+        SOFTAP_CONFIG.start(adapter).unwrap()
     };
     let network = cyberpixie_firmware::network::into_service(ap);
     uprintln!("SoftAP has been successfuly configured.");

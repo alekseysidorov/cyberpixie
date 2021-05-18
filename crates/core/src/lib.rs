@@ -9,6 +9,7 @@ pub use self::{
 };
 pub use cyberpixie_proto as proto;
 pub use smart_leds as leds;
+pub use stdio_serial as stdio;
 
 pub mod time;
 
