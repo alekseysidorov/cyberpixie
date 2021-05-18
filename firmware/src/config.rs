@@ -18,5 +18,5 @@ pub const SOFTAP_CONFIG: SoftApConfig = SoftApConfig {
 };
 
 pub const STRIP_LEDS_COUNT: usize = 48;
-pub const MAX_LINES_COUNT: usize = 200;
+pub const MAX_LINES_COUNT: usize = 180;
 pub const MAX_IMAGE_BUF_SIZE: usize = MAX_LINES_COUNT * STRIP_LEDS_COUNT;
