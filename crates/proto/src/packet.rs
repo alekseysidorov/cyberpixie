@@ -271,6 +271,8 @@ pub enum Error {
     ImageRepositoryFull,
     /// The specified image index is greater than the total amount of the stored images.
     ImageNotFound,
+    /// Unexpected response to the request.
+    UnexpectedResponse,
     /// Unspecified or unknown error.
     Unspecified(u16),
 }
@@ -283,6 +285,7 @@ impl Error {
             3 => Self::ImageTooBig,
             4 => Self::ImageRepositoryFull,
             5 => Self::ImageNotFound,
+            6 => Self::UnexpectedResponse,
             other => Self::Unspecified(other),
         }
     }
@@ -294,6 +297,7 @@ impl Error {
             Error::ImageTooBig => 3,
             Error::ImageRepositoryFull => 4,
             Error::ImageNotFound => 5,
+            Error::UnexpectedResponse => 6,
             Error::Unspecified(other) => other,
         }
     }

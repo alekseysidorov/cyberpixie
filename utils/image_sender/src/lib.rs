@@ -2,6 +2,7 @@
 #![feature(generic_associated_types)]
 
 use std::{
+    fmt::Display,
     io::{self, Read, Write},
     net::{SocketAddr, TcpStream},
     path::Path,
@@ -176,8 +177,8 @@ pub fn convert_image_to_raw(path: impl AsRef<Path>) -> anyhow::Result<Vec<u8>> {
     Ok(raw)
 }
 
-fn no_response() -> anyhow::Error {
-    anyhow::format_err!("Expected response from the device")
+fn display_err(err: impl Display) -> anyhow::Error {
+    anyhow::format_err!("Expected response from the device: {}", err)
 }
 
 pub fn send_image(
@@ -190,7 +191,7 @@ pub fn send_image(
 
     let index = service
         .add_image((), refresh_rate, strip_len, raw.into_iter())?
-        .ok_or_else(no_response)?;
+        .map_err(display_err)?;
     log::info!("Image loaded into the device {} with index {}", to, index);
     Ok(())
 }
@@ -198,7 +199,7 @@ pub fn send_image(
 pub fn send_clear_images(to: SocketAddr) -> anyhow::Result<()> {
     let mut service = ServiceImpl::new(&to)?;
 
-    service.clear_images(())?.ok_or_else(no_response)?;
+    service.clear_images(())?.map_err(display_err)?;
     log::trace!("Sent images clear command to {}", to);
     Ok(())
 }
@@ -206,7 +207,7 @@ pub fn send_clear_images(to: SocketAddr) -> anyhow::Result<()> {
 pub fn send_show_image(index: usize, to: SocketAddr) -> anyhow::Result<()> {
     let mut service = ServiceImpl::new(&to)?;
 
-    service.show_image((), index)?.ok_or_else(no_response)?;
+    service.show_image((), index)?.map_err(display_err)?;
     log::trace!("Showing image at {} on device {}", index, to);
     Ok(())
 }
@@ -214,7 +215,7 @@ pub fn send_show_image(index: usize, to: SocketAddr) -> anyhow::Result<()> {
 pub fn send_firmware_info(to: SocketAddr) -> anyhow::Result<()> {
     let mut service = ServiceImpl::new(&to)?;
 
-    let info = service.request_firmware_info(())?.ok_or_else(no_response)?;
+    let info = service.request_firmware_info(())?.map_err(display_err)?;
     log::info!("Got {:?} from {}", info, to);
     Ok(())
 }
