@@ -12,7 +12,7 @@ use cyberpixie::{
     AppConfig, DeadlineTimer, ImagesRepository,
 };
 use cyberpixie_firmware::{
-    config::{MAX_LINES_COUNT, SERIAL_PORT_CONFIG, STRIP_LEDS_COUNT},
+    config::{SERIAL_PORT_CONFIG, STRIP_LEDS_COUNT, MAX_IMAGE_BUF_SIZE},
     splash::WanderingLight,
     storage::ImagesStorage,
     TimerImpl,
@@ -30,8 +30,6 @@ use gd32vf103xx_hal::{
 use heapless::mpmc::Q64;
 use stdio_serial::uprintln;
 use ws2812_spi::Ws2812;
-
-const MAX_IMAGE_BUF_SIZE: usize = MAX_LINES_COUNT * STRIP_LEDS_COUNT;
 
 // Quick and dirty buffered serial port implementation.
 // FIXME Rewrite it on the USART1 interrupts.
