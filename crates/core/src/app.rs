@@ -134,18 +134,16 @@ where
     pub fn run(mut self) -> ! {
         if self.inner.images_repository.count() > 0 {
             self.inner.load_image(self.buf, 0);
+        } else {
+            self.inner.blank_strip(self.buf);
         }
 
-        self.event_loop()
-    }
-
-    fn event_loop(&mut self) -> ! {
         loop {
-            self.event_loop_step();
+            self.process_events();
         }
     }
 
-    fn event_loop_step(&mut self) {
+    fn process_events(&mut self) {
         let mut response = None;
         poll_condition!(self.network.poll_next_message(), (addr, msg), {
             response = self.inner.handle_message(self.buf, addr, msg);
@@ -196,7 +194,7 @@ where
                 version: CORE_VERSION,
             })),
             Message::ClearImages => {
-                self.clear_images();
+                self.clear_images(buf);
                 Some(SimpleMessage::Ok)
             }
             Message::AddImage {
@@ -292,10 +290,14 @@ where
             .expect("Unable to save image")
     }
 
-    fn clear_images(&mut self) {
-        self.strip_state.total_lines_count = 0;
+    fn blank_strip(&mut self, buf: &mut [RGB8]) {
+        self.strip_state.total_lines_count = 1;
         self.strip_state.current_line = 0;
+        buf[..STRIP_LEN].fill(RGB8::default());
+    }
 
+    fn clear_images(&mut self, buf: &mut [RGB8]) {
+        self.blank_strip(buf);
         self.images_repository
             .clear()
             .expect("Unable to clear images repository");
