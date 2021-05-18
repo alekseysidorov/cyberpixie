@@ -9,6 +9,6 @@ pub const SERIAL_PORT_CONFIG: Config = Config {
     stopbits: StopBits::STOP1,
 };
 
-pub const STRIP_LEDS_COUNT: usize = 48;
+pub const STRIP_LEDS_COUNT: usize = 24;
 
 pub const MAX_LINES_COUNT: usize = 150;

@@ -20,21 +20,14 @@ use cyberpixie_firmware::{
 use embedded_hal::{digital::v2::OutputPin, serial::Read};
 use esp8266_softap::{Adapter, SoftApConfig};
 use gd32vf103xx_hal::{
-    afio::Afio,
     eclic::{EclicExt, Level, LevelPriorityBits, Priority, TriggerType},
-    exti::{Exti, ExtiLine, TriggerEdge},
-    gpio::{
-        gpioa::{PA2, PA3},
-        Alternate, Floating, Input, PushPull,
-    },
-    pac::{self, Interrupt, ECLIC, EXTI, TIMER1, USART1},
+    pac::{self, Interrupt, ECLIC, TIMER1, USART1},
     prelude::*,
-    rcu::Rcu,
-    serial::{Event as SerialEvent, Rx, Serial, Tx},
+    serial::{Event as SerialEvent, Rx, Serial},
     spi::{Spi, MODE_0},
     timer::Timer,
 };
-use heapless::{mpmc::Q64, spsc::Queue};
+use heapless::mpmc::Q64;
 use stdio_serial::uprintln;
 use ws2812_spi::Ws2812;
 
@@ -45,39 +38,33 @@ const MAX_IMAGE_BUF_SIZE: usize = MAX_LINES_COUNT * STRIP_LEDS_COUNT;
 
 type UartError = <Rx<USART1> as Read<u8>>::Error;
 
+struct Usart1Context {
+    rx: Rx<USART1>,
+    // Quick and dirty buffered serial port implementation.
+    // FIXME Rewrite it on the USART1 interrupts.
+    timer: Timer<TIMER1>,
+}
+
 static UART_QUEUE: Q64<Result<u8, UartError>> = Q64::new();
-// static mut UART_QUEUE: Queue<Result<u8, UartError>, 2048> = Queue::new();
-static mut USART1_RX: Option<Rx<USART1>> = None;
-static mut UART_TIMER: Option<Timer<TIMER1>> = None;
+static mut USART1_IRQ_CONTEXT: Option<Usart1Context> = None;
 
 #[export_name = "TIMER1"]
 unsafe fn handle_timer_1_update() {
-    riscv::interrupt::free(|_| {
-        let rx = USART1_RX.as_mut().unwrap();
-        loop {
-            let mut res = match rx.read() {
-                Err(nb::Error::WouldBlock) => break,
-                Ok(byte) => Ok(byte),
-                Err(nb::Error::Other(err)) => Err(err),
-            };
+    let context = USART1_IRQ_CONTEXT
+        .as_mut()
+        .expect("the context should be initialized before getting");
 
-            let attemts = 100;
-            for _ in 0..attemts {
-                if let Err(val) = UART_QUEUE.enqueue(res) {
-                    res = val;
-                } else {
-                    return;
-                }
-            }
-            // panic!("Queue buffer overrun after {} attempts (buffer total capacity is {})", attemts, UART_QUEUE.len());
-            panic!(
-                "Queue buffer overrun after {} attempts (buffer total capacity is {})",
-                attemts, 64
-            );
-        }
+    riscv::interrupt::free(|_| loop {
+        let res = match context.rx.read() {
+            Err(nb::Error::WouldBlock) => break,
+            Ok(byte) => Ok(byte),
+            Err(nb::Error::Other(err)) => Err(err),
+        };
+
+        UART_QUEUE.enqueue(res).expect("queue buffer overrun");
     });
 
-    UART_TIMER.as_mut().unwrap().clear_update_interrupt_flag();
+    context.timer.clear_update_interrupt_flag();
 }
 
 struct BufferedRx;
@@ -86,7 +73,6 @@ impl Read<u8> for BufferedRx {
     type Error = <Rx<USART1> as Read<u8>>::Error;
 
     fn read(&mut self) -> nb::Result<u8, Self::Error> {
-        // let value = riscv::interrupt::free(|_| unsafe { UART_QUEUE.dequeue() });
         let value = UART_QUEUE.dequeue();
 
         value
@@ -98,8 +84,7 @@ impl Read<u8> for BufferedRx {
 // Interrupts initialization step.
 unsafe fn init_uart_1_interrupted_mode(rx: Rx<USART1>, mut timer: Timer<TIMER1>) -> BufferedRx {
     timer.listen(gd32vf103xx_hal::timer::Event::Update);
-    USART1_RX.replace(rx);
-    UART_TIMER.replace(timer);
+    USART1_IRQ_CONTEXT.replace(Usart1Context { rx, timer });
 
     // IRQ
     ECLIC::reset();

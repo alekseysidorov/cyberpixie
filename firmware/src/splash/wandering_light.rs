@@ -120,7 +120,7 @@ impl<const N: usize> SplashState<N> for TickerState<N> {
         };
 
         let transitions = ColorTransitions::new(
-            100,
+            50,
             [
                 green,
                 red + blue,
