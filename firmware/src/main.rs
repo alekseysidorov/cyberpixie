@@ -105,6 +105,8 @@ unsafe fn init_uart_1_interrupted_mode(rx: Rx<USART1>, mut timer: Timer<TIMER1>)
 
 #[riscv_rt::entry]
 fn main() -> ! {
+    let mut buf: [RGB8; MAX_IMAGE_BUF_SIZE] = [RGB8::default(); MAX_IMAGE_BUF_SIZE];
+
     // Hardware initialization step.
     let dp = pac::Peripherals::take().unwrap();
 
@@ -207,7 +209,6 @@ fn main() -> ! {
     let network = cyberpixie_firmware::network::into_service(ap);
     uprintln!("SoftAP has been successfuly configured.");
 
-    let mut buf: [RGB8; MAX_IMAGE_BUF_SIZE] = [RGB8::default(); MAX_IMAGE_BUF_SIZE];
     let app = AppConfig::<_, _, _, _, STRIP_LEDS_COUNT> {
         network,
         timer,

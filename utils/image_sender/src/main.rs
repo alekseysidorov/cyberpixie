@@ -18,8 +18,6 @@ enum Commands {
         #[structopt(name = "image-file")]
         image_path: PathBuf,
         address: SocketAddr,
-        #[structopt(short, long, default_value = "24")]
-        strip_len: usize,
         #[structopt(short, long = "refresh-rate", default_value = "50")]
         refresh_rate: Hertz,
     },
@@ -46,12 +44,11 @@ fn main() -> anyhow::Result<()> {
         Commands::AddImage {
             address,
             image_path,
-            strip_len,
             refresh_rate,
         } => {
             log::info!("Sending image {:?} to {}", image_path, address);
 
-            let raw = convert_image_to_raw(image_path)?;
+            let (strip_len, raw) = convert_image_to_raw(image_path)?;
             send_image(strip_len, refresh_rate, raw, address)?;
         }
 

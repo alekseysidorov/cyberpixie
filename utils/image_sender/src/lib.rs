@@ -164,8 +164,9 @@ impl Service for ServiceImpl {
     }
 }
 
-pub fn convert_image_to_raw(path: impl AsRef<Path>) -> anyhow::Result<Vec<u8>> {
+pub fn convert_image_to_raw(path: impl AsRef<Path>) -> anyhow::Result<(usize, Vec<u8>)> {
     let image = Reader::open(path)?.decode()?.to_rgb8();
+    let width = image.width() as usize;
 
     let mut raw = Vec::with_capacity(image.len() * 3);
     for rgb in image.pixels() {
@@ -174,7 +175,7 @@ pub fn convert_image_to_raw(path: impl AsRef<Path>) -> anyhow::Result<Vec<u8>> {
         raw.push(rgb[2]);
     }
 
-    Ok(raw)
+    Ok((width, raw))
 }
 
 fn display_err(err: impl Display) -> anyhow::Error {
