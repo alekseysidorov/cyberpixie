@@ -5,7 +5,7 @@ use cyberpixie_proto::FirmwareInfo;
 use crate::{
     images::{ImagesRepository, RgbIter},
     leds::{SmartLedsWrite, RGB8},
-    proto::{types::Hertz, Message, Service, SimpleMessage},
+    proto::{types::Hertz, Error, Message, Service, SimpleMessage},
     time::DeadlineTimer,
 };
 
@@ -211,7 +211,7 @@ where
             }
             Message::ShowImage { index } => {
                 if index >= self.images_repository.count() {
-                    Some(SimpleMessage::Error(5))
+                    Some(Error::ImageNotFound.into())
                 } else {
                     self.load_image(buf, index);
                     Some(SimpleMessage::Ok)
@@ -234,9 +234,8 @@ where
     where
         I: Iterator<Item = u8> + ExactSizeIterator,
     {
-        // TODO Implement error codes.
         if bytes.len() % size_of::<RGB8>() != 0 {
-            return SimpleMessage::Error(2);
+            return Error::ImageLengthMismatch.into();
         }
 
         // Reuse the image buffer to immediately read a new image from the stream
@@ -250,20 +249,20 @@ where
         });
 
         if strip_len != STRIP_LEN {
-            return SimpleMessage::Error(1);
+            return Error::StripLengthMismatch.into();
         }
 
         let line_len_in_bytes = STRIP_LEN;
         if pixels_len % line_len_in_bytes != 0 {
-            return SimpleMessage::Error(2);
+            return Error::ImageLengthMismatch.into();
         }
 
         if pixels_len >= buf.len() {
-            return SimpleMessage::Error(3);
+            return Error::ImageTooBig.into();
         }
 
         if self.images_repository.count() >= Images::MAX_COUNT {
-            return SimpleMessage::Error(4);
+            return Error::ImageRepositoryFull.into();
         }
 
         let pixels = buf[0..pixels_len].iter().copied();
