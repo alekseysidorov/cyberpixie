@@ -2,10 +2,10 @@
 #![feature(generic_associated_types)]
 
 use std::{
-    fmt::Display,
     io::{self, Read, Write},
-    net::{TcpStream, ToSocketAddrs},
+    net::{SocketAddr, TcpStream},
     path::Path,
+    time::Duration,
 };
 
 use cyberpixie_proto::{
@@ -13,17 +13,26 @@ use cyberpixie_proto::{
 };
 use image::io::Reader;
 
+const TIMEOUT: Duration = Duration::from_secs(3);
+
 struct ServiceImpl {
     next_msg: Vec<u8>,
     stream: TcpStream,
 }
 
 impl ServiceImpl {
-    pub fn new(stream: TcpStream) -> Self {
-        Self {
+    pub fn new(addr: &SocketAddr) -> anyhow::Result<Self> {
+        let stream = TcpStream::connect_timeout(addr, TIMEOUT)?;
+        stream.set_read_timeout(Some(TIMEOUT))?;
+        stream.set_write_timeout(Some(TIMEOUT))?;
+        stream.set_nonblocking(true)?;
+
+        stream.set_nodelay(true).ok();
+
+        Ok(Self {
             stream,
             next_msg: Vec::new(),
-        }
+        })
     }
 }
 
@@ -165,13 +174,13 @@ fn no_response() -> anyhow::Error {
     anyhow::format_err!("Expected response from the device")
 }
 
-pub fn send_image<T: ToSocketAddrs + Display + Copy>(
+pub fn send_image(
     strip_len: usize,
     refresh_rate: Hertz,
     raw: Vec<u8>,
-    to: T,
+    to: SocketAddr,
 ) -> anyhow::Result<()> {
-    let mut service = ServiceImpl::new(TcpStream::connect(to)?);
+    let mut service = ServiceImpl::new(&to)?;
 
     let index = service
         .add_image((), refresh_rate, strip_len, raw.into_iter())?
@@ -180,27 +189,24 @@ pub fn send_image<T: ToSocketAddrs + Display + Copy>(
     Ok(())
 }
 
-pub fn send_clear_images<T: ToSocketAddrs + Display + Copy>(to: T) -> anyhow::Result<()> {
-    let mut service = ServiceImpl::new(TcpStream::connect(to)?);
+pub fn send_clear_images(to: SocketAddr) -> anyhow::Result<()> {
+    let mut service = ServiceImpl::new(&to)?;
 
     service.clear_images(())?.ok_or_else(no_response)?;
     log::trace!("Sent images clear command to {}", to);
     Ok(())
 }
 
-pub fn send_show_image<T: ToSocketAddrs + Display + Copy>(
-    index: usize,
-    to: T,
-) -> anyhow::Result<()> {
-    let mut service = ServiceImpl::new(TcpStream::connect(to)?);
+pub fn send_show_image(index: usize, to: SocketAddr) -> anyhow::Result<()> {
+    let mut service = ServiceImpl::new(&to)?;
 
     service.show_image((), index)?.ok_or_else(no_response)?;
     log::trace!("Showing image at {} on device {}", index, to);
     Ok(())
 }
 
-pub fn send_firmware_info<T: ToSocketAddrs + Display + Copy>(to: T) -> anyhow::Result<()> {
-    let mut service = ServiceImpl::new(TcpStream::connect(to)?);
+pub fn send_firmware_info(to: SocketAddr) -> anyhow::Result<()> {
+    let mut service = ServiceImpl::new(&to)?;
 
     let info = service.request_firmware_info(())?.ok_or_else(no_response)?;
     log::info!("Got {:?} from {}", info, to);
