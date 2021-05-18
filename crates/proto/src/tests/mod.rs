@@ -9,7 +9,7 @@ use crate::{
     packet::write_message_header,
     tests::serial::EmbeddedSerial,
     types::{AddImage, FirmwareInfo, Hertz, MessageHeader},
-    Message, PacketReader, MAX_HEADER_LEN,
+    Error, Message, PacketReader, MAX_HEADER_LEN,
 };
 
 mod serial;
@@ -113,7 +113,7 @@ fn message_into_bytes_scalar() {
             version: 1,
             strip_len: 24,
         }),
-        Message::Error(42),
+        Message::Error(Error::ImageNotFound),
         Message::GetInfo,
     ];
 

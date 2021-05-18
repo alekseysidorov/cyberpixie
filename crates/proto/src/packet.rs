@@ -2,6 +2,8 @@ pub use crate::types::FirmwareInfo;
 
 use core::{convert::TryInto, iter::Empty, mem::MaybeUninit};
 
+use displaydoc::Display;
+
 use crate::types::{AddImage, Hertz, MessageHeader};
 
 pub const MAX_HEADER_LEN: usize = 80;
@@ -103,7 +105,7 @@ impl PacketReader {
 
             MessageHeader::Info(info) => Message::Info(info),
             MessageHeader::Ok => Message::Ok,
-            MessageHeader::Error(code) => Message::Error(code),
+            MessageHeader::Error(code) => Message::Error(Error::from_code(code)),
             MessageHeader::ImageAdded(index) => Message::ImageAdded {
                 index: index as usize,
             },
@@ -136,7 +138,7 @@ where
         index: usize,
     },
     Info(FirmwareInfo),
-    Error(u16),
+    Error(Error),
 }
 
 impl<I> Message<I>
@@ -163,7 +165,7 @@ where
             Message::ImageAdded { index } => (MessageHeader::ImageAdded(index as u16), None),
             Message::Ok => (MessageHeader::Ok, None),
             Message::Info(info) => (MessageHeader::Info(info), None),
-            Message::Error(code) => (MessageHeader::Error(code), None),
+            Message::Error(err) => (MessageHeader::Error(err.into_code()), None),
         }
     }
 
@@ -254,4 +256,55 @@ where
     assert!(buf.len() >= len);
 
     (0..len).for_each(|i| buf[i] = it.next().unwrap());
+}
+
+/// Errors that can occur when processing messages.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Display, Debug)]
+pub enum Error {
+    /// The length of the strip does not match with the specified.
+    StripLengthMismatch,
+    /// The length of the picture in bytes is not a multiple of "strip length" * "bytes per pixel".
+    ImageLengthMismatch,
+    /// The transmitted message cannot be fitted into the device's memory.
+    ImageTooBig,
+    /// This image repository on the device is full.
+    ImageRepositoryFull,
+    /// The specified image index is greater than the total amount of the stored images.
+    ImageNotFound,
+    /// Unexpected response to the request.
+    UnexpectedResponse,
+    /// Unspecified or unknown error.
+    Unspecified(u16),
+}
+
+impl Error {
+    pub(crate) fn from_code(code: u16) -> Self {
+        match code {
+            1 => Self::StripLengthMismatch,
+            2 => Self::ImageLengthMismatch,
+            3 => Self::ImageTooBig,
+            4 => Self::ImageRepositoryFull,
+            5 => Self::ImageNotFound,
+            6 => Self::UnexpectedResponse,
+            other => Self::Unspecified(other),
+        }
+    }
+
+    pub(crate) fn into_code(self) -> u16 {
+        match self {
+            Error::StripLengthMismatch => 1,
+            Error::ImageLengthMismatch => 2,
+            Error::ImageTooBig => 3,
+            Error::ImageRepositoryFull => 4,
+            Error::ImageNotFound => 5,
+            Error::UnexpectedResponse => 6,
+            Error::Unspecified(other) => other,
+        }
+    }
+}
+
+impl From<Error> for SimpleMessage {
+    fn from(err: Error) -> Self {
+        SimpleMessage::Error(err)
+    }
 }

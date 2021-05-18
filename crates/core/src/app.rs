@@ -5,7 +5,7 @@ use cyberpixie_proto::FirmwareInfo;
 use crate::{
     images::{ImagesRepository, RgbIter},
     leds::{SmartLedsWrite, RGB8},
-    proto::{types::Hertz, Message, Service, SimpleMessage},
+    proto::{types::Hertz, Error, Message, Service, SimpleMessage},
     time::DeadlineTimer,
 };
 
@@ -134,18 +134,16 @@ where
     pub fn run(mut self) -> ! {
         if self.inner.images_repository.count() > 0 {
             self.inner.load_image(self.buf, 0);
+        } else {
+            self.inner.blank_strip(self.buf);
         }
 
-        self.event_loop()
-    }
-
-    fn event_loop(&mut self) -> ! {
         loop {
-            self.event_loop_step();
+            self.process_events();
         }
     }
 
-    fn event_loop_step(&mut self) {
+    fn process_events(&mut self) {
         let mut response = None;
         poll_condition!(self.network.poll_next_message(), (addr, msg), {
             response = self.inner.handle_message(self.buf, addr, msg);
@@ -196,7 +194,7 @@ where
                 version: CORE_VERSION,
             })),
             Message::ClearImages => {
-                self.clear_images();
+                self.clear_images(buf);
                 Some(SimpleMessage::Ok)
             }
             Message::AddImage {
@@ -211,7 +209,7 @@ where
             }
             Message::ShowImage { index } => {
                 if index >= self.images_repository.count() {
-                    Some(SimpleMessage::Error(5))
+                    Some(Error::ImageNotFound.into())
                 } else {
                     self.load_image(buf, index);
                     Some(SimpleMessage::Ok)
@@ -234,9 +232,8 @@ where
     where
         I: Iterator<Item = u8> + ExactSizeIterator,
     {
-        // TODO Implement error codes.
         if bytes.len() % size_of::<RGB8>() != 0 {
-            return SimpleMessage::Error(2);
+            return Error::ImageLengthMismatch.into();
         }
 
         // Reuse the image buffer to immediately read a new image from the stream
@@ -250,20 +247,20 @@ where
         });
 
         if strip_len != STRIP_LEN {
-            return SimpleMessage::Error(1);
+            return Error::StripLengthMismatch.into();
         }
 
         let line_len_in_bytes = STRIP_LEN;
         if pixels_len % line_len_in_bytes != 0 {
-            return SimpleMessage::Error(2);
+            return Error::ImageLengthMismatch.into();
         }
 
         if pixels_len >= buf.len() {
-            return SimpleMessage::Error(3);
+            return Error::ImageTooBig.into();
         }
 
         if self.images_repository.count() >= Images::MAX_COUNT {
-            return SimpleMessage::Error(4);
+            return Error::ImageRepositoryFull.into();
         }
 
         let pixels = buf[0..pixels_len].iter().copied();
@@ -293,10 +290,14 @@ where
             .expect("Unable to save image")
     }
 
-    fn clear_images(&mut self) {
-        self.strip_state.total_lines_count = 0;
+    fn blank_strip(&mut self, buf: &mut [RGB8]) {
+        self.strip_state.total_lines_count = 1;
         self.strip_state.current_line = 0;
+        buf[..STRIP_LEN].fill(RGB8::default());
+    }
 
+    fn clear_images(&mut self, buf: &mut [RGB8]) {
+        self.blank_strip(buf);
         self.images_repository
             .clear()
             .expect("Unable to clear images repository");

@@ -1,11 +1,11 @@
-use crate::{types::Hertz, FirmwareInfo, Message, SimpleMessage};
+use crate::{types::Hertz, Error, FirmwareInfo, Message, SimpleMessage};
 
 macro_rules! wait_for_response {
     ($service:expr, $pattern:pat, $then:expr) => {
-        if let $pattern = nb::block!($service.poll_next_message())?.1 {
-            Some($then)
-        } else {
-            None
+        match nb::block!($service.poll_next_message())?.1 {
+            $pattern => Ok($then),
+            $crate::Message::Error(err) => Err(err),
+            _ => Err($crate::Error::UnexpectedResponse.into()),
         }
     };
 
@@ -13,6 +13,8 @@ macro_rules! wait_for_response {
         wait_for_response!($service, Message::Ok, ())
     };
 }
+
+pub type Response<T> = Result<T, Error>;
 
 pub trait Service {
     type Error;
@@ -49,16 +51,15 @@ pub trait Service {
     fn request_firmware_info(
         &mut self,
         to: Self::Address,
-    ) -> Result<Option<FirmwareInfo>, Self::Error> {
+    ) -> Result<Response<FirmwareInfo>, Self::Error> {
         self.send_message(to, SimpleMessage::GetInfo)?;
-        let info = wait_for_response!(self, Message::Info(info), info);
-        Ok(info)
+        let response = wait_for_response!(self, Message::Info(info), info);
+        Ok(response)
     }
 
-    fn clear_images(&mut self, to: Self::Address) -> Result<Option<()>, Self::Error> {
+    fn clear_images(&mut self, to: Self::Address) -> Result<Response<()>, Self::Error> {
         self.send_message(to, SimpleMessage::ClearImages)?;
-        let info = wait_for_response!(self, Ok);
-        Ok(info)
+        Ok(wait_for_response!(self, Ok))
     }
 
     fn add_image<I>(
@@ -67,7 +68,7 @@ pub trait Service {
         refresh_rate: Hertz,
         strip_len: usize,
         bytes: I,
-    ) -> Result<Option<usize>, Self::Error>
+    ) -> Result<Response<usize>, Self::Error>
     where
         I: Iterator<Item = u8> + ExactSizeIterator,
     {
@@ -79,14 +80,13 @@ pub trait Service {
                 bytes,
             },
         )?;
-        let info = wait_for_response!(self, Message::ImageAdded { index }, index);
-        Ok(info)
+        let response = wait_for_response!(self, Message::ImageAdded { index }, index);
+        Ok(response)
     }
 
-    fn show_image(&mut self, to: Self::Address, index: usize) -> Result<Option<()>, Self::Error> {
+    fn show_image(&mut self, to: Self::Address, index: usize) -> Result<Response<()>, Self::Error> {
         self.send_message(to, SimpleMessage::ShowImage { index })?;
-        let info = wait_for_response!(self, Ok);
-        Ok(info)
+        Ok(wait_for_response!(self, Ok))
     }
 }
 
