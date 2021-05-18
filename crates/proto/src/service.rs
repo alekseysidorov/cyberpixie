@@ -82,6 +82,12 @@ pub trait Service {
         let info = wait_for_response!(self, Message::ImageAdded { index }, index);
         Ok(info)
     }
+
+    fn show_image(&mut self, to: Self::Address, index: usize) -> Result<Option<()>, Self::Error> {
+        self.send_message(to, SimpleMessage::ShowImage { index })?;
+        let info = wait_for_response!(self, Ok);
+        Ok(info)
+    }
 }
 
 #[derive(Debug)]

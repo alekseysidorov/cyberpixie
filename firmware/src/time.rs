@@ -24,7 +24,7 @@ impl<T: CountDown<Time = gd32_time::Hertz>> From<T> for TimerImpl<T> {
 impl<T: CountDown<Time = gd32_time::Hertz>> DeadlineTimer for TimerImpl<T> {
     type Error = Void;
 
-    fn deadline<I: Into<Hertz>>(&mut self, timeout: I) {
+    fn set_deadline<I: Into<Hertz>>(&mut self, timeout: I) {
         let hz = timeout.into();
         let count = gd32_time::Hertz(hz.0);
 
