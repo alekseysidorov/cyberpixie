@@ -204,7 +204,11 @@ where
             } => {
                 let response = self.handle_add_image(buf, bytes, refresh_rate, strip_len);
                 // Reload the current image.
-                self.load_image(buf, self.strip_state.image_index);
+                if self.images_repository.count() > 0 {
+                    self.load_image(buf, self.strip_state.image_index);
+                } else {
+                    self.blank_strip(buf);
+                }
                 Some(response)
             }
             Message::ShowImage { index } => {
@@ -255,7 +259,7 @@ where
             return Error::ImageLengthMismatch.into();
         }
 
-        if pixels_len >= buf.len() {
+        if pixels_len > buf.len() {
             return Error::ImageTooBig.into();
         }
 
