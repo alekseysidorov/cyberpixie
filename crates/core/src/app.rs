@@ -1,20 +1,22 @@
 use core::{fmt::Debug, mem::size_of};
 
-use cyberpixie_proto::FirmwareInfo;
+use cyberpixie_proto::{types::DeviceRole, FirmwareInfo};
+use embedded_hal::timer::CountDown;
 
 use crate::{
     images::{ImagesRepository, RgbIter},
     leds::{SmartLedsWrite, RGB8},
     proto::{types::Hertz, Error, Message, Service, SimpleMessage},
-    time::DeadlineTimer,
 };
 
-const CORE_VERSION: u32 = 1;
+const fn core_version() -> [u8; 4] {
+    [0, 1, 0, 0]
+}
 
 pub struct AppConfig<Network, Timer, Images, Strip, const STRIP_LEN: usize>
 where
     Network: Service,
-    Timer: DeadlineTimer,
+    Timer: CountDown<Time = Hertz>,
     Images: ImagesRepository,
     Strip: SmartLedsWrite<Color = RGB8>,
 {
@@ -22,6 +24,7 @@ where
     pub timer: Timer,
     pub images_repository: Images,
     pub strip: Strip,
+    pub device_id: [u32; 4],
 }
 
 macro_rules! poll_condition {
@@ -45,13 +48,14 @@ impl<Network, Timer, Images, Strip, const STRIP_LEN: usize>
     AppConfig<Network, Timer, Images, Strip, STRIP_LEN>
 where
     Network: Service,
-    Timer: DeadlineTimer,
+    Timer: CountDown<Time = Hertz>,
     Images: ImagesRepository,
     Strip: SmartLedsWrite<Color = RGB8>,
 {
     pub fn into_app(self, buf: &mut [RGB8]) -> App<Network, Timer, Images, Strip, STRIP_LEN> {
         App {
             inner: AppInner {
+                device_id: self.device_id,
                 timer: self.timer,
                 images_repository: self.images_repository,
                 strip_state: StripState {
@@ -70,10 +74,12 @@ where
 
 pub struct AppInner<Timer, Images, Strip, const STRIP_LEN: usize>
 where
-    Timer: DeadlineTimer,
+    Timer: CountDown<Time = Hertz>,
     Images: ImagesRepository,
     Strip: SmartLedsWrite<Color = RGB8>,
 {
+    device_id: [u32; 4],
+
     timer: Timer,
     images_repository: Images,
 
@@ -109,7 +115,7 @@ impl<const STRIP_LEN: usize> StripState<STRIP_LEN> {
 pub struct App<'a, Network, Timer, Images, Strip, const STRIP_LEN: usize>
 where
     Network: Service,
-    Timer: DeadlineTimer,
+    Timer: CountDown<Time = Hertz>,
     Images: ImagesRepository,
     Strip: SmartLedsWrite<Color = RGB8>,
 {
@@ -122,13 +128,12 @@ impl<'a, Network, Timer, Images, Strip, const STRIP_LEN: usize>
     App<'a, Network, Timer, Images, Strip, STRIP_LEN>
 where
     Network: Service,
-    Timer: DeadlineTimer,
+    Timer: CountDown<Time = Hertz>,
     Images: ImagesRepository,
     Strip: SmartLedsWrite<Color = RGB8>,
 
     Strip::Error: Debug,
     Network::Error: Debug,
-    Timer::Error: Debug,
     Images::Error: Debug,
 {
     pub fn run(mut self) -> ! {
@@ -156,16 +161,14 @@ where
                 .expect("Unable to send response");
         }
 
-        poll_condition!(self.inner.timer.wait_deadline(), _, {
+        poll_condition!(self.inner.timer.wait(), _, {
             let line = self.inner.strip_state.next_line(self.buf);
             self.inner
                 .strip
                 .write(line)
                 .expect("Unable to show the next strip line");
 
-            self.inner
-                .timer
-                .set_deadline(self.inner.strip_state.refresh_rate);
+            self.inner.timer.start(self.inner.strip_state.refresh_rate);
         })
         .expect("Unable to write a next strip line");
     }
@@ -173,7 +176,7 @@ where
 
 impl<Timer, Images, Strip, const STRIP_LEN: usize> AppInner<Timer, Images, Strip, STRIP_LEN>
 where
-    Timer: DeadlineTimer,
+    Timer: CountDown<Time = Hertz>,
     Images: ImagesRepository,
     Strip: SmartLedsWrite<Color = RGB8>,
 
@@ -191,7 +194,11 @@ where
         let response = match msg {
             Message::GetInfo => Some(SimpleMessage::Info(FirmwareInfo {
                 strip_len: STRIP_LEN as u16,
-                version: CORE_VERSION,
+                version: core_version(),
+                images_count: self.images_repository.count() as u16,
+                device_id: self.device_id,
+                // TODO implement composite role logic.
+                role: DeviceRole::Single,
             })),
             Message::ClearImages => {
                 self.clear_images(buf);

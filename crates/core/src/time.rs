@@ -1,4 +1,5 @@
 pub use cyberpixie_proto::types::Hertz;
+pub use embedded_hal::timer::CountDown;
 
 macro_rules! impl_time_unit {
     ($name:ident, $hz_factor:expr) => {
@@ -28,15 +29,13 @@ macro_rules! impl_time_unit {
 impl_time_unit!(Microseconds, 1_000_000);
 impl_time_unit!(Milliseconds, 1_000);
 
-pub trait DeadlineTimer {
-    type Error;
+pub trait CountDownEx: CountDown {
+    fn delay<I: Into<Self::Time>>(&mut self, timeout: I);
+}
 
-    fn set_deadline<I: Into<Hertz>>(&mut self, timeout: I);
-
-    fn wait_deadline(&mut self) -> nb::Result<(), Self::Error>;
-
-    fn delay<I: Into<Hertz>>(&mut self, timeout: I) -> Result<(), Self::Error> {
-        self.set_deadline(timeout);
-        nb::block!(self.wait_deadline())
+impl<T: CountDown> CountDownEx for T {
+    fn delay<I: Into<Self::Time>>(&mut self, timeout: I) {
+        self.start(timeout);
+        nb::block!(self.wait()).ok();
     }
 }

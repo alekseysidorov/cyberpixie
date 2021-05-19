@@ -8,7 +8,7 @@ pub trait ImagesRepository {
 
     const MAX_COUNT: usize;
 
-    type ImagePixels<'a>: Iterator<Item = RGB8> + ExactSizeIterator;
+    type ImagePixels<'a>: Iterator<Item = RGB8> + ExactSizeIterator + Clone;
 
     fn add_image<I>(&mut self, data: I, refresh_rate: Hertz) -> Result<usize, Self::Error>
     where

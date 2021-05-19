@@ -8,7 +8,7 @@ use esp8266_softap::{Adapter, BytesIter, Event, SoftApConfig};
 use crate::{
     packet::write_message_header,
     tests::serial::EmbeddedSerial,
-    types::{AddImage, FirmwareInfo, Hertz, MessageHeader},
+    types::{AddImage, DeviceRole, FirmwareInfo, Hertz, MessageHeader},
     Error, Message, PacketReader, MAX_HEADER_LEN,
 };
 
@@ -20,8 +20,11 @@ fn postcard_messages() -> postcard::Result<()> {
 
     let messages = [
         MessageHeader::Info(FirmwareInfo {
-            version: 1,
+            version: [0, 0, 1, 0],
+            device_id: [1, 2, 3, 4],
+            role: DeviceRole::Host,
             strip_len: 24,
+            images_count: 0,
         }),
         MessageHeader::Error(42),
         MessageHeader::AddImage(AddImage {
@@ -45,8 +48,11 @@ fn message_reader_scalar() -> postcard::Result<()> {
 
     let messages = [
         MessageHeader::Info(FirmwareInfo {
-            version: 1,
+            version: [0, 0, 1, 0],
+            device_id: [1, 2, 3, 4],
+            role: DeviceRole::Host,
             strip_len: 24,
+            images_count: 0,
         }),
         MessageHeader::Error(42),
         MessageHeader::GetInfo,
@@ -110,8 +116,11 @@ fn message_reader_unsized() -> postcard::Result<()> {
 fn message_into_bytes_scalar() {
     let messages: [Message<Empty<u8>>; 3] = [
         Message::Info(FirmwareInfo {
-            version: 1,
+            version: [0, 0, 1, 0],
+            device_id: [1, 2, 3, 4],
+            role: DeviceRole::Host,
             strip_len: 24,
+            images_count: 0,
         }),
         Message::Error(Error::ImageNotFound),
         Message::GetInfo,

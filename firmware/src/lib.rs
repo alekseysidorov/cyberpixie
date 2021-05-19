@@ -10,6 +10,12 @@ pub mod splash;
 pub mod storage;
 pub mod time;
 
+pub fn device_id() -> [u32; 4] {
+    let mut id = [0; 4];
+    id[1..].copy_from_slice(gd32vf103xx_hal::signature::device_id());
+    id
+}
+
 #[derive(Clone, Copy)]
 pub struct LinesIter<I, const N: usize> {
     iter: I,
