@@ -168,6 +168,8 @@ pub fn convert_image_to_raw(path: impl AsRef<Path>) -> anyhow::Result<(usize, Ve
     let image = Reader::open(path)?.decode()?.to_rgb8();
     let width = image.width() as usize;
 
+    log::debug!("dimensions: {}, {}", image.width(), image.height());
+
     let mut raw = Vec::with_capacity(image.len() * 3);
     for rgb in image.pixels() {
         raw.push(rgb[0]);
