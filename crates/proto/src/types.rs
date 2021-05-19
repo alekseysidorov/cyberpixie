@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 pub enum DeviceRole {
     /// A control device such as a telephone or laptop.
     Host = 0,
-    /// A single-handed device, like stuff without additional synchronization between 
+    /// A single-handed device, like stuff without additional synchronization between
     /// device parts.
     Single = 1,
     // More complex props, like a poi with the necessity to synchronize between several
