@@ -1,20 +1,28 @@
 #![allow(incomplete_features)]
 #![feature(generic_associated_types)]
 
-use std::{
-    fmt::Display,
-    io::{self, Read, Write},
-    net::{SocketAddr, TcpStream},
-    path::Path,
-    time::Duration,
-};
+use std::{fmt::Display, io::{self, ErrorKind, Read, Write}, net::{SocketAddr, TcpStream}, path::Path, time::Duration};
 
 use cyberpixie_proto::{
-    types::Hertz, Message, PacketReader, Service, ServiceEvent, MAX_HEADER_LEN,
+    types::Hertz, Message, PacketReader, Service, ServiceEvent, MAX_HEADER_LEN, transport::*,
 };
 use image::io::Reader;
 
+mod tcp_transport;
+
 const TIMEOUT: Duration = Duration::from_secs(15);
+
+fn connect_to(addr: &SocketAddr) -> anyhow::Result<TcpStream> {
+    log::debug!("Connecting to the {}", addr);
+    let stream = TcpStream::connect_timeout(addr, TIMEOUT)?;
+    log::debug!("Connected");
+
+    stream.set_read_timeout(Some(TIMEOUT))?;
+    stream.set_write_timeout(Some(TIMEOUT))?;
+    stream.set_nodelay(true).ok();
+
+    Ok(stream)
+}
 
 struct ServiceImpl {
     next_msg: Vec<u8>,
@@ -23,16 +31,8 @@ struct ServiceImpl {
 
 impl ServiceImpl {
     pub fn new(addr: &SocketAddr) -> anyhow::Result<Self> {
-        log::debug!("Connecting to the {}", addr);
-        let stream = TcpStream::connect_timeout(addr, TIMEOUT)?;
-        log::debug!("Connected");
-
-        stream.set_read_timeout(Some(TIMEOUT))?;
-        stream.set_write_timeout(Some(TIMEOUT))?;
-        stream.set_nodelay(true).ok();
-
         Ok(Self {
-            stream,
+            stream: connect_to(addr)?,
             next_msg: Vec::new(),
         })
     }
@@ -221,4 +221,42 @@ pub fn send_firmware_info(to: SocketAddr) -> anyhow::Result<()> {
     let info = service.request_firmware_info(())?.map_err(display_err)?;
     log::info!("Got {:#?} from {}", info, to);
     Ok(())
+}
+
+pub fn run_transport_example(to: SocketAddr) -> anyhow::Result<()> {
+    let stream = connect_to(&to)?;
+
+    let mut transport = tcp_transport::TransportImpl::new(to, stream);
+
+    let mut next_line = Vec::new();
+    loop {
+        let packet = match transport.poll_next_packet() {
+            Ok(packet) => packet,
+            Err(nb::Error::WouldBlock) => continue,
+            Err(nb::Error::Other(err)) => return Err(err),
+        };
+
+        match packet.data {
+            PacketData::Payload(payload) => {
+                for byte in payload {
+                    eprint!("{}", byte as char);
+                }
+                transport.request_next_packet(packet.address)?;
+            },
+            PacketData::RequestNext => unreachable!(),
+        }
+
+        match std::io::stdin().read(&mut next_line) {
+            Ok(_) => {},
+            Err(err) if err.kind() == ErrorKind::Interrupted => continue,
+            Err(err) => return Err(err.into()),
+        };
+
+        if next_line.ends_with(b"\n") {
+            for data in next_line.chunks(256) {
+                transport.send_packet(data, to)?;
+                nb::block!(transport.wait_for_next_request(to))?;
+            }
+        }
+    }
 }

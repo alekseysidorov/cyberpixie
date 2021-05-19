@@ -9,6 +9,7 @@ pub mod network;
 pub mod splash;
 pub mod storage;
 pub mod time;
+pub mod transport;
 
 pub fn device_id() -> [u32; 4] {
     let mut id = [0; 4];

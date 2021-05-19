@@ -9,6 +9,7 @@ pub use crate::{
 pub use postcard::Error as PayloadError;
 
 pub mod types;
+pub mod transport;
 
 mod packet;
 mod service;
