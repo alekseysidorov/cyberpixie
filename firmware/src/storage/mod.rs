@@ -147,6 +147,18 @@ pub struct ReadImageIter<'a, B> {
     remaining_bytes: usize,
 }
 
+impl<'a, B: BlockDevice> Clone for ReadImageIter<'a, B> {
+    fn clone(&self) -> Self {
+        Self {
+            device: self.device,
+            buf: self.buf.clone(),
+            block_idx: self.block_idx,
+            current_byte_in_block: self.current_byte_in_block,
+            remaining_bytes: self.remaining_bytes,
+        }
+    }
+}
+
 impl<'a, B: BlockDevice> ReadImageIter<'a, B> {
     fn new(device: &'a B, block_idx: BlockIdx, bytes_to_read: usize) -> Self {
         assert!(

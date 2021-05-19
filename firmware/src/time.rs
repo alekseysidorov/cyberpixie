@@ -1,7 +1,5 @@
-use cyberpixie::{time::Hertz, DeadlineTimer};
-use embedded_hal::timer::CountDown;
+use cyberpixie::time::{CountDown, Hertz};
 use gd32vf103xx_hal::time as gd32_time;
-use void::Void;
 
 pub struct TimerImpl<T: CountDown<Time = gd32_time::Hertz>>(T);
 
@@ -21,19 +19,20 @@ impl<T: CountDown<Time = gd32_time::Hertz>> From<T> for TimerImpl<T> {
     }
 }
 
-impl<T: CountDown<Time = gd32_time::Hertz>> DeadlineTimer for TimerImpl<T> {
-    type Error = Void;
+impl<T: CountDown<Time = gd32_time::Hertz>> CountDown for TimerImpl<T> {
+    type Time = Hertz;
 
-    fn set_deadline<I: Into<Hertz>>(&mut self, timeout: I) {
-        let hz = timeout.into();
-        let count = gd32_time::Hertz(hz.0);
-
+    fn start<C>(&mut self, count: C)
+    where
+        C: Into<Self::Time>,
+    {
+        let hz = gd32_time::Hertz(count.into().0);
         if hz.0 > 0 {
-            self.0.start(count)
+            self.0.start(hz)
         }
     }
 
-    fn wait_deadline(&mut self) -> nb::Result<(), Self::Error> {
+    fn wait(&mut self) -> nb::Result<(), void::Void> {
         self.0.wait()
     }
 }

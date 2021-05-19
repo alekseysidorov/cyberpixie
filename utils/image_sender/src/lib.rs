@@ -219,6 +219,6 @@ pub fn send_firmware_info(to: SocketAddr) -> anyhow::Result<()> {
     let mut service = ServiceImpl::new(&to)?;
 
     let info = service.request_firmware_info(())?.map_err(display_err)?;
-    log::info!("Got {:?} from {}", info, to);
+    log::info!("Got {:#?} from {}", info, to);
     Ok(())
 }

@@ -8,8 +8,8 @@ use core::{
 
 use cyberpixie::{
     leds::{SmartLedsWrite, RGB8},
-    time::{Microseconds, Milliseconds},
-    AppConfig, DeadlineTimer, ImagesRepository,
+    time::{Microseconds, Milliseconds, CountDown, CountDownEx},
+    AppConfig, ImagesRepository,
 };
 use cyberpixie_firmware::{
     config::{MAX_IMAGE_BUF_SIZE, SERIAL_PORT_CONFIG, SOFTAP_CONFIG, STRIP_LEDS_COUNT},
@@ -126,7 +126,7 @@ fn main() -> ! {
     };
     stdio_serial::init(usb_tx);
 
-    timer.delay(Milliseconds(1_000)).unwrap();
+    timer.delay(Milliseconds(1_000));
     uprintln!("Serial port configured.");
 
     let spi = {
@@ -183,9 +183,9 @@ fn main() -> ! {
     uprintln!("Showing splash...");
     let splash = WanderingLight::<STRIP_LEDS_COUNT>::default();
     for (ticks, line) in splash {
-        timer.set_deadline(Microseconds(ticks));
+        timer.start(Microseconds(ticks));
         strip.write(core::array::IntoIter::new(line)).ok();
-        nb::block!(timer.wait_deadline()).unwrap();
+        nb::block!(timer.wait()).ok();
     }
     uprintln!("Splash has been showed.");
 
@@ -214,6 +214,7 @@ fn main() -> ! {
         timer,
         images_repository,
         strip,
+        device_id: cyberpixie_firmware::device_id(),
     }
     .into_app(&mut buf);
 

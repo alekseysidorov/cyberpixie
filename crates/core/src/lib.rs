@@ -5,7 +5,6 @@
 pub use self::{
     app::{App, AppConfig},
     images::ImagesRepository,
-    time::DeadlineTimer,
 };
 pub use cyberpixie_proto as proto;
 pub use smart_leds as leds;
