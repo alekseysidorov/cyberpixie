@@ -32,11 +32,13 @@ pub trait Transport {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Packet<A, P> {
     pub address: A,
     pub data: PacketData<P>,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum PacketData<P> {
     Payload(P),
     RequestNext,

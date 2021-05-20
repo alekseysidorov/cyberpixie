@@ -64,33 +64,34 @@ fn main() -> ! {
     uprintln!("SoftAP has been successfuly configured.");
 
     loop {
-        let packet = match transport.poll_next_packet() {
-            Ok(packet) => packet,
-            Err(nb::Error::WouldBlock) => continue,
+        match transport.poll_next_packet() {
+            Ok(packet) => match packet.data {
+                PacketData::Payload(payload) => {
+                    uprintln!("Received bytes, total_len: {}", payload.len());
+                    uprint!("-> ");
+                    for byte in payload {
+                        uprint!("{}", byte as char);
+                    }
+
+                    transport.request_next_packet(packet.address).unwrap();
+                }
+                PacketData::RequestNext => unreachable!(),
+            },
+            Err(nb::Error::WouldBlock) => {}
             Err(nb::Error::Other(err)) => panic!("transport: {:?}", err),
         };
 
-        match packet.data {
-            PacketData::Payload(payload) => {
-                for byte in payload {
-                    uprint!("{}", byte as char);
-                }
-                transport.request_next_packet(packet.address).unwrap();
+        match usb_rx.read() {
+            Ok(byte) => {
+                let to = 0;
+                let bytes = [byte];
+                transport.send_packet(&bytes, to).unwrap();
+                uprint!("{}", byte as char);
+                nb::block!(transport.wait_for_next_request(to)).unwrap();
             }
-            PacketData::RequestNext => unreachable!(),
-        }
-
-        let byte = match usb_rx.read() {
-            Ok(byte) => byte,
-            Err(nb::Error::WouldBlock) => continue,
+            Err(nb::Error::WouldBlock) => {}
             Err(nb::Error::Other(err)) => panic!("uart: {:?}", err),
         };
-
-        uprint!("{}", byte as char);
-        let to = 0;
-        let bytes = [byte];
-        transport.send_packet(&bytes, to).unwrap();
-        nb::block!(transport.wait_for_next_request(to)).unwrap();
     }
 }
 

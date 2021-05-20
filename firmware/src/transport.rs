@@ -4,6 +4,7 @@ use cyberpixie::proto::transport::{Packet, PacketData, PacketKind, Transport};
 use embedded_hal::serial::{Read, Write};
 use esp8266_softap::{Error as SoftApError, SoftAp, ADAPTER_BUF_CAPACITY};
 use heapless::Vec;
+use stdio_serial::uprintln;
 
 const MAX_PAYLOAD_LEN: usize = ADAPTER_BUF_CAPACITY - PacketKind::PACKED_LEN;
 
@@ -65,6 +66,7 @@ where
                 PacketKind::RequestNext => PacketData::RequestNext,
             };
 
+            uprintln!("[Info] received packet from {}: {:?}", link_id, data);
             return Ok(Packet {
                 address: link_id,
                 data,
@@ -76,6 +78,7 @@ where
 
     fn request_next_packet(&mut self, from: Self::Address) -> Result<(), Self::Error> {
         let packet = PacketKind::RequestNext.to_bytes();
+        uprintln!("[Info] sending request next packet to {}", from);
 
         let bytes = packet.iter().copied();
         self.0.send_packet_to_link(from, bytes)
