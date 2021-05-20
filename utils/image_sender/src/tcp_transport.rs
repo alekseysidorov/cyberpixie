@@ -46,9 +46,7 @@ impl TransportImpl {
 
 impl Transport for TransportImpl {
     type Error = anyhow::Error;
-
     type Address = SocketAddr;
-
     type Payload = Vec<u8>;
 
     fn poll_next_packet(
