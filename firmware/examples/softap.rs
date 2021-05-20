@@ -86,6 +86,7 @@ fn main() -> ! {
             Err(nb::Error::Other(err)) => panic!("uart: {:?}", err),
         };
 
+        uprint!("{}", byte as char);
         let to = 0;
         let bytes = [byte];
         transport.send_packet(&bytes, to).unwrap();
