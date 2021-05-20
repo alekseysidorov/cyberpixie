@@ -4,7 +4,6 @@ use cyberpixie::proto::transport::{Packet, PacketData, PacketKind, Transport};
 use embedded_hal::serial::{Read, Write};
 use esp8266_softap::{Error as SoftApError, SoftAp, ADAPTER_BUF_CAPACITY};
 use heapless::Vec;
-use stdio_serial::uprintln;
 
 const MAX_PAYLOAD_LEN: usize = ADAPTER_BUF_CAPACITY - PacketKind::PACKED_LEN;
 
@@ -60,13 +59,13 @@ where
                 PacketKind::Payload(len) => {
                     assert_eq!(len, reader.len());
                     let mut payload: Vec<u8, MAX_PAYLOAD_LEN> = Vec::new();
-                    payload.extend(reader);
+                    payload.extend(reader.by_ref());
                     PacketData::Payload(payload)
                 }
                 PacketKind::RequestNext => PacketData::RequestNext,
             };
 
-            uprintln!("[Info] received packet from {}: {:?}", link_id, data);
+            assert_eq!(reader.len(), 0);
             return Ok(Packet {
                 address: link_id,
                 data,
@@ -76,18 +75,17 @@ where
         Err(nb::Error::WouldBlock)
     }
 
-    fn request_next_packet(&mut self, from: Self::Address) -> Result<(), Self::Error> {
+    fn request_next_packet(&mut self, address: Self::Address) -> Result<(), Self::Error> {
         let packet = PacketKind::RequestNext.to_bytes();
-        uprintln!("[Info] sending request next packet to {}", from);
 
         let bytes = packet.iter().copied();
-        self.0.send_packet_to_link(from, bytes)
+        self.0.send_packet_to_link(address, bytes)
     }
 
     fn send_packet<P: AsRef<[u8]>>(
         &mut self,
         payload: P,
-        to: Self::Address,
+        address: Self::Address,
     ) -> Result<(), Self::Error> {
         // TODO remove extra copying.
         let mut packet: Vec<u8, MAX_PAYLOAD_LEN> = Vec::new();
@@ -101,6 +99,6 @@ where
         packet.extend_from_slice(payload.as_ref()).unwrap();
 
         let bytes = packet.as_slice().iter().copied();
-        self.0.send_packet_to_link(to, bytes)
+        self.0.send_packet_to_link(address, bytes)
     }
 }

@@ -3,7 +3,7 @@ use std::{
     net::{SocketAddr, TcpStream},
 };
 
-use cyberpixie_proto::transport::{PacketData, PacketKind, Transport, Packet};
+use cyberpixie_proto::transport::{Packet, PacketData, PacketKind, Transport};
 
 pub struct TransportImpl {
     address: SocketAddr,

@@ -67,8 +67,6 @@ fn main() -> ! {
         match transport.poll_next_packet() {
             Ok(packet) => match packet.data {
                 PacketData::Payload(payload) => {
-                    uprintln!("Received bytes, total_len: {}", payload.len());
-                    uprint!("-> ");
                     for byte in payload {
                         uprint!("{}", byte as char);
                     }

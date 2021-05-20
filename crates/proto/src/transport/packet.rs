@@ -31,7 +31,7 @@ impl PacketKind {
         match body.kind {
             0 => Self::RequestNext,
             1 => PacketKind::Payload(body.len as usize),
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 

@@ -1,10 +1,16 @@
 #![allow(incomplete_features)]
 #![feature(generic_associated_types)]
 
-use std::{fmt::Display, io::{self, ErrorKind, Read, Write}, net::{SocketAddr, TcpStream}, path::Path, time::Duration};
+use std::{
+    fmt::Display,
+    io::{self, ErrorKind, Read, Write},
+    net::{SocketAddr, TcpStream},
+    path::Path,
+    time::Duration,
+};
 
 use cyberpixie_proto::{
-    types::Hertz, Message, PacketReader, Service, ServiceEvent, MAX_HEADER_LEN, transport::*,
+    transport::*, types::Hertz, Message, PacketReader, Service, ServiceEvent, MAX_HEADER_LEN,
 };
 use image::io::Reader;
 
@@ -242,12 +248,12 @@ pub fn run_transport_example(to: SocketAddr) -> anyhow::Result<()> {
                     eprint!("{}", byte as char);
                 }
                 transport.request_next_packet(packet.address)?;
-            },
+            }
             PacketData::RequestNext => unreachable!(),
         }
 
         match std::io::stdin().read(&mut next_line) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(err) if err.kind() == ErrorKind::Interrupted => continue,
             Err(err) => return Err(err.into()),
         };

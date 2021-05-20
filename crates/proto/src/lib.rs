@@ -8,8 +8,8 @@ pub use crate::{
 };
 pub use postcard::Error as PayloadError;
 
-pub mod types;
 pub mod transport;
+pub mod types;
 
 mod packet;
 mod service;
