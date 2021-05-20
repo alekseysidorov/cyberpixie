@@ -30,15 +30,9 @@ impl TransportImpl {
 
         let bytes_read = match self.stream.read(&mut msg_buf) {
             Ok(bytes_read) if bytes_read > 0 => Ok(bytes_read),
-            Err(err) if err.kind() == ErrorKind::WouldBlock => {
-                Err(nb::Error::WouldBlock)
-            }
-            Err(err) => {
-                Err(nb::Error::Other(anyhow::Error::from(err)))
-            }
-            _ => {
-                Err(nb::Error::WouldBlock)
-            }
+            Err(err) if err.kind() == ErrorKind::WouldBlock => Err(nb::Error::WouldBlock),
+            Err(err) => Err(nb::Error::Other(anyhow::Error::from(err))),
+            _ => Err(nb::Error::WouldBlock),
         }?;
         self.next_msg.extend_from_slice(&msg_buf[..bytes_read]);
 

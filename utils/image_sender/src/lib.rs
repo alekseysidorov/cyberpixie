@@ -3,7 +3,7 @@
 
 use std::{
     fmt::Display,
-    io::{self, BufRead, ErrorKind, Read, Write},
+    io::{self, Read, Write},
     net::{SocketAddr, TcpStream},
     path::Path,
     sync::mpsc::{self, Receiver},
