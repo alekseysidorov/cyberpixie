@@ -1,18 +1,23 @@
 use std::{
     io::{ErrorKind, Read, Write},
     net::{SocketAddr, TcpStream},
+    time::Duration,
 };
 
 use cyberpixie_proto::transport::{Packet, PacketData, PacketKind, Transport};
 
 pub struct TransportImpl {
     address: SocketAddr,
-    next_msg: Vec<u8>,
     stream: TcpStream,
+    next_msg: Vec<u8>,
 }
 
 impl TransportImpl {
     pub fn new(address: SocketAddr, stream: TcpStream) -> Self {
+        // TODO rewrite on tokio.
+        stream
+            .set_read_timeout(Some(Duration::from_millis(10)))
+            .ok();
         Self {
             address,
             stream,
@@ -20,17 +25,28 @@ impl TransportImpl {
         }
     }
 
-    fn read_some_bytes(&mut self) -> nb::Result<usize, anyhow::Error> {
-        let bytes_read = match self.stream.read(&mut self.next_msg) {
-            Ok(bytes_read) if bytes_read > 0 => Ok(bytes_read),
+    fn read_packet_kind(&mut self) -> nb::Result<PacketKind, anyhow::Error> {
+        let mut msg_buf = [0_u8; PacketKind::PACKED_LEN];
 
-            Err(err) if err.kind() != ErrorKind::Interrupted => {
+        let bytes_read = match self.stream.read(&mut msg_buf) {
+            Ok(bytes_read) if bytes_read > 0 => Ok(bytes_read),
+            Err(err) if err.kind() == ErrorKind::WouldBlock => {
+                Err(nb::Error::WouldBlock)
+            }
+            Err(err) => {
                 Err(nb::Error::Other(anyhow::Error::from(err)))
             }
-            _ => Err(nb::Error::WouldBlock),
+            _ => {
+                Err(nb::Error::WouldBlock)
+            }
         }?;
+        self.next_msg.extend_from_slice(&msg_buf[..bytes_read]);
 
-        Ok(bytes_read)
+        if self.next_msg.len() >= PacketKind::PACKED_LEN {
+            Ok(PacketKind::decode(&self.next_msg))
+        } else {
+            Err(nb::Error::WouldBlock)
+        }
     }
 }
 
@@ -44,35 +60,34 @@ impl Transport for TransportImpl {
     fn poll_next_packet(
         &mut self,
     ) -> nb::Result<Packet<Self::Address, Self::Payload>, Self::Error> {
-        self.read_some_bytes()?;
+        let kind = self.read_packet_kind()?;
 
-        if self.next_msg.len() < PacketKind::PACKED_LEN {
-            return Err(nb::Error::WouldBlock);
-        }
-
-        let kind = PacketKind::decode(&self.next_msg);
         let packet = match kind {
-            PacketKind::Payload(len) if len == self.next_msg.len() - PacketKind::PACKED_LEN => {
-                Ok(Packet {
+            PacketKind::Payload(len) => {
+                let mut payload = self.next_msg[PacketKind::PACKED_LEN..].to_vec();
+                payload.resize(len, 0);
+
+                self.stream
+                    .read_exact(&mut payload)
+                    .map_err(|e| nb::Error::Other(Self::Error::from(e)))?;
+
+                Packet {
                     address: self.address,
-                    data: PacketData::Payload(self.next_msg.drain(..).collect::<Vec<_>>()),
-                })
+                    data: PacketData::Payload(payload),
+                }
             }
-            PacketKind::RequestNext => Ok(Packet {
+            PacketKind::RequestNext => Packet {
                 address: self.address,
                 data: PacketData::RequestNext,
-            }),
+            },
+        };
 
-            _ => Err(nb::Error::WouldBlock),
-        }?;
-
-        log::trace!("Received packet {:?}", packet);
+        self.next_msg.clear();
         Ok(packet)
     }
 
-    fn request_next_packet(&mut self, from: Self::Address) -> Result<(), Self::Error> {
+    fn request_next_packet(&mut self, _from: Self::Address) -> Result<(), Self::Error> {
         let packet = PacketKind::RequestNext.to_bytes();
-        log::trace!("Sending next packet request to {}", from);
 
         self.stream.write_all(packet.as_ref()).map_err(From::from)
     }

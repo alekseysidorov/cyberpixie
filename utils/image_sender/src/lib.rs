@@ -235,15 +235,11 @@ pub fn run_transport_example(to: SocketAddr) -> anyhow::Result<()> {
     let stream = connect_to(&to)?;
 
     let mut transport = tcp_transport::TransportImpl::new(to, stream);
-
     let lines = spawn_stdin_channel();
-
     loop {
         match transport.poll_next_packet() {
             Ok(packet) => match packet.data {
                 PacketData::Payload(payload) => {
-                    eprintln!("Received data len: {}", payload.len());
-                    eprint!("-> ");
                     for byte in payload {
                         eprint!("{}", byte as char);
                     }
@@ -257,7 +253,6 @@ pub fn run_transport_example(to: SocketAddr) -> anyhow::Result<()> {
 
         if let Ok(next_line) = lines.try_recv() {
             for data in next_line.as_bytes().chunks(256) {
-                log::trace!("Sent {} bytes to device", data.len());
                 transport.send_packet(data, to)?;
                 nb::block!(transport.wait_for_next_request(to))?;
             }
