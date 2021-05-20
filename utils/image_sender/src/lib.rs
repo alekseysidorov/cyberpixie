@@ -3,9 +3,11 @@
 
 use std::{
     fmt::Display,
-    io::{self, ErrorKind, Read, Write},
+    io::{self, BufRead, ErrorKind, Read, Write},
     net::{SocketAddr, TcpStream},
     path::Path,
+    sync::mpsc::{self, Receiver},
+    thread,
     time::Duration,
 };
 
@@ -234,35 +236,41 @@ pub fn run_transport_example(to: SocketAddr) -> anyhow::Result<()> {
 
     let mut transport = tcp_transport::TransportImpl::new(to, stream);
 
-    let mut next_line = Vec::new();
+    let lines = spawn_stdin_channel();
+
     loop {
-        let packet = match transport.poll_next_packet() {
-            Ok(packet) => packet,
-            Err(nb::Error::WouldBlock) => continue,
+        match transport.poll_next_packet() {
+            Ok(packet) => match packet.data {
+                PacketData::Payload(payload) => {
+                    eprintln!("Received data len: {}", payload.len());
+                    eprint!("-> ");
+                    for byte in payload {
+                        eprint!("{}", byte as char);
+                    }
+                    transport.request_next_packet(packet.address)?;
+                }
+                PacketData::RequestNext => unreachable!(),
+            },
+            Err(nb::Error::WouldBlock) => {}
             Err(nb::Error::Other(err)) => return Err(err),
         };
 
-        match packet.data {
-            PacketData::Payload(payload) => {
-                for byte in payload {
-                    eprint!("{}", byte as char);
-                }
-                transport.request_next_packet(packet.address)?;
-            }
-            PacketData::RequestNext => unreachable!(),
-        }
-
-        match std::io::stdin().read(&mut next_line) {
-            Ok(_) => {}
-            Err(err) if err.kind() == ErrorKind::Interrupted => continue,
-            Err(err) => return Err(err.into()),
-        };
-
-        if next_line.ends_with(b"\n") {
-            for data in next_line.chunks(256) {
+        if let Ok(next_line) = lines.try_recv() {
+            for data in next_line.as_bytes().chunks(256) {
+                log::trace!("Sent {} bytes to device", data.len());
                 transport.send_packet(data, to)?;
                 nb::block!(transport.wait_for_next_request(to))?;
             }
-        }
+        };
     }
+}
+
+fn spawn_stdin_channel() -> Receiver<String> {
+    let (tx, rx) = mpsc::channel::<String>();
+    thread::spawn(move || loop {
+        let mut buffer = String::new();
+        io::stdin().read_line(&mut buffer).unwrap();
+        tx.send(buffer).unwrap();
+    });
+    rx
 }

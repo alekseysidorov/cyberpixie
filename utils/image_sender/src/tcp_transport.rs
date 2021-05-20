@@ -51,7 +51,7 @@ impl Transport for TransportImpl {
         }
 
         let kind = PacketKind::decode(&self.next_msg);
-        match kind {
+        let packet = match kind {
             PacketKind::Payload(len) if len == self.next_msg.len() - PacketKind::PACKED_LEN => {
                 Ok(Packet {
                     address: self.address,
@@ -64,11 +64,16 @@ impl Transport for TransportImpl {
             }),
 
             _ => Err(nb::Error::WouldBlock),
-        }
+        }?;
+
+        log::trace!("Received packet {:?}", packet);
+        Ok(packet)
     }
 
-    fn request_next_packet(&mut self, _from: Self::Address) -> Result<(), Self::Error> {
+    fn request_next_packet(&mut self, from: Self::Address) -> Result<(), Self::Error> {
         let packet = PacketKind::RequestNext.to_bytes();
+        log::trace!("Sending next packet request to {}", from);
+
         self.stream.write_all(packet.as_ref()).map_err(From::from)
     }
 
@@ -83,6 +88,8 @@ impl Transport for TransportImpl {
                 .to_bytes()
                 .as_ref(),
         );
+        packet.extend_from_slice(payload.as_ref());
+
         self.stream.write_all(packet.as_ref()).map_err(From::from)
     }
 }
