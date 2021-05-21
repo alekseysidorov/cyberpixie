@@ -1,6 +1,6 @@
 use core::fmt::Debug;
 
-use cyberpixie::proto::transport::{Packet, PacketData, PacketKind, Transport};
+use cyberpixie::proto::{Packet, PacketData, PacketKind, Transport};
 use embedded_hal::serial::{Read, Write};
 use esp8266_softap::{Error as SoftApError, SoftAp, ADAPTER_BUF_CAPACITY};
 use heapless::Vec;

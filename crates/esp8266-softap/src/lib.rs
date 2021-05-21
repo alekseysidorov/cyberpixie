@@ -16,4 +16,4 @@ mod parser;
 #[cfg(test)]
 mod tests;
 
-pub const ADAPTER_BUF_CAPACITY: usize = 256;
+pub const ADAPTER_BUF_CAPACITY: usize = 512;

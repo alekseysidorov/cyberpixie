@@ -22,7 +22,7 @@ where
 {
     pub network: Network,
     pub timer: Timer,
-    pub images_repository: Images,
+    pub images: Images,
     pub strip: Strip,
     pub device_id: [u32; 4],
 }
@@ -60,7 +60,7 @@ where
             inner: AppInner {
                 device_id: self.device_id,
                 timer: self.timer,
-                images_repository: self.images_repository,
+                images: self.images,
                 strip_state: StripState {
                     image_index: 0,
                     refresh_rate: Hertz(50),
@@ -84,7 +84,7 @@ where
     device_id: [u32; 4],
 
     timer: Timer,
-    images_repository: Images,
+    images: Images,
 
     strip: Strip,
     strip_state: StripState<STRIP_LEN>,
@@ -141,7 +141,7 @@ where
     Images::Error: Debug,
 {
     pub fn run(mut self) -> ! {
-        if self.inner.images_repository.count() > 0 {
+        if self.inner.images.count() > 0 {
             self.inner.load_image(self.buf, 0);
         } else {
             self.inner.blank_strip(self.buf);
@@ -202,7 +202,7 @@ where
             Message::GetInfo => Some(SimpleMessage::Info(FirmwareInfo {
                 strip_len: STRIP_LEN as u16,
                 version: core_version(),
-                images_count: self.images_repository.count() as u16,
+                images_count: self.images.count() as u16,
                 device_id: self.device_id,
                 // TODO implement composite role logic.
                 role: DeviceRole::Single,
@@ -225,7 +225,7 @@ where
                 Some(response)
             }
             Message::ShowImage { index } => {
-                if index >= self.images_repository.count() {
+                if index >= self.images.count() {
                     Some(Error::ImageNotFound.into())
                 } else {
                     self.load_image(buf, index);
@@ -269,7 +269,7 @@ where
             return Error::ImageTooBig.into();
         }
 
-        if self.images_repository.count() >= Images::MAX_COUNT {
+        if self.images.count() >= Images::MAX_COUNT {
             return Error::ImageRepositoryFull.into();
         }
 
@@ -278,7 +278,7 @@ where
     }
 
     fn load_image(&mut self, buf: &mut [RGB8], index: usize) {
-        let (refresh_rate, pixels) = self.images_repository.read_image(index);
+        let (refresh_rate, pixels) = self.images.read_image(index);
 
         self.strip_state.refresh_rate = refresh_rate;
         self.strip_state.total_lines_count = pixels.len() / STRIP_LEN;
@@ -293,7 +293,7 @@ where
     where
         I: Iterator<Item = RGB8> + ExactSizeIterator,
     {
-        self.images_repository
+        self.images
             .add_image(bytes, refresh_rate)
             .expect("Unable to save image")
     }
@@ -306,7 +306,7 @@ where
 
     fn clear_images(&mut self, buf: &mut [RGB8]) {
         self.blank_strip(buf);
-        self.images_repository
+        self.images
             .clear()
             .expect("Unable to clear images repository");
     }

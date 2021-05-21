@@ -8,7 +8,7 @@ use core::{
 
 use cyberpixie::{
     leds::{SmartLedsWrite, RGB8},
-    time::{Microseconds, Milliseconds, CountDown, CountDownEx},
+    time::{CountDown, CountDownEx, Microseconds, Milliseconds},
     AppConfig, ImagesRepository,
 };
 use cyberpixie_firmware::{
@@ -18,7 +18,7 @@ use cyberpixie_firmware::{
     TimerImpl,
 };
 use embedded_hal::{digital::v2::OutputPin, serial::Read};
-use esp8266_softap::{ADAPTER_BUF_CAPACITY, Adapter};
+use esp8266_softap::{Adapter, ADAPTER_BUF_CAPACITY};
 use gd32vf103xx_hal::{
     eclic::{EclicExt, Level, LevelPriorityBits, Priority, TriggerType},
     pac::{self, Interrupt, ECLIC, TIMER1, USART1},
@@ -155,7 +155,7 @@ fn main() -> ! {
     uprintln!("Led strip cleaned.");
 
     // SPI1_SCK(PB13), SPI1_MISO(PB14) and SPI1_MOSI(PB15) GPIO pin configuration
-    let mut device = {
+    let device = {
         let gpiob = dp.GPIOB.split(&mut rcu);
         let spi = Spi::spi1(
             dp.SPI1,
@@ -176,8 +176,8 @@ fn main() -> ! {
         device.init().unwrap();
         device
     };
-    let images_repository = ImagesStorage::open(&mut device).unwrap();
-    uprintln!("Total images count: {}", images_repository.count());
+    let images = ImagesStorage::open(device).unwrap();
+    uprintln!("Total images count: {}", images.count());
 
     uprintln!("Showing splash...");
     let splash = WanderingLight::<STRIP_LEDS_COUNT>::default();
@@ -211,7 +211,7 @@ fn main() -> ! {
     let app = AppConfig::<_, _, _, _, STRIP_LEDS_COUNT, ADAPTER_BUF_CAPACITY> {
         network,
         timer,
-        images_repository,
+        images,
         strip,
         device_id: cyberpixie_firmware::device_id(),
     }

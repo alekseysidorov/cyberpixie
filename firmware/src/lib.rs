@@ -5,7 +5,6 @@
 pub use self::time::TimerImpl;
 
 pub mod config;
-pub mod network;
 pub mod splash;
 pub mod storage;
 pub mod time;
