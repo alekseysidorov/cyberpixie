@@ -87,6 +87,8 @@ where
         payload: P,
         address: Self::Address,
     ) -> Result<(), Self::Error> {
+        assert!(payload.as_ref().len() <= MAX_PAYLOAD_LEN);
+
         // TODO remove extra copying.
         let mut packet: Vec<u8, MAX_PAYLOAD_LEN> = Vec::new();
         packet

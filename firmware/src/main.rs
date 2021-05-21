@@ -176,8 +176,8 @@ fn main() -> ! {
         device.init().unwrap();
         device
     };
-    let images_repository = ImagesStorage::open(&mut device).unwrap();
-
+    let mut images_repository = ImagesStorage::open(&mut device).unwrap();
+    images_repository.clear();
     uprintln!("Total images count: {}", images_repository.count());
 
     uprintln!("Showing splash...");

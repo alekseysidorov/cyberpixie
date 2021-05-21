@@ -115,6 +115,7 @@ impl<'a, T: Transport> PayloadReader<'a, T> {
         transport: &'a mut T,
         bytes_remaining: usize,
     ) -> Result<Self, T::Error> {
+        transport.confirm_packet(address)?;
         let payload = nb::block!(transport.poll_for_payload(address))?;
 
         Ok(Self {

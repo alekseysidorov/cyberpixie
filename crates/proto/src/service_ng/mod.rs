@@ -3,7 +3,7 @@ pub use message::{IncomingMessage, Message, SimpleMessage};
 use core::mem::MaybeUninit;
 use heapless::Vec;
 
-use crate::{FirmwareInfo, transport::{PacketData, Transport}, types::{Hertz, MessageHeader}};
+use crate::{FirmwareInfo, transport::{PacketData, PacketKind, Transport}, types::{Hertz, MessageHeader}};
 
 mod message;
 
@@ -59,9 +59,10 @@ impl<T: Transport, const BUF_LEN: usize> Service<T, BUF_LEN> {
         nb::block!(self.poll_for_confirmation(address))?;
 
         if let Some(mut payload) = payload {
+            let payload_len = BUF_LEN - PacketKind::PACKED_LEN;
             while payload.len() != 0 {
                 let mut buf: Vec<u8, BUF_LEN> = Vec::new();
-                buf.extend(payload.by_ref().take(BUF_LEN));
+                buf.extend(payload.by_ref().take(payload_len));
 
                 self.transport.send_packet(buf, address)?;
                 nb::block!(self.poll_for_confirmation(address))?;
