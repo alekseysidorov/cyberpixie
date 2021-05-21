@@ -166,3 +166,12 @@ impl<'a, T: Transport> Iterator for PayloadReader<'a, T> {
 }
 
 impl<'a, T: Transport> ExactSizeIterator for PayloadReader<'a, T> {}
+
+// FIXME: Rethink data reader to enable this code.
+// impl<'a, T: Transport> Drop for PayloadReader<'a, T> {
+//     fn drop(&mut self) {
+//         // In order to use the reader further, we must read all of the remaining bytes.
+//         // Otherwise, the reader will be in an inconsistent state.
+//         for _ in self {}
+//     }
+// }

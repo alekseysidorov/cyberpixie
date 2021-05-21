@@ -91,6 +91,7 @@ where
 }
 
 struct StripState<const STRIP_LEN: usize> {
+    #[allow(dead_code)]
     image_index: usize,
     refresh_rate: Hertz,
     current_line: usize,
@@ -152,20 +153,20 @@ where
     }
 
     fn process_events(&mut self) {
-        let mut response = None;
+        // let mut response = None;
         poll_condition!(self.service.poll_next_message(), (addr, msg), {
-            response = self.inner.handle_message(self.buf, addr, msg);
+            let response = self.inner.handle_message(self.buf, addr, msg);
             self.service
                 .confirm_message(addr)
                 .expect("Unable to confirm message");
+
+            if let Some((to, response)) = response {
+                self.service
+                    .send_message(to, response)
+                    .expect("Unable to send response");
+            }
         })
         .expect("Unable to poll next event");
-
-        if let Some((to, response)) = response.take() {
-            self.service
-                .send_message(to, response)
-                .expect("Unable to send response");
-        }
 
         poll_condition!(self.inner.timer.wait(), _, {
             let line = self.inner.strip_state.next_line(self.buf);
@@ -211,17 +212,16 @@ where
                 Some(SimpleMessage::Ok)
             }
             Message::AddImage {
-                bytes,
+                mut bytes,
                 refresh_rate,
                 strip_len,
             } => {
-                let response = self.handle_add_image(buf, bytes, refresh_rate, strip_len);
-                // Reload the current image.
-                if self.images_repository.count() > 0 {
-                    self.load_image(buf, self.strip_state.image_index);
-                } else {
-                    self.blank_strip(buf);
-                }
+                let response =
+                    self.handle_add_image(buf.len(), bytes.by_ref(), refresh_rate, strip_len);
+                // In order to use the reader further, we must read all of the remaining bytes.
+                // Otherwise, the reader will be in an inconsistent state.
+                for _ in bytes {}
+
                 Some(response)
             }
             Message::ShowImage { index } => {
@@ -241,8 +241,8 @@ where
 
     fn handle_add_image<I>(
         &mut self,
-        buf: &mut [RGB8],
-        bytes: I,
+        buf_len: usize,
+        bytes: &mut I,
         refresh_rate: Hertz,
         strip_len: usize,
     ) -> SimpleMessage
@@ -253,15 +253,8 @@ where
             return Error::ImageLengthMismatch.into();
         }
 
-        // Reuse the image buffer to immediately read a new image from the stream
-        // to avoid a buffer overrun.
-        let mut pixels = RgbIter::new(bytes);
+        let pixels = RgbIter::new(bytes);
         let pixels_len = pixels.len();
-        (0..buf.len()).for_each(|i| {
-            if let Some(pixel) = pixels.next() {
-                buf[i] = pixel;
-            }
-        });
 
         if strip_len != STRIP_LEN {
             return Error::StripLengthMismatch.into();
@@ -272,7 +265,7 @@ where
             return Error::ImageLengthMismatch.into();
         }
 
-        if pixels_len > buf.len() {
+        if pixels_len > buf_len {
             return Error::ImageTooBig.into();
         }
 
@@ -280,9 +273,7 @@ where
             return Error::ImageRepositoryFull.into();
         }
 
-        let pixels = buf[0..pixels_len].iter().copied();
         let count = self.save_image(refresh_rate, pixels);
-
         Message::ImageAdded { index: count - 1 }
     }
 
