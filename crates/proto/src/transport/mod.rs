@@ -2,6 +2,8 @@ pub use packet::PacketKind;
 
 mod packet;
 
+// TODO Handle events like CONNECT, DISCONNECT, CONNECT FAIL.
+
 pub trait Transport {
     type Error;
     type Address: PartialEq + Clone + Copy;
@@ -10,7 +12,7 @@ pub trait Transport {
     fn poll_next_packet(&mut self)
         -> nb::Result<Packet<Self::Address, Self::Payload>, Self::Error>;
 
-    fn request_next_packet(&mut self, from: Self::Address) -> Result<(), Self::Error>;
+    fn confirm_packet(&mut self, from: Self::Address) -> Result<(), Self::Error>;
 
     fn send_packet<P: AsRef<[u8]>>(
         &mut self,
@@ -18,14 +20,27 @@ pub trait Transport {
         to: Self::Address,
     ) -> Result<(), Self::Error>;
 
-    fn wait_for_next_request(&mut self, from: Self::Address) -> nb::Result<(), Self::Error> {
+    fn poll_for_confirmation(&mut self, from: Self::Address) -> nb::Result<(), Self::Error> {
         let packet = nb::block!(self.poll_next_packet())?;
         if packet.address != from {
             return Err(nb::Error::WouldBlock);
         }
 
-        if let PacketData::RequestNext = packet.data {
+        if let PacketData::Received = packet.data {
             Ok(())
+        } else {
+            Err(nb::Error::WouldBlock)
+        }
+    }
+
+    fn poll_for_payload(&mut self, from: Self::Address) -> nb::Result<Self::Payload, Self::Error> {
+        let packet = nb::block!(self.poll_next_packet())?;
+        if packet.address != from {
+            return Err(nb::Error::WouldBlock);
+        }
+
+        if let PacketData::Payload(payload) = packet.data {
+            Ok(payload)
         } else {
             Err(nb::Error::WouldBlock)
         }
@@ -41,5 +56,5 @@ pub struct Packet<A, P> {
 #[derive(Debug, PartialEq)]
 pub enum PacketData<P> {
     Payload(P),
-    RequestNext,
+    Received,
 }

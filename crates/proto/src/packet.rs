@@ -156,6 +156,7 @@ where
                 MessageHeader::AddImage(AddImage {
                     refresh_rate,
                     strip_len: strip_len as u16,
+                    bytes_len: bytes.len() as u32,
                 }),
                 Some(bytes),
             ),

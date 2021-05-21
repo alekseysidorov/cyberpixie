@@ -73,7 +73,7 @@ fn main() -> ! {
 
                     transport.request_next_packet(packet.address).unwrap();
                 }
-                PacketData::RequestNext => unreachable!(),
+                PacketData::Received => unreachable!(),
             },
             Err(nb::Error::WouldBlock) => {}
             Err(nb::Error::Other(err)) => panic!("transport: {:?}", err),
@@ -85,7 +85,7 @@ fn main() -> ! {
                 let bytes = [byte];
                 transport.send_packet(&bytes, to).unwrap();
                 uprint!("{}", byte as char);
-                nb::block!(transport.wait_for_next_request(to)).unwrap();
+                nb::block!(transport.wait_for_confirmation(to)).unwrap();
             }
             Err(nb::Error::WouldBlock) => {}
             Err(nb::Error::Other(err)) => panic!("uart: {:?}", err),

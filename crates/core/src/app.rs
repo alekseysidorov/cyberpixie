@@ -6,16 +6,21 @@ use embedded_hal::timer::CountDown;
 use crate::{
     images::{ImagesRepository, RgbIter},
     leds::{SmartLedsWrite, RGB8},
-    proto::{types::Hertz, Error, Message, Service, SimpleMessage},
+    proto::{
+        service_ng::{Message, Service, SimpleMessage},
+        transport::Transport,
+        types::Hertz,
+        Error,
+    },
 };
 
 const fn core_version() -> [u8; 4] {
     [0, 1, 0, 0]
 }
 
-pub struct AppConfig<Network, Timer, Images, Strip, const STRIP_LEN: usize>
+pub struct AppConfig<Network, Timer, Images, Strip, const STRIP_LEN: usize, const BUF_LEN: usize>
 where
-    Network: Service,
+    Network: Transport,
     Timer: CountDown<Time = Hertz>,
     Images: ImagesRepository,
     Strip: SmartLedsWrite<Color = RGB8>,
@@ -44,15 +49,18 @@ macro_rules! poll_condition {
     };
 }
 
-impl<Network, Timer, Images, Strip, const STRIP_LEN: usize>
-    AppConfig<Network, Timer, Images, Strip, STRIP_LEN>
+impl<Network, Timer, Images, Strip, const STRIP_LEN: usize, const BUF_LEN: usize>
+    AppConfig<Network, Timer, Images, Strip, STRIP_LEN, BUF_LEN>
 where
-    Network: Service,
+    Network: Transport,
     Timer: CountDown<Time = Hertz>,
     Images: ImagesRepository,
     Strip: SmartLedsWrite<Color = RGB8>,
 {
-    pub fn into_app(self, buf: &mut [RGB8]) -> App<Network, Timer, Images, Strip, STRIP_LEN> {
+    pub fn into_app(
+        self,
+        buf: &mut [RGB8],
+    ) -> App<Network, Timer, Images, Strip, STRIP_LEN, BUF_LEN> {
         App {
             inner: AppInner {
                 device_id: self.device_id,
@@ -66,7 +74,7 @@ where
                 },
                 strip: self.strip,
             },
-            network: self.network,
+            service: Service::new(self.network),
             buf,
         }
     }
@@ -112,22 +120,22 @@ impl<const STRIP_LEN: usize> StripState<STRIP_LEN> {
     }
 }
 
-pub struct App<'a, Network, Timer, Images, Strip, const STRIP_LEN: usize>
+pub struct App<'a, Network, Timer, Images, Strip, const STRIP_LEN: usize, const BUF_LEN: usize>
 where
-    Network: Service,
+    Network: Transport,
     Timer: CountDown<Time = Hertz>,
     Images: ImagesRepository,
     Strip: SmartLedsWrite<Color = RGB8>,
 {
     inner: AppInner<Timer, Images, Strip, STRIP_LEN>,
-    network: Network,
+    service: Service<Network, BUF_LEN>,
     buf: &'a mut [RGB8],
 }
 
-impl<'a, Network, Timer, Images, Strip, const STRIP_LEN: usize>
-    App<'a, Network, Timer, Images, Strip, STRIP_LEN>
+impl<'a, Network, Timer, Images, Strip, const STRIP_LEN: usize, const BUF_LEN: usize>
+    App<'a, Network, Timer, Images, Strip, STRIP_LEN, BUF_LEN>
 where
-    Network: Service,
+    Network: Transport,
     Timer: CountDown<Time = Hertz>,
     Images: ImagesRepository,
     Strip: SmartLedsWrite<Color = RGB8>,
@@ -150,13 +158,16 @@ where
 
     fn process_events(&mut self) {
         let mut response = None;
-        poll_condition!(self.network.poll_next_message(), (addr, msg), {
+        poll_condition!(self.service.poll_next_message(), (addr, msg), {
             response = self.inner.handle_message(self.buf, addr, msg);
+            self.service
+                .confirm_message(addr)
+                .expect("Unable to confirm message");
         })
         .expect("Unable to poll next event");
 
         if let Some((to, response)) = response.take() {
-            self.network
+            self.service
                 .send_message(to, response)
                 .expect("Unable to send response");
         }

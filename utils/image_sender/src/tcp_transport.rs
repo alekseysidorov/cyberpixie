@@ -68,9 +68,9 @@ impl Transport for TransportImpl {
                     data: PacketData::Payload(payload),
                 }
             }
-            PacketKind::RequestNext => Packet {
+            PacketKind::Recieved => Packet {
                 address: self.address,
-                data: PacketData::RequestNext,
+                data: PacketData::Received,
             },
         };
 
@@ -78,8 +78,8 @@ impl Transport for TransportImpl {
         Ok(packet)
     }
 
-    fn request_next_packet(&mut self, _from: Self::Address) -> Result<(), Self::Error> {
-        let packet = PacketKind::RequestNext.to_bytes();
+    fn confirm_packet(&mut self, _from: Self::Address) -> Result<(), Self::Error> {
+        let packet = PacketKind::Recieved.to_bytes();
 
         self.stream.write_all(packet.as_ref()).map_err(From::from)
     }

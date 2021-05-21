@@ -10,6 +10,7 @@ pub use postcard::Error as PayloadError;
 
 pub mod transport;
 pub mod types;
+pub mod service_ng;
 
 mod packet;
 mod service;

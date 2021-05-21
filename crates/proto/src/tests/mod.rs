@@ -30,6 +30,7 @@ fn postcard_messages() -> postcard::Result<()> {
         MessageHeader::AddImage(AddImage {
             refresh_rate: Hertz(50),
             strip_len: 24,
+            bytes_len: 12,
         }),
     ];
 
@@ -82,6 +83,7 @@ fn message_reader_unsized() -> postcard::Result<()> {
     let message = MessageHeader::AddImage(AddImage {
         strip_len: 24,
         refresh_rate: Hertz(32),
+        bytes_len: 200,
     });
     let msg_len = write_message_header(&mut buf, &message, image_len)?;
 

@@ -9,7 +9,7 @@ struct PacketBody {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum PacketKind {
     Payload(usize),
-    RequestNext,
+    Recieved,
 }
 
 impl PacketKind {
@@ -17,7 +17,7 @@ impl PacketKind {
 
     pub fn encode(self, buf: &mut [u8]) {
         match self {
-            PacketKind::RequestNext => PacketBody { kind: 0, len: 0 }.encode_as_le_bytes(buf),
+            PacketKind::Recieved => PacketBody { kind: 0, len: 0 }.encode_as_le_bytes(buf),
             PacketKind::Payload(payload) => PacketBody {
                 kind: 1,
                 len: payload as u16,
@@ -29,7 +29,7 @@ impl PacketKind {
     pub fn decode(buf: &[u8]) -> Self {
         let body = PacketBody::decode_from_le_bytes(buf);
         match body.kind {
-            0 => Self::RequestNext,
+            0 => Self::Recieved,
             1 => PacketKind::Payload(body.len as usize),
             _ => unreachable!(),
         }
