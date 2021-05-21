@@ -26,7 +26,7 @@ pub trait Transport {
             return Err(nb::Error::WouldBlock);
         }
 
-        if let PacketData::Received = packet.data {
+        if let PacketData::Confirmed = packet.data {
             Ok(())
         } else {
             Err(nb::Error::WouldBlock)
@@ -56,5 +56,5 @@ pub struct Packet<A, P> {
 #[derive(Debug, PartialEq)]
 pub enum PacketData<P> {
     Payload(P),
-    Received,
+    Confirmed,
 }

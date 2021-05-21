@@ -149,7 +149,7 @@ impl<T: Transport, const BUF_LEN: usize> Service<T, BUF_LEN> {
                 postcard::from_bytes(bytes.as_ref()).unwrap()
             }
 
-            PacketData::Received => unreachable!(),
+            PacketData::Confirmed => unreachable!(),
         };
 
         Ok((packet.address, msg))

@@ -253,7 +253,7 @@ pub fn run_transport_example(to: SocketAddr) -> anyhow::Result<()> {
                     }
                     transport.confirm_packet(packet.address)?;
                 }
-                PacketData::Received => unreachable!(),
+                PacketData::Confirmed => unreachable!(),
             },
             Err(nb::Error::WouldBlock) => {}
             Err(nb::Error::Other(err)) => return Err(err),

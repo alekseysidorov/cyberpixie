@@ -18,7 +18,7 @@ use cyberpixie_firmware::{
     TimerImpl,
 };
 use embedded_hal::{digital::v2::OutputPin, serial::Read};
-use esp8266_softap::Adapter;
+use esp8266_softap::{ADAPTER_BUF_CAPACITY, Adapter};
 use gd32vf103xx_hal::{
     eclic::{EclicExt, Level, LevelPriorityBits, Priority, TriggerType},
     pac::{self, Interrupt, ECLIC, TIMER1, USART1},
@@ -206,10 +206,10 @@ fn main() -> ! {
         let adapter = Adapter::new(esp_rx, esp_tx).unwrap();
         SOFTAP_CONFIG.start(adapter).unwrap()
     };
-    let network = cyberpixie_firmware::network::into_service(ap);
+    let network = cyberpixie_firmware::transport::TransportImpl::new(ap);
     uprintln!("SoftAP has been successfuly configured.");
 
-    let app = AppConfig::<_, _, _, _, STRIP_LEDS_COUNT> {
+    let app = AppConfig::<_, _, _, _, STRIP_LEDS_COUNT, ADAPTER_BUF_CAPACITY> {
         network,
         timer,
         images_repository,

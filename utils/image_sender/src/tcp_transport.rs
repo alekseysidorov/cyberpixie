@@ -68,9 +68,9 @@ impl Transport for TransportImpl {
                     data: PacketData::Payload(payload),
                 }
             }
-            PacketKind::Recieved => Packet {
+            PacketKind::Confirmed => Packet {
                 address: self.address,
-                data: PacketData::Received,
+                data: PacketData::Confirmed,
             },
         };
 
@@ -79,7 +79,7 @@ impl Transport for TransportImpl {
     }
 
     fn confirm_packet(&mut self, _from: Self::Address) -> Result<(), Self::Error> {
-        let packet = PacketKind::Recieved.to_bytes();
+        let packet = PacketKind::Confirmed.to_bytes();
 
         self.stream.write_all(packet.as_ref()).map_err(From::from)
     }

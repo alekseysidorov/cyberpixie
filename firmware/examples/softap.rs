@@ -73,7 +73,7 @@ fn main() -> ! {
 
                     transport.request_next_packet(packet.address).unwrap();
                 }
-                PacketData::Received => unreachable!(),
+                PacketData::Confirmed => unreachable!(),
             },
             Err(nb::Error::WouldBlock) => {}
             Err(nb::Error::Other(err)) => panic!("transport: {:?}", err),

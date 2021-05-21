@@ -62,7 +62,7 @@ where
                     payload.extend(reader.by_ref());
                     PacketData::Payload(payload)
                 }
-                PacketKind::RequestNext => PacketData::RequestNext,
+                PacketKind::Confirmed => PacketData::Confirmed,
             };
 
             assert_eq!(reader.len(), 0);
@@ -75,8 +75,8 @@ where
         Err(nb::Error::WouldBlock)
     }
 
-    fn request_next_packet(&mut self, address: Self::Address) -> Result<(), Self::Error> {
-        let packet = PacketKind::RequestNext.to_bytes();
+    fn confirm_packet(&mut self, address: Self::Address) -> Result<(), Self::Error> {
+        let packet = PacketKind::Confirmed.to_bytes();
 
         let bytes = packet.iter().copied();
         self.0.send_packet_to_link(address, bytes)
