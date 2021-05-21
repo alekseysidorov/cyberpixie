@@ -1,6 +1,6 @@
 use std::{net::SocketAddr, path::PathBuf};
 
-use cyberpixie_proto::types::Hertz;
+use cyberpixie_proto::Hertz;
 use structopt::StructOpt;
 
 use image_sender::{

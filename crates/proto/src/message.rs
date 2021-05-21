@@ -2,8 +2,8 @@ use core::iter::Empty;
 
 use crate::{
     transport::Transport,
-    types::{AddImage, Hertz, MessageHeader},
-    Error, FirmwareInfo,
+    types::{AddImage, FirmwareInfo, Hertz, MessageHeader},
+    Error,
 };
 
 #[derive(Debug, PartialEq, Eq)]

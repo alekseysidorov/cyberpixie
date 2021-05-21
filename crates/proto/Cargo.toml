@@ -13,6 +13,5 @@ serde = { version = "1", default-features = false, features = ["derive"] }
 
 [dev-dependencies]
 embedded-hal = "0.2"
-serialport = "4"
 esp8266-softap = { path = "../esp8266-softap" }
 stdio-serial = { path = "../stdio-serial", features = ["std", "dprint"] }

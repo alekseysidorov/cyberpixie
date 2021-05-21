@@ -1,4 +1,12 @@
-use crate::{types::Hertz, Error, FirmwareInfo, Message, SimpleMessage};
+use core::mem::MaybeUninit;
+use heapless::Vec;
+
+use crate::{
+    message::{read_message, IncomingMessage, Message, SimpleMessage},
+    transport::{PacketData, PacketKind, Transport},
+    types::{Hertz, MessageHeader},
+    FirmwareInfo,
+};
 
 macro_rules! wait_for_response {
     ($service:expr, $pattern:pat, $then:expr) => {
@@ -10,70 +18,92 @@ macro_rules! wait_for_response {
     };
 
     ($service:expr, Ok) => {
-        wait_for_response!($service, Message::Ok, ())
+        wait_for_response!($service, $crate::Message::Ok, ())
     };
 }
 
-pub type Response<T> = Result<T, Error>;
+pub type Response<T> = Result<T, crate::Error>;
 
-pub trait Service {
-    type Error;
+#[derive(Debug)]
+pub struct Service<T, const BUF_LEN: usize> {
+    transport: T,
+}
 
-    type Address;
-    type BytesReader<'a>: Iterator<Item = u8> + ExactSizeIterator + 'a;
-
-    fn poll_next_event(
-        &mut self,
-    ) -> nb::Result<ServiceEvent<Self::Address, Self::BytesReader<'_>>, Self::Error>;
-
-    fn send_message<I>(
-        &mut self,
-        to: Self::Address,
-        message: Message<I>,
-    ) -> Result<(), Self::Error>
-    where
-        I: Iterator<Item = u8> + ExactSizeIterator;
-
-    // Service trait types relied on the associated types and thus cannot be simplified
-    // by the type alias
-    #[allow(clippy::type_complexity)]
-    fn poll_next_message(
-        &mut self,
-    ) -> nb::Result<(Self::Address, Message<Self::BytesReader<'_>>), Self::Error> {
-        let event = self.poll_next_event()?;
-        if let ServiceEvent::Data { address, payload } = event {
-            Ok((address, payload))
-        } else {
-            Err(nb::Error::WouldBlock)
-        }
+impl<T: Transport, const BUF_LEN: usize> Service<T, BUF_LEN> {
+    pub fn new(transport: T) -> Self {
+        Self { transport }
     }
 
-    fn request_firmware_info(
+    pub fn poll_next_message(
         &mut self,
-        to: Self::Address,
-    ) -> Result<Response<FirmwareInfo>, Self::Error> {
-        self.send_message(to, SimpleMessage::GetInfo)?;
+    ) -> nb::Result<(T::Address, IncomingMessage<'_, T>), T::Error> {
+        let (address, header) = self.poll_for_message_header()?;
+
+        let msg = read_message(address, header, &mut self.transport)?;
+        Ok((address, msg))
+    }
+
+    pub fn confirm_message(&mut self, from: T::Address) -> Result<(), T::Error> {
+        self.transport.confirm_packet(from)
+    }
+
+    pub fn send_message<I>(
+        &mut self,
+        address: T::Address,
+        message: Message<I>,
+    ) -> Result<(), T::Error>
+    where
+        I: Iterator<Item = u8> + ExactSizeIterator,
+    {
+        let (header, payload) = message.into_header_payload();
+        self.send_message_header(address, &header)?;
+        nb::block!(self.poll_for_confirmation(address))?;
+
+        if let Some(mut payload) = payload {
+            let payload_len = BUF_LEN - PacketKind::PACKED_LEN;
+            while payload.len() != 0 {
+                let mut buf: Vec<u8, BUF_LEN> = Vec::new();
+                buf.extend(payload.by_ref().take(payload_len));
+
+                self.transport.send_packet(buf, address)?;
+                nb::block!(self.poll_for_confirmation(address))?;
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn request_firmware_info(
+        &mut self,
+        address: T::Address,
+    ) -> Result<Response<FirmwareInfo>, T::Error> {
+        self.send_message(address, SimpleMessage::GetInfo)?;
         let response = wait_for_response!(self, Message::Info(info), info);
+        self.confirm_message(address)?;
+
         Ok(response)
     }
 
-    fn clear_images(&mut self, to: Self::Address) -> Result<Response<()>, Self::Error> {
-        self.send_message(to, SimpleMessage::ClearImages)?;
-        Ok(wait_for_response!(self, Ok))
+    pub fn clear_images(&mut self, address: T::Address) -> Result<Response<()>, T::Error> {
+        self.send_message(address, SimpleMessage::ClearImages)?;
+        let response = wait_for_response!(self, Ok);
+        self.confirm_message(address)?;
+
+        Ok(response)
     }
 
-    fn add_image<I>(
+    pub fn add_image<I>(
         &mut self,
-        to: Self::Address,
+        address: T::Address,
         refresh_rate: Hertz,
         strip_len: usize,
         bytes: I,
-    ) -> Result<Response<usize>, Self::Error>
+    ) -> Result<Response<usize>, T::Error>
     where
         I: Iterator<Item = u8> + ExactSizeIterator,
     {
         self.send_message(
-            to,
+            address,
             Message::AddImage {
                 refresh_rate,
                 strip_len,
@@ -81,21 +111,53 @@ pub trait Service {
             },
         )?;
         let response = wait_for_response!(self, Message::ImageAdded { index }, index);
+        self.confirm_message(address)?;
+
         Ok(response)
     }
 
-    fn show_image(&mut self, to: Self::Address, index: usize) -> Result<Response<()>, Self::Error> {
-        self.send_message(to, SimpleMessage::ShowImage { index })?;
-        Ok(wait_for_response!(self, Ok))
-    }
-}
+    pub fn show_image(
+        &mut self,
+        address: T::Address,
+        index: usize,
+    ) -> Result<Response<()>, T::Error> {
+        self.send_message(address, SimpleMessage::ShowImage { index })?;
+        let response = wait_for_response!(self, Ok);
+        self.confirm_message(address)?;
 
-#[derive(Debug)]
-pub enum ServiceEvent<A, I>
-where
-    I: Iterator<Item = u8> + ExactSizeIterator,
-{
-    Connected { address: A },
-    Disconnected { address: A },
-    Data { address: A, payload: Message<I> },
+        Ok(response)
+    }
+
+    fn send_message_header(
+        &mut self,
+        address: T::Address,
+        header: &MessageHeader,
+    ) -> Result<(), T::Error> {
+        let mut buf: [u8; BUF_LEN] = unsafe {
+            let buf = MaybeUninit::uninit();
+            buf.assume_init()
+        };
+        // We assume that the buffer has sufficient size, and the message
+        // is always successfully encoded.
+        let buf = postcard::to_slice(header, &mut buf).unwrap();
+        self.transport.send_packet(buf, address)
+    }
+
+    fn poll_for_confirmation(&mut self, address: T::Address) -> nb::Result<(), T::Error> {
+        self.transport.poll_for_confirmation(address)
+    }
+
+    fn poll_for_message_header(&mut self) -> nb::Result<(T::Address, MessageHeader), T::Error> {
+        let packet = self.transport.poll_next_packet()?;
+        let msg = match packet.data {
+            PacketData::Payload(bytes) => {
+                // TODO: At the MPV stage, we assume that the incoming message is always correct.
+                postcard::from_bytes(bytes.as_ref()).unwrap()
+            }
+
+            PacketData::Confirmed => unreachable!(),
+        };
+
+        Ok((packet.address, msg))
+    }
 }

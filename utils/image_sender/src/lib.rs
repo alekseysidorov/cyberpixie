@@ -11,10 +11,7 @@ use std::{
     time::Duration,
 };
 
-use cyberpixie_proto::{
-    transport::*, types::Hertz,
-    service_ng::Service,
-};
+use cyberpixie_proto::{Hertz, PacketData, Service, Transport};
 use image::io::Reader;
 
 mod tcp_transport;

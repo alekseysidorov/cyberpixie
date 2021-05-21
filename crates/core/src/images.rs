@@ -1,6 +1,6 @@
 use core::mem::size_of;
 
-use cyberpixie_proto::types::Hertz;
+use cyberpixie_proto::Hertz;
 use smart_leds::RGB8;
 
 pub trait ImagesRepository {

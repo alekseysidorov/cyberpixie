@@ -4,7 +4,7 @@ use std::{
     time::Duration,
 };
 
-use cyberpixie_proto::transport::{Packet, PacketData, PacketKind, Transport};
+use cyberpixie_proto::{Packet, PacketData, PacketKind, Transport};
 
 pub struct TransportImpl {
     address: SocketAddr,

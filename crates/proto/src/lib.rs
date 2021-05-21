@@ -3,16 +3,19 @@
 #![feature(generic_associated_types)]
 
 pub use crate::{
-    packet::{Error, FirmwareInfo, Message, PacketReader, SimpleMessage, MAX_HEADER_LEN},
-    service::{Service, ServiceEvent},
+    error::Error,
+    message::{Message, SimpleMessage},
+    service::Service,
+    transport::{Packet, PacketData, PacketKind, Transport},
+    types::{DeviceRole, FirmwareInfo, Hertz},
 };
 pub use postcard::Error as PayloadError;
 
-pub mod transport;
-pub mod types;
-pub mod service_ng;
+pub mod error;
 
-mod packet;
+mod message;
 mod service;
 #[cfg(all(test, not(target_os = "none")))]
 mod tests;
+mod transport;
+mod types;

@@ -1,17 +1,12 @@
 use core::{fmt::Debug, mem::size_of};
 
-use cyberpixie_proto::{types::DeviceRole, FirmwareInfo};
+use cyberpixie_proto::{DeviceRole, FirmwareInfo};
 use embedded_hal::timer::CountDown;
 
 use crate::{
     images::{ImagesRepository, RgbIter},
     leds::{SmartLedsWrite, RGB8},
-    proto::{
-        service_ng::{Message, Service, SimpleMessage},
-        transport::Transport,
-        types::Hertz,
-        Error,
-    },
+    proto::{Error, Hertz, Message, Service, SimpleMessage, Transport},
 };
 
 const fn core_version() -> [u8; 4] {
