@@ -74,6 +74,8 @@ impl Transport for TransportImpl {
             },
         };
 
+        log::trace!("Received packet {:?}", packet);
+
         self.next_msg.clear();
         Ok(packet)
     }
@@ -81,6 +83,7 @@ impl Transport for TransportImpl {
     fn confirm_packet(&mut self, _from: Self::Address) -> Result<(), Self::Error> {
         let packet = PacketKind::Confirmed.to_bytes();
 
+        log::trace!("Confirm packet: {:?}", packet);
         self.stream.write_all(packet.as_ref()).map_err(From::from)
     }
 
@@ -97,6 +100,7 @@ impl Transport for TransportImpl {
         );
         packet.extend_from_slice(payload.as_ref());
 
+        log::trace!("Send packet: {:?}", packet);
         self.stream.write_all(packet.as_ref()).map_err(From::from)
     }
 }
