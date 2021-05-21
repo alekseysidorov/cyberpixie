@@ -12,7 +12,7 @@ use cyberpixie::{
     AppConfig, ImagesRepository,
 };
 use cyberpixie_firmware::{
-    config::{MAX_IMAGE_BUF_SIZE, SERIAL_PORT_CONFIG, SOFTAP_CONFIG, STRIP_LEDS_COUNT},
+    config::{SERIAL_PORT_CONFIG, SOFTAP_CONFIG, STRIP_LEDS_COUNT},
     splash::WanderingLight,
     storage::ImagesStorage,
     TimerImpl,
@@ -105,8 +105,6 @@ unsafe fn init_uart_1_interrupted_mode(rx: Rx<USART1>, mut timer: Timer<TIMER1>)
 
 #[riscv_rt::entry]
 fn main() -> ! {
-    let mut buf: [RGB8; MAX_IMAGE_BUF_SIZE] = [RGB8::default(); MAX_IMAGE_BUF_SIZE];
-
     // Hardware initialization step.
     let dp = pac::Peripherals::take().unwrap();
 
@@ -211,11 +209,11 @@ fn main() -> ! {
     let app = AppConfig::<_, _, _, _, STRIP_LEDS_COUNT, ADAPTER_BUF_CAPACITY> {
         network,
         timer,
-        images,
+        images: &images,
         strip,
         device_id: cyberpixie_firmware::device_id(),
     }
-    .into_app(&mut buf);
+    .into_app();
 
     app.run()
 }
