@@ -1,3 +1,5 @@
+use core::fmt::{self, Debug};
+
 use embedded_hal::serial;
 use heapless::Vec;
 
@@ -194,7 +196,6 @@ where
     }
 }
 
-#[derive(Debug)]
 pub struct DataReader<'a, Rx>
 where
     Rx: serial::Read<u8> + 'static,
@@ -205,11 +206,31 @@ where
     pub(crate) reader: &'a mut ReadPart<Rx>,
 }
 
+impl<'a, Rx> Debug for DataReader<'a, Rx>
+where
+    Rx: serial::Read<u8> + 'static,
+    Rx::Error: core::fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DataReader")
+            .field("bytes_remaining", &self.bytes_remaining)
+            .field("read_pos", &self.read_pos)
+            .field("buf", &self.reader.buf)
+            .finish()
+    }
+}
+
 impl<'a, Rx> DataReader<'a, Rx>
 where
     Rx: serial::Read<u8> + 'static,
     Rx::Error: core::fmt::Debug,
 {
+    fn finish(&mut self) {
+        if self.read_pos > 0 {
+            truncate_buf(&mut self.reader.buf, self.read_pos);
+            self.read_pos = 0;
+        }
+    }
 }
 
 impl<'a, Rx> Iterator for DataReader<'a, Rx>
@@ -229,10 +250,7 @@ where
             // We have received the all necessary bytes and should move the buffer to receive
             // the next pieces of data.
             if self.bytes_remaining == 0 {
-                if self.read_pos > 0 {
-                    truncate_buf(&mut self.reader.buf, self.read_pos);
-                    self.read_pos = 0;
-                }
+                self.finish();
                 return None;
             }
             // Try to get byte from the reader buffer.
@@ -267,18 +285,20 @@ where
 {
 }
 
-// FIXME: Rethink data reader to enable this drop.
-// impl<'a, Rx> Drop for DataReader<'a, Rx>
-// where
-//     Rx: serial::Read<u8> + 'static,
-//     Rx::Error: core::fmt::Debug,
-// {
-//     fn drop(&mut self) {
-//         // In order to use the reader further, we must read all of the remaining bytes.
-//         // Otherwise, the reader will be in an inconsistent state.
-//         for _ in self {}
-//     }
-// }
+impl<'a, Rx> Drop for DataReader<'a, Rx>
+where
+    Rx: serial::Read<u8> + 'static,
+    Rx::Error: core::fmt::Debug,
+{
+    fn drop(&mut self) {
+        // FIXME: Rethink data reader to enable this code.
+        // In order to use the reader further, we must read all of the remaining bytes.
+        // Otherwise, the reader will be in an inconsistent state.
+        // for _ in self {}
+
+        self.finish()
+    }
+}
 
 // FIXME: Reduce complexity of this operation.
 fn truncate_buf<const N: usize>(buf: &mut Vec<u8, N>, at: usize) {

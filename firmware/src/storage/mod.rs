@@ -1,4 +1,9 @@
-use cyberpixie::{leds::RGB8, proto::types::Hertz, ImagesRepository};
+use core::{
+    cell::{Ref, RefCell},
+    mem::MaybeUninit,
+};
+
+use cyberpixie::{leds::RGB8, proto::Hertz, ImagesRepository};
 use embedded_sdmmc::{Block, BlockDevice, BlockIdx};
 use endian_codec::{DecodeLE, EncodeLE, PackedSize};
 
@@ -11,12 +16,32 @@ pub const MAX_IMAGES_COUNT: usize = 60;
 
 const BLOCK_SIZE: usize = 512;
 
-pub struct ImagesStorage<'a, B> {
-    device: &'a mut B,
+struct ImageStorageInner<B> {
+    device: B,
     block: HeaderBlock,
 }
 
-impl<'a, B> ImagesStorage<'a, B>
+pub struct ImagesStorage<B> {
+    inner: RefCell<ImageStorageInner<B>>,
+}
+
+impl<B> ImagesStorage<B>
+where
+    B: BlockDevice + 'static,
+{
+    pub fn open(device: B) -> Result<Self, B::Error> {
+        let repository = Self {
+            inner: RefCell::new(ImageStorageInner {
+                device,
+                block: HeaderBlock::empty(),
+            }),
+        };
+        repository.inner.borrow_mut().get_or_init()?;
+        Ok(repository)
+    }
+}
+
+impl<B> ImageStorageInner<B>
 where
     B: BlockDevice + 'static,
 {
@@ -29,17 +54,6 @@ where
     const INIT_MSG: &'static [u8] = b"POI_STORAGE";
     /// This block contains the repository header.
     const HEADER_BLOCK: BlockIdx = BlockIdx(10);
-
-    pub fn open(device: &'a mut B) -> Result<Self, B::Error> {
-        let mut repository = Self {
-            device,
-            block: HeaderBlock {
-                inner: Default::default(),
-            },
-        };
-        repository.get_or_init()?;
-        Ok(repository)
-    }
 
     pub fn reset(&mut self) -> Result<&mut Self, B::Error> {
         self.init()?;
@@ -77,6 +91,10 @@ where
         Ok(())
     }
 
+    fn count(&self) -> usize {
+        self.block.header().images_count as usize
+    }
+
     fn image_descriptor_at(&self, index: usize) -> ImageDescriptor {
         assert!(
             index < self.count(),
@@ -86,6 +104,48 @@ where
         let descriptor_pos = Header::PACKED_LEN + index * ImageDescriptor::PACKED_LEN;
         ImageDescriptor::decode_from_le_bytes(&self.block.inner[0][descriptor_pos..])
     }
+
+    fn add_image<I>(&mut self, data: I, refresh_rate: Hertz) -> Result<usize, B::Error>
+    where
+        I: Iterator<Item = RGB8>,
+    {
+        assert!(self.count() < MAX_IMAGES_COUNT);
+
+        let mut header = self.block.header();
+
+        // Sequentially write image bytes into the appropriate blocks.
+        let (image_len, vacant_block) = {
+            let bytes = data
+                .map(|c| core::array::IntoIter::new([c.r, c.g, c.b]))
+                .flatten();
+
+            write_bytes(
+                &mut self.device,
+                bytes,
+                BlockIdx(header.vacant_block as u32),
+            )?
+        };
+
+        // Create a new image descriptor and add it to the header block.
+        let descriptor = ImageDescriptor {
+            block_number: header.vacant_block,
+            image_len: image_len as u16,
+            refresh_rate: refresh_rate.0,
+        };
+        let descriptor_pos =
+            Header::PACKED_LEN + header.images_count as usize * ImageDescriptor::PACKED_LEN;
+        descriptor.encode_as_le_bytes(self.block.inner[0][descriptor_pos..].as_mut());
+
+        // Refresh header values.
+        header.vacant_block = vacant_block.0 as u16;
+        header.images_count += 1;
+        let images_count = header.images_count;
+        self.block.set_header(header);
+
+        // Store updated header block.
+        self.device.write(&self.block.inner, Self::HEADER_BLOCK)?;
+        Ok(images_count as usize)
+    }
 }
 
 struct HeaderBlock {
@@ -93,6 +153,12 @@ struct HeaderBlock {
 }
 
 impl HeaderBlock {
+    fn empty() -> Self {
+        Self {
+            inner: [Block::default()],
+        }
+    }
+
     fn header(&self) -> Header {
         Header::decode_from_le_bytes(self.inner[0].contents[0..].as_ref())
     }
@@ -111,7 +177,9 @@ where
     B: BlockDevice,
     I: Iterator<Item = u8>,
 {
-    let mut blocks = [Block::new()];
+    let mut blocks = [Block {
+        contents: unsafe { unitialized_block_content() },
+    }];
     let mut i = 0;
     let mut c = 0;
 
@@ -140,7 +208,7 @@ where
 }
 
 pub struct ReadImageIter<'a, B> {
-    device: &'a B,
+    device: Ref<'a, B>,
     buf: [Block; 1],
     block_idx: BlockIdx,
     current_byte_in_block: usize,
@@ -150,7 +218,7 @@ pub struct ReadImageIter<'a, B> {
 impl<'a, B: BlockDevice> Clone for ReadImageIter<'a, B> {
     fn clone(&self) -> Self {
         Self {
-            device: self.device,
+            device: Ref::clone(&self.device),
             buf: self.buf.clone(),
             block_idx: self.block_idx,
             current_byte_in_block: self.current_byte_in_block,
@@ -160,7 +228,7 @@ impl<'a, B: BlockDevice> Clone for ReadImageIter<'a, B> {
 }
 
 impl<'a, B: BlockDevice> ReadImageIter<'a, B> {
-    fn new(device: &'a B, block_idx: BlockIdx, bytes_to_read: usize) -> Self {
+    fn new(device: Ref<'a, B>, block_idx: BlockIdx, bytes_to_read: usize) -> Self {
         assert!(
             bytes_to_read % 3 == 0,
             "Bytes amount to read must be a multiple of 3."
@@ -168,7 +236,9 @@ impl<'a, B: BlockDevice> ReadImageIter<'a, B> {
 
         Self {
             device,
-            buf: [Block::default()],
+            buf: [Block {
+                contents: unsafe { unitialized_block_content() },
+            }],
             block_idx,
             current_byte_in_block: 0,
             remaining_bytes: bytes_to_read,
@@ -225,7 +295,7 @@ impl<'a, B: BlockDevice> Iterator for ReadImageIter<'a, B> {
 
 impl<'a, B: BlockDevice> ExactSizeIterator for ReadImageIter<'a, B> {}
 
-impl<'a, B> ImagesRepository for ImagesStorage<'a, B>
+impl<B> ImagesRepository for ImagesStorage<B>
 where
     B: BlockDevice + 'static,
 {
@@ -235,49 +305,21 @@ where
 
     type ImagePixels<'b> = ReadImageIter<'b, B>;
 
-    fn add_image<I>(&mut self, data: I, refresh_rate: Hertz) -> Result<usize, Self::Error>
+    fn add_image<I>(&self, data: I, refresh_rate: Hertz) -> Result<usize, Self::Error>
     where
         I: Iterator<Item = RGB8>,
     {
-        assert!(self.count() < MAX_IMAGES_COUNT);
-
-        let mut header = self.block.header();
-
-        // Sequentially write image bytes into the appropriate blocks.
-        let (image_len, vacant_block) = {
-            let bytes = data
-                .map(|c| core::array::IntoIter::new([c.r, c.g, c.b]))
-                .flatten();
-            write_bytes(self.device, bytes, BlockIdx(header.vacant_block as u32))?
-        };
-
-        // Create a new image descriptor and add it to the header block.
-        let descriptor = ImageDescriptor {
-            block_number: header.vacant_block,
-            image_len: image_len as u16,
-            refresh_rate: refresh_rate.0,
-        };
-        let descriptor_pos =
-            Header::PACKED_LEN + header.images_count as usize * ImageDescriptor::PACKED_LEN;
-        descriptor.encode_as_le_bytes(self.block.inner[0][descriptor_pos..].as_mut());
-
-        // Refresh header values.
-        header.vacant_block = vacant_block.0 as u16;
-        header.images_count += 1;
-        let images_count = header.images_count;
-        self.block.set_header(header);
-
-        // Store updated header block.
-        self.device.write(&self.block.inner, Self::HEADER_BLOCK)?;
-        Ok(images_count as usize)
+        self.inner.borrow_mut().add_image(data, refresh_rate)
     }
 
-    fn read_image(&mut self, index: usize) -> (Hertz, ReadImageIter<'_, B>) {
-        let descriptor = self.image_descriptor_at(index);
+    fn read_image(&self, index: usize) -> (Hertz, ReadImageIter<'_, B>) {
+        let inner = self.inner.borrow();
+
+        let descriptor = inner.image_descriptor_at(index);
 
         let refresh_rate = Hertz::from(descriptor.refresh_rate);
         let read_iter = ReadImageIter::new(
-            self.device,
+            Ref::map(inner, |inner| &inner.device),
             BlockIdx(descriptor.block_number as u32),
             descriptor.image_len as usize,
         );
@@ -285,10 +327,15 @@ where
     }
 
     fn count(&self) -> usize {
-        self.block.header().images_count as usize
+        self.inner.borrow().block.header().images_count as usize
     }
 
-    fn clear(&mut self) -> Result<(), Self::Error> {
-        self.reset().map(drop)
+    fn clear(&self) -> Result<(), Self::Error> {
+        self.inner.borrow_mut().reset().map(drop)
     }
+}
+
+unsafe fn unitialized_block_content() -> [u8; 512] {
+    let content: MaybeUninit<[u8; 512]> = MaybeUninit::uninit();
+    content.assume_init()
 }

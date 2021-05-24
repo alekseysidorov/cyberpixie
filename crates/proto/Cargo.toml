@@ -4,13 +4,14 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
+displaydoc = { version = "0.2", default-features = false }
+endian_codec = "0.1"
+heapless = "0.7"
 nb = "1.0"
 postcard = { version = "0.7", default-features = false }
 serde = { version = "1", default-features = false, features = ["derive"] }
-displaydoc = { version = "0.2", default-features = false }
 
 [dev-dependencies]
 embedded-hal = "0.2"
-serialport = "4"
 esp8266-softap = { path = "../esp8266-softap" }
 stdio-serial = { path = "../stdio-serial", features = ["std", "dprint"] }

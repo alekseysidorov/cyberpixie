@@ -1,10 +1,11 @@
 use std::{net::SocketAddr, path::PathBuf};
 
-use cyberpixie_proto::types::Hertz;
+use cyberpixie_proto::Hertz;
 use structopt::StructOpt;
 
 use image_sender::{
-    convert_image_to_raw, send_clear_images, send_firmware_info, send_image, send_show_image,
+    convert_image_to_raw, run_transport_example, send_clear_images, send_firmware_info, send_image,
+    send_show_image,
 };
 
 #[derive(Debug, StructOpt)]
@@ -31,6 +32,10 @@ enum Commands {
     /// Send clear images command to the device.
     #[structopt(name = "clear")]
     ClearImages { address: SocketAddr },
+    /// Run transport example.
+    #[structopt(name = "run-transport")]
+    RunTransport { address: SocketAddr },
+
     /// Generate completions
     #[structopt(name = "gen-completions")]
     GenCompletions,
@@ -71,6 +76,11 @@ fn main() -> anyhow::Result<()> {
             let _clap = Commands::clap();
             // clap.gen_completions(bin_name, for_shell, out_dir)
             todo!()
+        }
+
+        Commands::RunTransport { address } => {
+            log::info!("Running transport example for {}", address);
+            run_transport_example(address)?;
         }
     }
 

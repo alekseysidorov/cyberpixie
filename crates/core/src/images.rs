@@ -1,6 +1,6 @@
 use core::mem::size_of;
 
-use cyberpixie_proto::types::Hertz;
+use cyberpixie_proto::Hertz;
 use smart_leds::RGB8;
 
 pub trait ImagesRepository {
@@ -10,15 +10,15 @@ pub trait ImagesRepository {
 
     type ImagePixels<'a>: Iterator<Item = RGB8> + ExactSizeIterator + Clone;
 
-    fn add_image<I>(&mut self, data: I, refresh_rate: Hertz) -> Result<usize, Self::Error>
+    fn add_image<I>(&self, data: I, refresh_rate: Hertz) -> Result<usize, Self::Error>
     where
         I: Iterator<Item = RGB8>;
 
-    fn read_image(&mut self, index: usize) -> (Hertz, Self::ImagePixels<'_>);
+    fn read_image(&self, index: usize) -> (Hertz, Self::ImagePixels<'_>);
 
     fn count(&self) -> usize;
 
-    fn clear(&mut self) -> Result<(), Self::Error>;
+    fn clear(&self) -> Result<(), Self::Error>;
 }
 
 pub struct RgbIter<I>

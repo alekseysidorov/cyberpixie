@@ -8,17 +8,17 @@ use core::{
 
 use cyberpixie::{
     leds::{SmartLedsWrite, RGB8},
-    time::{Microseconds, Milliseconds, CountDown, CountDownEx},
+    time::{CountDown, CountDownEx, Microseconds, Milliseconds},
     AppConfig, ImagesRepository,
 };
 use cyberpixie_firmware::{
-    config::{MAX_IMAGE_BUF_SIZE, SERIAL_PORT_CONFIG, SOFTAP_CONFIG, STRIP_LEDS_COUNT},
+    config::{SERIAL_PORT_CONFIG, SOFTAP_CONFIG, STRIP_LEDS_COUNT},
     splash::WanderingLight,
     storage::ImagesStorage,
     TimerImpl,
 };
 use embedded_hal::{digital::v2::OutputPin, serial::Read};
-use esp8266_softap::Adapter;
+use esp8266_softap::{Adapter, ADAPTER_BUF_CAPACITY};
 use gd32vf103xx_hal::{
     eclic::{EclicExt, Level, LevelPriorityBits, Priority, TriggerType},
     pac::{self, Interrupt, ECLIC, TIMER1, USART1},
@@ -30,9 +30,6 @@ use gd32vf103xx_hal::{
 use heapless::mpmc::Q64;
 use stdio_serial::uprintln;
 use ws2812_spi::Ws2812;
-
-// Quick and dirty buffered serial port implementation.
-// FIXME Rewrite it on the USART1 interrupts.
 
 type UartError = <Rx<USART1> as Read<u8>>::Error;
 
@@ -105,8 +102,6 @@ unsafe fn init_uart_1_interrupted_mode(rx: Rx<USART1>, mut timer: Timer<TIMER1>)
 
 #[riscv_rt::entry]
 fn main() -> ! {
-    let mut buf: [RGB8; MAX_IMAGE_BUF_SIZE] = [RGB8::default(); MAX_IMAGE_BUF_SIZE];
-
     // Hardware initialization step.
     let dp = pac::Peripherals::take().unwrap();
 
@@ -155,7 +150,7 @@ fn main() -> ! {
     uprintln!("Led strip cleaned.");
 
     // SPI1_SCK(PB13), SPI1_MISO(PB14) and SPI1_MOSI(PB15) GPIO pin configuration
-    let mut device = {
+    let device = {
         let gpiob = dp.GPIOB.split(&mut rcu);
         let spi = Spi::spi1(
             dp.SPI1,
@@ -176,9 +171,8 @@ fn main() -> ! {
         device.init().unwrap();
         device
     };
-    let images_repository = ImagesStorage::open(&mut device).unwrap();
-
-    uprintln!("Total images count: {}", images_repository.count());
+    let images = ImagesStorage::open(device).unwrap();
+    uprintln!("Total images count: {}", images.count());
 
     uprintln!("Showing splash...");
     let splash = WanderingLight::<STRIP_LEDS_COUNT>::default();
@@ -206,19 +200,18 @@ fn main() -> ! {
         let adapter = Adapter::new(esp_rx, esp_tx).unwrap();
         SOFTAP_CONFIG.start(adapter).unwrap()
     };
-    let network = cyberpixie_firmware::network::into_service(ap);
+    let network = cyberpixie_firmware::transport::TransportImpl::new(ap);
     uprintln!("SoftAP has been successfuly configured.");
 
-    let app = AppConfig::<_, _, _, _, STRIP_LEDS_COUNT> {
+    AppConfig::<_, _, _, _, STRIP_LEDS_COUNT, ADAPTER_BUF_CAPACITY> {
         network,
         timer,
-        images_repository,
+        images: &images,
         strip,
         device_id: cyberpixie_firmware::device_id(),
     }
-    .into_app(&mut buf);
-
-    app.run()
+    .into_app()
+    .run()
 }
 
 #[inline(never)]

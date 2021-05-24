@@ -1,4 +1,4 @@
-pub use cyberpixie_proto::types::Hertz;
+pub use cyberpixie_proto::Hertz;
 pub use embedded_hal::timer::CountDown;
 
 macro_rules! impl_time_unit {

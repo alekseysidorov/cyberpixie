@@ -1,28 +1,35 @@
-use core::{fmt::Debug, mem::size_of};
+use core::{fmt::Debug, iter::Cycle, mem::size_of};
 
-use cyberpixie_proto::{types::DeviceRole, FirmwareInfo};
+use cyberpixie_proto::{DeviceRole, FirmwareInfo};
 use embedded_hal::timer::CountDown;
 
 use crate::{
     images::{ImagesRepository, RgbIter},
     leds::{SmartLedsWrite, RGB8},
-    proto::{types::Hertz, Error, Message, Service, SimpleMessage},
+    proto::{Error, Hertz, Message, Service, SimpleMessage, Transport},
 };
 
 const fn core_version() -> [u8; 4] {
     [0, 1, 0, 0]
 }
 
-pub struct AppConfig<Network, Timer, Images, Strip, const STRIP_LEN: usize>
-where
-    Network: Service,
+pub struct AppConfig<
+    'a,
+    Network,
+    Timer,
+    Images,
+    Strip,
+    const STRIP_LEN: usize,
+    const BUF_LEN: usize,
+> where
+    Network: Transport,
     Timer: CountDown<Time = Hertz>,
     Images: ImagesRepository,
     Strip: SmartLedsWrite<Color = RGB8>,
 {
     pub network: Network,
     pub timer: Timer,
-    pub images_repository: Images,
+    pub images: &'a Images,
     pub strip: Strip,
     pub device_id: [u32; 4],
 }
@@ -44,35 +51,29 @@ macro_rules! poll_condition {
     };
 }
 
-impl<Network, Timer, Images, Strip, const STRIP_LEN: usize>
-    AppConfig<Network, Timer, Images, Strip, STRIP_LEN>
+impl<'a, Network, Timer, Images, Strip, const STRIP_LEN: usize, const BUF_LEN: usize>
+    AppConfig<'a, Network, Timer, Images, Strip, STRIP_LEN, BUF_LEN>
 where
-    Network: Service,
+    Network: Transport,
     Timer: CountDown<Time = Hertz>,
     Images: ImagesRepository,
     Strip: SmartLedsWrite<Color = RGB8>,
 {
-    pub fn into_app(self, buf: &mut [RGB8]) -> App<Network, Timer, Images, Strip, STRIP_LEN> {
+    pub fn into_app(self) -> App<'a, Network, Timer, Images, Strip, STRIP_LEN, BUF_LEN> {
         App {
             inner: AppInner {
                 device_id: self.device_id,
                 timer: self.timer,
-                images_repository: self.images_repository,
-                strip_state: StripState {
-                    image_index: 0,
-                    refresh_rate: Hertz(50),
-                    current_line: 0,
-                    total_lines_count: 0,
-                },
+                images: self.images,
                 strip: self.strip,
+                image: None,
             },
-            network: self.network,
-            buf,
+            service: Service::new(self.network),
         }
     }
 }
 
-pub struct AppInner<Timer, Images, Strip, const STRIP_LEN: usize>
+pub struct AppInner<'a, Timer, Images, Strip, const STRIP_LEN: usize>
 where
     Timer: CountDown<Time = Hertz>,
     Images: ImagesRepository,
@@ -81,53 +82,27 @@ where
     device_id: [u32; 4],
 
     timer: Timer,
-    images_repository: Images,
+    images: &'a Images,
 
     strip: Strip,
-    strip_state: StripState<STRIP_LEN>,
+    image: Option<(Hertz, Cycle<Images::ImagePixels<'a>>, usize)>,
 }
 
-struct StripState<const STRIP_LEN: usize> {
-    image_index: usize,
-    refresh_rate: Hertz,
-    current_line: usize,
-    total_lines_count: usize,
-}
-
-impl<const STRIP_LEN: usize> StripState<STRIP_LEN> {
-    fn next_line<'a>(&mut self, src: &'a [RGB8]) -> impl Iterator<Item = RGB8> + 'a {
-        if self.total_lines_count == 0 {
-            return src[0..0].as_ref().iter().copied();
-        }
-
-        let from = self.current_line * STRIP_LEN;
-        let to = from + STRIP_LEN;
-
-        self.current_line += 1;
-        if self.current_line == self.total_lines_count {
-            self.current_line = 0;
-        }
-
-        src[from..to].as_ref().iter().copied()
-    }
-}
-
-pub struct App<'a, Network, Timer, Images, Strip, const STRIP_LEN: usize>
+pub struct App<'a, Network, Timer, Images, Strip, const STRIP_LEN: usize, const BUF_LEN: usize>
 where
-    Network: Service,
+    Network: Transport,
     Timer: CountDown<Time = Hertz>,
     Images: ImagesRepository,
     Strip: SmartLedsWrite<Color = RGB8>,
 {
-    inner: AppInner<Timer, Images, Strip, STRIP_LEN>,
-    network: Network,
-    buf: &'a mut [RGB8],
+    inner: AppInner<'a, Timer, Images, Strip, STRIP_LEN>,
+    service: Service<Network, BUF_LEN>,
 }
 
-impl<'a, Network, Timer, Images, Strip, const STRIP_LEN: usize>
-    App<'a, Network, Timer, Images, Strip, STRIP_LEN>
+impl<'a, Network, Timer, Images, Strip, const STRIP_LEN: usize, const BUF_LEN: usize>
+    App<'a, Network, Timer, Images, Strip, STRIP_LEN, BUF_LEN>
 where
-    Network: Service,
+    Network: Transport,
     Timer: CountDown<Time = Hertz>,
     Images: ImagesRepository,
     Strip: SmartLedsWrite<Color = RGB8>,
@@ -136,11 +111,30 @@ where
     Network::Error: Debug,
     Images::Error: Debug,
 {
+    pub fn new(
+        device_id: [u32; 4],
+        timer: Timer,
+        network: Network,
+        images: &'a Images,
+        strip: Strip,
+    ) -> Self {
+        Self {
+            inner: AppInner {
+                device_id,
+                timer,
+                images,
+                strip,
+                image: None,
+            },
+            service: Service::new(network),
+        }
+    }
+
     pub fn run(mut self) -> ! {
-        if self.inner.images_repository.count() > 0 {
-            self.inner.load_image(self.buf, 0);
+        if self.inner.images.count() > 0 {
+            self.inner.load_image(0);
         } else {
-            self.inner.blank_strip(self.buf);
+            self.inner.blank_strip();
         }
 
         loop {
@@ -149,32 +143,35 @@ where
     }
 
     fn process_events(&mut self) {
-        let mut response = None;
-        poll_condition!(self.network.poll_next_message(), (addr, msg), {
-            response = self.inner.handle_message(self.buf, addr, msg);
+        // let mut response = None;
+        poll_condition!(self.service.poll_next_message(), (addr, msg), {
+            let response = self.inner.handle_message(addr, msg);
+            self.service
+                .confirm_message(addr)
+                .expect("Unable to confirm message");
+
+            if let Some((to, response)) = response {
+                self.service
+                    .send_message(to, response)
+                    .expect("Unable to send response");
+            }
         })
         .expect("Unable to poll next event");
 
-        if let Some((to, response)) = response.take() {
-            self.network
-                .send_message(to, response)
-                .expect("Unable to send response");
-        }
-
         poll_condition!(self.inner.timer.wait(), _, {
-            let line = self.inner.strip_state.next_line(self.buf);
+            let (rate, line) = self.inner.next_line();
             self.inner
                 .strip
-                .write(line)
+                .write(core::array::IntoIter::new(line))
                 .expect("Unable to show the next strip line");
 
-            self.inner.timer.start(self.inner.strip_state.refresh_rate);
+            self.inner.timer.start(rate);
         })
         .expect("Unable to write a next strip line");
     }
 }
 
-impl<Timer, Images, Strip, const STRIP_LEN: usize> AppInner<Timer, Images, Strip, STRIP_LEN>
+impl<'a, Timer, Images, Strip, const STRIP_LEN: usize> AppInner<'a, Timer, Images, Strip, STRIP_LEN>
 where
     Timer: CountDown<Time = Hertz>,
     Images: ImagesRepository,
@@ -182,12 +179,7 @@ where
 
     Images::Error: Debug,
 {
-    fn handle_message<A, I>(
-        &mut self,
-        buf: &mut [RGB8],
-        address: A,
-        msg: Message<I>,
-    ) -> Option<(A, SimpleMessage)>
+    fn handle_message<A, I>(&mut self, address: A, msg: Message<I>) -> Option<(A, SimpleMessage)>
     where
         I: Iterator<Item = u8> + ExactSizeIterator,
     {
@@ -195,34 +187,32 @@ where
             Message::GetInfo => Some(SimpleMessage::Info(FirmwareInfo {
                 strip_len: STRIP_LEN as u16,
                 version: core_version(),
-                images_count: self.images_repository.count() as u16,
+                images_count: self.images.count() as u16,
                 device_id: self.device_id,
                 // TODO implement composite role logic.
                 role: DeviceRole::Single,
             })),
             Message::ClearImages => {
-                self.clear_images(buf);
+                self.clear_images();
                 Some(SimpleMessage::Ok)
             }
             Message::AddImage {
-                bytes,
+                mut bytes,
                 refresh_rate,
                 strip_len,
             } => {
-                let response = self.handle_add_image(buf, bytes, refresh_rate, strip_len);
-                // Reload the current image.
-                if self.images_repository.count() > 0 {
-                    self.load_image(buf, self.strip_state.image_index);
-                } else {
-                    self.blank_strip(buf);
-                }
+                let response = self.handle_add_image(bytes.by_ref(), refresh_rate, strip_len);
+                // In order to use the reader further, we must read all of the remaining bytes.
+                // Otherwise, the reader will be in an inconsistent state.
+                for _ in bytes {}
+
                 Some(response)
             }
             Message::ShowImage { index } => {
-                if index >= self.images_repository.count() {
+                if index >= self.images.count() {
                     Some(Error::ImageNotFound.into())
                 } else {
-                    self.load_image(buf, index);
+                    self.load_image(index);
                     Some(SimpleMessage::Ok)
                 }
             }
@@ -235,8 +225,7 @@ where
 
     fn handle_add_image<I>(
         &mut self,
-        buf: &mut [RGB8],
-        bytes: I,
+        bytes: &mut I,
         refresh_rate: Hertz,
         strip_len: usize,
     ) -> SimpleMessage
@@ -247,15 +236,8 @@ where
             return Error::ImageLengthMismatch.into();
         }
 
-        // Reuse the image buffer to immediately read a new image from the stream
-        // to avoid a buffer overrun.
-        let mut pixels = RgbIter::new(bytes);
+        let pixels = RgbIter::new(bytes);
         let pixels_len = pixels.len();
-        (0..buf.len()).for_each(|i| {
-            if let Some(pixel) = pixels.next() {
-                buf[i] = pixel;
-            }
-        });
 
         if strip_len != STRIP_LEN {
             return Error::StripLengthMismatch.into();
@@ -266,51 +248,58 @@ where
             return Error::ImageLengthMismatch.into();
         }
 
-        if pixels_len > buf.len() {
-            return Error::ImageTooBig.into();
-        }
+        // if pixels_len > buf_len {
+        //     return Error::ImageTooBig.into();
+        // }
 
-        if self.images_repository.count() >= Images::MAX_COUNT {
+        if self.images.count() >= Images::MAX_COUNT {
             return Error::ImageRepositoryFull.into();
         }
 
-        let pixels = buf[0..pixels_len].iter().copied();
         let count = self.save_image(refresh_rate, pixels);
-
         Message::ImageAdded { index: count - 1 }
     }
 
-    fn load_image(&mut self, buf: &mut [RGB8], index: usize) {
-        let (refresh_rate, pixels) = self.images_repository.read_image(index);
-
-        self.strip_state.refresh_rate = refresh_rate;
-        self.strip_state.total_lines_count = pixels.len() / STRIP_LEN;
-        self.strip_state.image_index = index;
-
-        for (index, pixel) in pixels.enumerate() {
-            buf[index] = pixel;
-        }
+    fn load_image(&mut self, index: usize) {
+        let (rate, image) = self.images.read_image(index);
+        self.image.replace((rate, image.cycle(), index));
     }
 
     fn save_image<I>(&mut self, refresh_rate: Hertz, bytes: I) -> usize
     where
         I: Iterator<Item = RGB8> + ExactSizeIterator,
     {
-        self.images_repository
+        let index = self.image.take().map(|x| x.2);
+        let new_count = self
+            .images
             .add_image(bytes, refresh_rate)
-            .expect("Unable to save image")
+            .expect("Unable to save image");
+
+        if let Some(index) = index {
+            self.load_image(index);
+        }
+        new_count
     }
 
-    fn blank_strip(&mut self, buf: &mut [RGB8]) {
-        self.strip_state.total_lines_count = 1;
-        self.strip_state.current_line = 0;
-        buf[..STRIP_LEN].fill(RGB8::default());
+    fn blank_strip(&mut self) {
+        self.image.take();
     }
 
-    fn clear_images(&mut self, buf: &mut [RGB8]) {
-        self.blank_strip(buf);
-        self.images_repository
+    fn clear_images(&mut self) {
+        self.blank_strip();
+        self.images
             .clear()
             .expect("Unable to clear images repository");
+    }
+
+    fn next_line(&mut self) -> (Hertz, [RGB8; STRIP_LEN]) {
+        let mut line = [RGB8::default(); STRIP_LEN];
+        if let Some((rate, image, _)) = self.image.as_mut() {
+            (0..line.len()).for_each(|i| line[i] = image.next().unwrap());
+
+            (*rate, line)
+        } else {
+            (Hertz(50), line)
+        }
     }
 }
