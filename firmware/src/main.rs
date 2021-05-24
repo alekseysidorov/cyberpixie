@@ -4,11 +4,13 @@
 use core::{
     panic::PanicInfo,
     sync::atomic::{self, Ordering},
+    time::Duration,
 };
 
 use cyberpixie::{
-    leds::{SmartLedsWrite, RGB8},
-    time::{CountDown, CountDownEx, Microseconds, Milliseconds},
+    leds::SmartLedsWrite,
+    stdio::uprintln,
+    time::{CountDown, CountDownEx, Microseconds},
     AppConfig, ImagesRepository,
 };
 use cyberpixie_firmware::{
@@ -28,7 +30,6 @@ use gd32vf103xx_hal::{
     timer::Timer,
 };
 use heapless::mpmc::Q64;
-use stdio_serial::uprintln;
 use ws2812_spi::Ws2812;
 
 type UartError = <Rx<USART1> as Read<u8>>::Error;
@@ -121,8 +122,9 @@ fn main() -> ! {
     };
     stdio_serial::init(usb_tx);
 
-    timer.delay(Milliseconds(1_000));
-    uprintln!("Serial port configured.");
+    timer.delay(Duration::from_secs(2));
+    uprintln!();
+    uprintln!("Welcome to Cyberpixie serial console!");
 
     let spi = {
         let pins = (
@@ -140,16 +142,9 @@ fn main() -> ! {
             &mut rcu,
         )
     };
-
     let mut strip = Ws2812::new(spi);
+    uprintln!("Ws2812 strip configured.");
 
-    uprintln!("Led strip configured.");
-    strip
-        .write(core::iter::repeat(RGB8::default()).take(144))
-        .ok();
-    uprintln!("Led strip cleaned.");
-
-    // SPI1_SCK(PB13), SPI1_MISO(PB14) and SPI1_MOSI(PB15) GPIO pin configuration
     let device = {
         let gpiob = dp.GPIOB.split(&mut rcu);
         let spi = Spi::spi1(
@@ -160,7 +155,7 @@ fn main() -> ! {
                 gpiob.pb15.into_alternate_push_pull(),
             ),
             MODE_0,
-            20.mhz(), // 16.mzh()
+            20.mhz(),
             &mut rcu,
         );
 
@@ -182,6 +177,12 @@ fn main() -> ! {
         nb::block!(timer.wait()).ok();
     }
     uprintln!("Splash has been showed.");
+
+    uprintln!("Enabling esp32 serial device");
+    let mut esp_en = gpioa.pa4.into_push_pull_output();
+    esp_en.set_high().ok();
+    timer.delay(Duration::from_secs(3));
+    uprintln!("esp32 device has been enabled");
 
     let (esp_tx, esp_rx) = {
         let tx = gpioa.pa2.into_alternate_push_pull();
