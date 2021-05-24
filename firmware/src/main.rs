@@ -8,9 +8,9 @@ use core::{
 };
 
 use cyberpixie::{
-    leds::{SmartLedsWrite, RGB8},
+    leds::SmartLedsWrite,
     stdio::uprintln,
-    time::{CountDown, CountDownEx, Microseconds, Milliseconds},
+    time::{CountDown, CountDownEx, Microseconds},
     AppConfig, ImagesRepository,
 };
 use cyberpixie_firmware::{
@@ -122,7 +122,7 @@ fn main() -> ! {
     };
     stdio_serial::init(usb_tx);
 
-    timer.delay_us(Milliseconds(1_000));
+    timer.delay(Duration::from_secs(2));
     uprintln!();
     uprintln!("Welcome to Cyberpixie serial console!");
 
@@ -145,7 +145,7 @@ fn main() -> ! {
     let mut strip = Ws2812::new(spi);
     uprintln!("Ws2812 strip configured.");
 
-    let mut device = {
+    let device = {
         let gpiob = dp.GPIOB.split(&mut rcu);
         let spi = Spi::spi1(
             dp.SPI1,
@@ -226,4 +226,3 @@ fn panic(info: &PanicInfo) -> ! {
         atomic::compiler_fence(Ordering::SeqCst);
     }
 }
-
