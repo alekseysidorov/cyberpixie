@@ -2,7 +2,6 @@ use core::fmt::Write;
 
 use embedded_hal::serial;
 use heapless::Vec;
-use stdio_serial::uprintln;
 
 use crate::{
     error::{Error, Result},
@@ -47,26 +46,27 @@ where
     }
 
     fn init(&mut self) -> Result<(), Rx::Error, Tx::Error> {
-        // FIXME: It is ok to receive errors like "framing" during the reset procedure.
-        let reset_workaround = true;
-        if reset_workaround {
-            self.reset().ok();
-            // Workaround to catch the framing errors.
-            for _ in 0..100 {
-                self.send_at_command_str(b"ATE1").ok();
-            }
-            self.reader.buf.clear();
-        }
-        uprintln!("Adapter successfully reseted.");
-
         self.disable_echo()?;
         Ok(())
     }
 
-    pub fn reset(&mut self) -> Result<(), Rx::Error, Tx::Error> {
+    fn reset_cmd(&mut self) -> Result<(), Rx::Error, Tx::Error> {
         self.write_command(b"AT+RST")?;
         self.read_until(ReadyCondition)?;
 
+        Ok(())
+    }
+
+    pub fn reset(&mut self) -> Result<(), Rx::Error, Tx::Error> {
+        // FIXME: It is ok to receive errors like "framing" during the reset procedure.
+        self.reset_cmd().ok();
+        // Workaround to catch the framing errors.
+        for _ in 0..100 {
+            self.send_at_command_str(b"ATE1").ok();
+        }
+        self.reader.buf.clear();
+
+        self.disable_echo()?;
         Ok(())
     }
 
