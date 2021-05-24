@@ -19,7 +19,7 @@ where
     Rx: Read<u8> + 'static,
     Tx: Write<u8> + 'static,
     Rx::Error: Debug,
-    Tx::Error: Debug
+    Tx::Error: Debug,
 {
     pub fn new(ap: SoftAp<Rx, Tx>) -> Self {
         Self(ap)
@@ -88,19 +88,54 @@ where
         address: Self::Address,
     ) -> Result<(), Self::Error> {
         assert!(payload.as_ref().len() <= MAX_PAYLOAD_LEN);
-
-        // TODO remove extra copying.
-        let mut packet: Vec<u8, MAX_PAYLOAD_LEN> = Vec::new();
-        packet
-            .extend_from_slice(
-                PacketKind::Payload(payload.as_ref().len())
-                    .to_bytes()
-                    .as_ref(),
-            )
-            .unwrap();
-        packet.extend_from_slice(payload.as_ref()).unwrap();
-
-        let bytes = packet.as_slice().iter().copied();
-        self.0.send_packet_to_link(address, bytes)
+        self.0
+            .send_packet_to_link(address, PacketWithPayload::new(payload))
     }
 }
+
+struct PacketWithPayload<P: AsRef<[u8]>> {
+    header: [u8; PacketKind::PACKED_LEN],
+    payload: P,
+    pos: usize,
+}
+
+impl<P: AsRef<[u8]>> PacketWithPayload<P> {
+    fn new(payload: P) -> Self {
+        let header = PacketKind::Payload(payload.as_ref().len()).to_bytes();
+        Self {
+            header,
+            payload,
+            pos: 0,
+        }
+    }
+
+    fn total_len(&self) -> usize {
+        self.header.len() + self.payload.as_ref().len()
+    }
+}
+
+impl<P: AsRef<[u8]>> Iterator for PacketWithPayload<P> {
+    type Item = u8;
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let bytes_remaining = self.total_len() - self.pos;
+        (bytes_remaining, Some(bytes_remaining))
+    }
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.pos == self.total_len() {
+            return None;
+        }
+
+        let byte = if self.pos < self.header.len() {
+            self.header[self.pos]
+        } else {
+            let pos = self.pos - self.header.len();
+            self.payload.as_ref()[pos]
+        };
+        self.pos += 1;
+        Some(byte)
+    }
+}
+
+impl<P: AsRef<[u8]>> ExactSizeIterator for PacketWithPayload<P> {}

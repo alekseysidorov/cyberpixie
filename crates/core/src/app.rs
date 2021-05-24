@@ -111,6 +111,25 @@ where
     Network::Error: Debug,
     Images::Error: Debug,
 {
+    pub fn new(
+        device_id: [u32; 4],
+        timer: Timer,
+        network: Network,
+        images: &'a Images,
+        strip: Strip,
+    ) -> Self {
+        Self {
+            inner: AppInner {
+                device_id,
+                timer,
+                images,
+                strip,
+                image: None,
+            },
+            service: Service::new(network),
+        }
+    }
+
     pub fn run(mut self) -> ! {
         if self.inner.images.count() > 0 {
             self.inner.load_image(0);

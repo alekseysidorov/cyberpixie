@@ -31,9 +31,6 @@ use heapless::mpmc::Q64;
 use stdio_serial::uprintln;
 use ws2812_spi::Ws2812;
 
-// Quick and dirty buffered serial port implementation.
-// FIXME Rewrite it on the USART1 interrupts.
-
 type UartError = <Rx<USART1> as Read<u8>>::Error;
 
 struct Usart1Context {
@@ -206,16 +203,15 @@ fn main() -> ! {
     let network = cyberpixie_firmware::transport::TransportImpl::new(ap);
     uprintln!("SoftAP has been successfuly configured.");
 
-    let app = AppConfig::<_, _, _, _, STRIP_LEDS_COUNT, ADAPTER_BUF_CAPACITY> {
+    AppConfig::<_, _, _, _, STRIP_LEDS_COUNT, ADAPTER_BUF_CAPACITY> {
         network,
         timer,
         images: &images,
         strip,
         device_id: cyberpixie_firmware::device_id(),
     }
-    .into_app();
-
-    app.run()
+    .into_app()
+    .run()
 }
 
 #[inline(never)]

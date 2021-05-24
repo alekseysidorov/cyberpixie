@@ -1,4 +1,7 @@
-use core::cell::{Ref, RefCell};
+use core::{
+    cell::{Ref, RefCell},
+    mem::MaybeUninit,
+};
 
 use cyberpixie::{leds::RGB8, proto::Hertz, ImagesRepository};
 use embedded_sdmmc::{Block, BlockDevice, BlockIdx};
@@ -30,9 +33,7 @@ where
         let repository = Self {
             inner: RefCell::new(ImageStorageInner {
                 device,
-                block: HeaderBlock {
-                    inner: Default::default(),
-                },
+                block: HeaderBlock::empty(),
             }),
         };
         repository.inner.borrow_mut().get_or_init()?;
@@ -152,6 +153,12 @@ struct HeaderBlock {
 }
 
 impl HeaderBlock {
+    fn empty() -> Self {
+        Self {
+            inner: [Block::default()],
+        }
+    }
+
     fn header(&self) -> Header {
         Header::decode_from_le_bytes(self.inner[0].contents[0..].as_ref())
     }
@@ -170,7 +177,9 @@ where
     B: BlockDevice,
     I: Iterator<Item = u8>,
 {
-    let mut blocks = [Block::new()];
+    let mut blocks = [Block {
+        contents: unsafe { unitialized_block_content() },
+    }];
     let mut i = 0;
     let mut c = 0;
 
@@ -227,7 +236,9 @@ impl<'a, B: BlockDevice> ReadImageIter<'a, B> {
 
         Self {
             device,
-            buf: [Block::default()],
+            buf: [Block {
+                contents: unsafe { unitialized_block_content() },
+            }],
             block_idx,
             current_byte_in_block: 0,
             remaining_bytes: bytes_to_read,
@@ -322,4 +333,9 @@ where
     fn clear(&self) -> Result<(), Self::Error> {
         self.inner.borrow_mut().reset().map(drop)
     }
+}
+
+unsafe fn unitialized_block_content() -> [u8; 512] {
+    let content: MaybeUninit<[u8; 512]> = MaybeUninit::uninit();
+    content.assume_init()
 }
