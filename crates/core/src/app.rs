@@ -7,6 +7,7 @@ use crate::{
     images::{ImagesRepository, RgbIter},
     leds::{SmartLedsWrite, RGB8},
     proto::{Error, Hertz, Message, Service, SimpleMessage, Transport},
+    HwEvent, HwEventSource,
 };
 
 const fn core_version() -> [u8; 4] {
@@ -32,6 +33,7 @@ pub struct AppConfig<
     pub images: &'a Images,
     pub strip: Strip,
     pub device_id: [u32; 4],
+    pub events: &'a dyn HwEventSource,
 }
 
 macro_rules! poll_condition {
@@ -59,10 +61,13 @@ where
     Images: ImagesRepository,
     Strip: SmartLedsWrite<Color = RGB8>,
 {
-    pub fn into_app(self) -> App<'a, Network, Timer, Images, Strip, STRIP_LEN, BUF_LEN> {
-        App {
-            inner: AppInner {
+    pub fn into_event_loop(
+        self,
+    ) -> EventLoop<'a, Network, Timer, Images, Strip, STRIP_LEN, BUF_LEN> {
+        EventLoop {
+            inner: EventLoopInner {
                 device_id: self.device_id,
+                events: self.events,
                 timer: self.timer,
                 images: self.images,
                 strip: self.strip,
@@ -73,13 +78,15 @@ where
     }
 }
 
-pub struct AppInner<'a, Timer, Images, Strip, const STRIP_LEN: usize>
+pub struct EventLoopInner<'a, Timer, Images, Strip, const STRIP_LEN: usize>
 where
     Timer: CountDown<Time = Hertz>,
     Images: ImagesRepository,
     Strip: SmartLedsWrite<Color = RGB8>,
 {
     device_id: [u32; 4],
+
+    events: &'a dyn HwEventSource,
 
     timer: Timer,
     images: &'a Images,
@@ -88,19 +95,26 @@ where
     image: Option<(Hertz, Cycle<Images::ImagePixels<'a>>, usize)>,
 }
 
-pub struct App<'a, Network, Timer, Images, Strip, const STRIP_LEN: usize, const BUF_LEN: usize>
-where
+pub struct EventLoop<
+    'a,
+    Network,
+    Timer,
+    Images,
+    Strip,
+    const STRIP_LEN: usize,
+    const BUF_LEN: usize,
+> where
     Network: Transport,
     Timer: CountDown<Time = Hertz>,
     Images: ImagesRepository,
     Strip: SmartLedsWrite<Color = RGB8>,
 {
-    inner: AppInner<'a, Timer, Images, Strip, STRIP_LEN>,
+    inner: EventLoopInner<'a, Timer, Images, Strip, STRIP_LEN>,
     service: Service<Network, BUF_LEN>,
 }
 
 impl<'a, Network, Timer, Images, Strip, const STRIP_LEN: usize, const BUF_LEN: usize>
-    App<'a, Network, Timer, Images, Strip, STRIP_LEN, BUF_LEN>
+    EventLoop<'a, Network, Timer, Images, Strip, STRIP_LEN, BUF_LEN>
 where
     Network: Transport,
     Timer: CountDown<Time = Hertz>,
@@ -111,25 +125,6 @@ where
     Network::Error: Debug,
     Images::Error: Debug,
 {
-    pub fn new(
-        device_id: [u32; 4],
-        timer: Timer,
-        network: Network,
-        images: &'a Images,
-        strip: Strip,
-    ) -> Self {
-        Self {
-            inner: AppInner {
-                device_id,
-                timer,
-                images,
-                strip,
-                image: None,
-            },
-            service: Service::new(network),
-        }
-    }
-
     pub fn run(mut self) -> ! {
         if self.inner.images.count() > 0 {
             self.inner.load_image(0);
@@ -143,7 +138,10 @@ where
     }
 
     fn process_events(&mut self) {
-        // let mut response = None;
+        if let Some(event) = self.inner.events.next_event() {
+            self.process_hw_event(event);
+        }
+
         poll_condition!(self.service.poll_next_message(), (addr, msg), {
             let response = self.inner.handle_message(addr, msg);
             self.service
@@ -169,9 +167,24 @@ where
         })
         .expect("Unable to write a next strip line");
     }
+
+    fn process_hw_event(&mut self, event: HwEvent) {
+        match event {
+            HwEvent::ShowNextImage => {
+                if self.inner.images.count() == 0 {
+                    return;
+                }
+
+                let next_index = self.inner.image.take().map(|x| x.2 + 1).unwrap_or_default()
+                    % self.inner.images.count();
+                self.inner.load_image(next_index);
+            }
+        }
+    }
 }
 
-impl<'a, Timer, Images, Strip, const STRIP_LEN: usize> AppInner<'a, Timer, Images, Strip, STRIP_LEN>
+impl<'a, Timer, Images, Strip, const STRIP_LEN: usize>
+    EventLoopInner<'a, Timer, Images, Strip, STRIP_LEN>
 where
     Timer: CountDown<Time = Hertz>,
     Images: ImagesRepository,

@@ -7,12 +7,7 @@ use core::{
     time::Duration,
 };
 
-use cyberpixie::{
-    leds::SmartLedsWrite,
-    stdio::uprintln,
-    time::{CountDown, CountDownEx, Microseconds},
-    AppConfig, ImagesRepository,
-};
+use cyberpixie::{AppConfig, HwEvent, HwEventSource, ImagesRepository, leds::SmartLedsWrite, stdio::uprintln, time::{CountDown, CountDownEx, Microseconds}};
 use cyberpixie_firmware::{
     config::{SERIAL_PORT_CONFIG, SOFTAP_CONFIG, STRIP_LEDS_COUNT},
     splash::WanderingLight,
@@ -21,16 +16,61 @@ use cyberpixie_firmware::{
 };
 use embedded_hal::{digital::v2::OutputPin, serial::Read};
 use esp8266_softap::{Adapter, ADAPTER_BUF_CAPACITY};
-use gd32vf103xx_hal::{
-    eclic::{EclicExt, Level, LevelPriorityBits, Priority, TriggerType},
-    pac::{self, Interrupt, ECLIC, TIMER1, USART1},
-    prelude::*,
-    serial::{Event as SerialEvent, Rx, Serial},
-    spi::{Spi, MODE_0},
-    timer::Timer,
-};
-use heapless::mpmc::Q64;
+use gd32vf103xx_hal::{afio::Afio, eclic::{EclicExt, Level, LevelPriorityBits, Priority, TriggerType}, exti::{Exti, ExtiLine, TriggerEdge}, gpio::gpioa::PA8, pac::{self, ECLIC, EXTI, Interrupt, TIMER1, USART1}, prelude::*, serial::{Event as SerialEvent, Rx, Serial}, spi::{Spi, MODE_0}, timer::Timer};
+use heapless::mpmc::{Q64, Q2};
 use ws2812_spi::Ws2812;
+
+static HW_EVENTS: Q2<HwEvent> = Q2::new();
+
+#[export_name = "EXTI_LINE9_5"]
+fn handle_button_pressed() {
+    let extiline = ExtiLine::from_gpio_line(8).unwrap();
+    if Exti::is_pending(extiline) {
+        Exti::unpend(extiline);
+        Exti::clear(extiline);
+        
+        HW_EVENTS.enqueue(HwEvent::ShowNextImage).ok();
+    }
+}
+
+#[derive(Clone, Copy)]
+struct HwEventsReceiver;
+
+impl HwEventSource for HwEventsReceiver {
+    fn next_event(&self) -> Option<HwEvent> {
+        HW_EVENTS.dequeue()
+    }
+}
+
+unsafe fn init_button_interrupt<T>(btn: PA8<T>, exti: EXTI, afio: &mut Afio) {
+    // IRQ
+    ECLIC::reset();
+    ECLIC::set_threshold_level(Level::L0);
+    // Use 3 bits for level, 1 for priority
+    ECLIC::set_level_priority_bits(LevelPriorityBits::L3P1);
+
+    // eclic_irq_enable(EXTI5_9_IRQn, 1, 1);
+    ECLIC::setup(
+        Interrupt::EXTI_LINE9_5,
+        TriggerType::Level,
+        Level::L1,
+        Priority::P1,
+    );
+
+    // gpio_exti_source_select(GPIO_PORT_SOURCE_GPIOA, GPIO_PIN_SOURCE_8);
+    afio.extiss(btn.port(), btn.pin_number());
+
+    // ECLIC::setup(Interrupt::TIMER0_UP, TriggerType::Level, Level::L0, Priority::P0);
+    ECLIC::unmask(Interrupt::EXTI_LINE9_5);
+
+    let mut exti = Exti::new(exti);
+
+    let extiline = ExtiLine::from_gpio_line(btn.pin_number()).unwrap();
+    exti.listen(extiline, TriggerEdge::Rising);
+    Exti::clear(extiline);
+
+    riscv::interrupt::enable();
+}
 
 type UartError = <Rx<USART1> as Read<u8>>::Error;
 
@@ -204,14 +244,18 @@ fn main() -> ! {
     let network = cyberpixie_firmware::transport::TransportImpl::new(ap);
     uprintln!("SoftAP has been successfuly configured.");
 
+    unsafe { init_button_interrupt(gpioa.pa8, dp.EXTI, &mut afio) };
+    uprintln!("Next image button has been inited.");
+
     AppConfig::<_, _, _, _, STRIP_LEDS_COUNT, ADAPTER_BUF_CAPACITY> {
         network,
         timer,
         images: &images,
         strip,
         device_id: cyberpixie_firmware::device_id(),
+        events: &HwEventsReceiver,
     }
-    .into_app()
+    .into_event_loop()
     .run()
 }
 

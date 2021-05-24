@@ -1,0 +1,14 @@
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum HwEvent {
+    ShowNextImage,
+}
+
+pub trait HwEventSource {
+    fn next_event(&self) -> Option<HwEvent>;
+}
+
+impl HwEventSource for () {
+    fn next_event(&self) -> Option<HwEvent> {
+        None
+    }
+}

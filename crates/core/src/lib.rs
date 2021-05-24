@@ -3,8 +3,9 @@
 #![feature(generic_associated_types)]
 
 pub use self::{
-    app::{App, AppConfig},
+    app::{EventLoop, AppConfig},
     images::ImagesRepository,
+    events::{HwEvent, HwEventSource},
 };
 pub use cyberpixie_proto as proto;
 pub use smart_leds as leds;
@@ -14,3 +15,4 @@ pub mod time;
 
 mod app;
 mod images;
+mod events;
