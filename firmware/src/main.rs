@@ -3,7 +3,6 @@
 
 use core::{
     panic::PanicInfo,
-    sync::atomic::{self, Ordering},
     time::Duration,
 };
 
@@ -159,7 +158,5 @@ fn panic(info: &PanicInfo) -> ! {
     uprintln!("The firmware panicked!");
     uprintln!("- {}", info);
 
-    loop {
-        atomic::compiler_fence(Ordering::SeqCst);
-    }
+    unsafe { riscv_rt::start_rust(); }
 }
