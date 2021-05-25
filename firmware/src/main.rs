@@ -3,7 +3,6 @@
 
 use core::{
     panic::PanicInfo,
-    sync::atomic::{self, Ordering},
     time::Duration,
 };
 
@@ -15,90 +14,25 @@ use cyberpixie::{
 };
 use cyberpixie_firmware::{
     config::{SERIAL_PORT_CONFIG, SOFTAP_CONFIG, STRIP_LEDS_COUNT},
+    irq::{self},
     splash::WanderingLight,
     storage::ImagesStorage,
-    TimerImpl,
+    NextImageBtn, TimerImpl,
 };
-use embedded_hal::{digital::v2::OutputPin, serial::Read};
+use embedded_hal::digital::v2::OutputPin;
 use esp8266_softap::{Adapter, ADAPTER_BUF_CAPACITY};
 use gd32vf103xx_hal::{
-    eclic::{EclicExt, Level, LevelPriorityBits, Priority, TriggerType},
-    pac::{self, Interrupt, ECLIC, TIMER1, USART1},
+    pac::{self},
     prelude::*,
-    serial::{Event as SerialEvent, Rx, Serial},
+    serial::{Event as SerialEvent, Serial},
     spi::{Spi, MODE_0},
     timer::Timer,
 };
-use heapless::mpmc::Q64;
 use ws2812_spi::Ws2812;
 
-type UartError = <Rx<USART1> as Read<u8>>::Error;
-
-struct Usart1Context {
-    rx: Rx<USART1>,
-    // Quick and dirty buffered serial port implementation.
-    // FIXME Rewrite it on the USART1 interrupts.
-    timer: Timer<TIMER1>,
-}
-
-static UART_QUEUE: Q64<Result<u8, UartError>> = Q64::new();
-static mut USART1_IRQ_CONTEXT: Option<Usart1Context> = None;
-
 #[export_name = "TIMER1"]
-unsafe fn handle_timer_1_update() {
-    let context = USART1_IRQ_CONTEXT
-        .as_mut()
-        .expect("the context should be initialized before getting");
-
-    riscv::interrupt::free(|_| loop {
-        let res = match context.rx.read() {
-            Err(nb::Error::WouldBlock) => break,
-            Ok(byte) => Ok(byte),
-            Err(nb::Error::Other(err)) => Err(err),
-        };
-
-        UART_QUEUE.enqueue(res).expect("queue buffer overrun");
-    });
-
-    context.timer.clear_update_interrupt_flag();
-}
-
-struct BufferedRx;
-
-impl Read<u8> for BufferedRx {
-    type Error = <Rx<USART1> as Read<u8>>::Error;
-
-    fn read(&mut self) -> nb::Result<u8, Self::Error> {
-        let value = UART_QUEUE.dequeue();
-
-        value
-            .ok_or(nb::Error::WouldBlock)?
-            .map_err(nb::Error::Other)
-    }
-}
-
-// Interrupts initialization step.
-unsafe fn init_uart_1_interrupted_mode(rx: Rx<USART1>, mut timer: Timer<TIMER1>) -> BufferedRx {
-    timer.listen(gd32vf103xx_hal::timer::Event::Update);
-    USART1_IRQ_CONTEXT.replace(Usart1Context { rx, timer });
-
-    // IRQ
-    ECLIC::reset();
-    ECLIC::set_threshold_level(Level::L0);
-    // Use 3 bits for level, 1 for priority
-    ECLIC::set_level_priority_bits(LevelPriorityBits::L3P1);
-
-    ECLIC::setup(
-        Interrupt::TIMER1,
-        TriggerType::RisingEdge,
-        Level::L1,
-        Priority::P1,
-    );
-
-    ECLIC::unmask(Interrupt::TIMER1);
-    riscv::interrupt::enable();
-
-    BufferedRx
+unsafe fn handle_uart1_interrupt() {
+    irq::handle_usart1_update()
 }
 
 #[riscv_rt::entry]
@@ -189,20 +123,21 @@ fn main() -> ! {
         let rx = gpioa.pa3.into_floating_input();
 
         let serial = Serial::new(dp.USART1, (tx, rx), SERIAL_PORT_CONFIG, &mut afio, &mut rcu);
-        let (tx, rx) = serial.split();
-
-        let uart_timer = Timer::timer1(dp.TIMER1, 20.khz(), &mut rcu);
-        let buf_rx = unsafe { init_uart_1_interrupted_mode(rx, uart_timer) };
-        (tx, buf_rx)
+        serial.split()
     };
 
+    let esp_rx = irq::init_interrupts(irq::Usart1 {
+        rx: esp_rx,
+        timer: Timer::timer1(dp.TIMER1, 15.khz(), &mut rcu),
+    });
     uprintln!("esp32 serial communication port configured.");
-    let ap = {
-        let adapter = Adapter::new(esp_rx, esp_tx).unwrap();
-        SOFTAP_CONFIG.start(adapter).unwrap()
-    };
+    let ap = SOFTAP_CONFIG
+        .start(Adapter::new(esp_rx, esp_tx).unwrap())
+        .unwrap();
     let network = cyberpixie_firmware::transport::TransportImpl::new(ap);
     uprintln!("SoftAP has been successfuly configured.");
+
+    let mut events = NextImageBtn::new(gpioa.pa8.into_pull_down_input());
 
     AppConfig::<_, _, _, _, STRIP_LEDS_COUNT, ADAPTER_BUF_CAPACITY> {
         network,
@@ -210,8 +145,9 @@ fn main() -> ! {
         images: &images,
         strip,
         device_id: cyberpixie_firmware::device_id(),
+        events: &mut events,
     }
-    .into_app()
+    .into_event_loop()
     .run()
 }
 
@@ -222,7 +158,5 @@ fn panic(info: &PanicInfo) -> ! {
     uprintln!("The firmware panicked!");
     uprintln!("- {}", info);
 
-    loop {
-        atomic::compiler_fence(Ordering::SeqCst);
-    }
+    unsafe { riscv_rt::start_rust(); }
 }

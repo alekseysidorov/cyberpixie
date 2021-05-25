@@ -3,7 +3,8 @@
 #![feature(generic_associated_types)]
 
 pub use self::{
-    app::{App, AppConfig},
+    app::{AppConfig, EventLoop},
+    events::{HwEvent, HwEventSource},
     images::ImagesRepository,
 };
 pub use cyberpixie_proto as proto;
@@ -13,4 +14,5 @@ pub use stdio_serial as stdio;
 pub mod time;
 
 mod app;
+mod events;
 mod images;
