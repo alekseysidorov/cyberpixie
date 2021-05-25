@@ -1,4 +1,4 @@
-use core::{fmt::Debug, iter::Cycle, mem::size_of};
+use core::{array::IntoIter, fmt::Debug, iter::Cycle, mem::size_of};
 
 use cyberpixie_proto::{DeviceRole, FirmwareInfo};
 use embedded_hal::timer::CountDown;
@@ -160,7 +160,7 @@ where
             let (rate, line) = self.inner.next_line();
             self.inner
                 .strip
-                .write(core::array::IntoIter::new(line))
+                .write(IntoIter::new(line))
                 .expect("Unable to show the next strip line");
 
             self.inner.timer.start(rate);

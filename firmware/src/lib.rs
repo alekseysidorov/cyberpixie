@@ -2,13 +2,14 @@
 #![allow(incomplete_features)]
 #![feature(generic_associated_types)]
 
-pub use self::time::TimerImpl;
+pub use self::{storage::ImagesStorage, time::TimerImpl, transport::TransportImpl};
 
 pub mod config;
 pub mod splash;
 pub mod storage;
 pub mod time;
 pub mod transport;
+pub mod irq;
 
 pub fn device_id() -> [u32; 4] {
     let mut id = [0; 4];

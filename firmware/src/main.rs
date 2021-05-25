@@ -7,138 +7,39 @@ use core::{
     time::Duration,
 };
 
-use cyberpixie::{AppConfig, HwEvent, HwEventSource, ImagesRepository, leds::SmartLedsWrite, stdio::uprintln, time::{CountDown, CountDownEx, Microseconds}};
+use cyberpixie::{
+    leds::SmartLedsWrite,
+    stdio::uprintln,
+    time::{CountDown, CountDownEx, Microseconds},
+    AppConfig, ImagesRepository,
+};
 use cyberpixie_firmware::{
     config::{SERIAL_PORT_CONFIG, SOFTAP_CONFIG, STRIP_LEDS_COUNT},
+    irq::{self},
     splash::WanderingLight,
     storage::ImagesStorage,
     TimerImpl,
 };
-use embedded_hal::{digital::v2::OutputPin, serial::Read};
+use embedded_hal::{digital::v2::OutputPin};
 use esp8266_softap::{Adapter, ADAPTER_BUF_CAPACITY};
-use gd32vf103xx_hal::{afio::Afio, eclic::{EclicExt, Level, LevelPriorityBits, Priority, TriggerType}, exti::{Exti, ExtiLine, TriggerEdge}, gpio::gpioa::PA8, pac::{self, ECLIC, EXTI, Interrupt, TIMER1, USART1}, prelude::*, serial::{Event as SerialEvent, Rx, Serial}, spi::{Spi, MODE_0}, timer::Timer};
-use heapless::mpmc::{Q64, Q2};
+use gd32vf103xx_hal::{
+    exti::{Exti},
+    pac::{self},
+    prelude::*,
+    serial::{Event as SerialEvent, Serial},
+    spi::{Spi, MODE_0},
+    timer::Timer,
+};
 use ws2812_spi::Ws2812;
 
-static HW_EVENTS: Q2<HwEvent> = Q2::new();
+#[export_name = "TIMER1"]
+unsafe fn handle_uart1_interrupt() {
+    irq::handle_usart1_update()
+}
 
 #[export_name = "EXTI_LINE9_5"]
-fn handle_button_pressed() {
-    let extiline = ExtiLine::from_gpio_line(8).unwrap();
-    if Exti::is_pending(extiline) {
-        Exti::unpend(extiline);
-        Exti::clear(extiline);
-        
-        HW_EVENTS.enqueue(HwEvent::ShowNextImage).ok();
-    }
-}
-
-#[derive(Clone, Copy)]
-struct HwEventsReceiver;
-
-impl HwEventSource for HwEventsReceiver {
-    fn next_event(&self) -> Option<HwEvent> {
-        HW_EVENTS.dequeue()
-    }
-}
-
-unsafe fn init_button_interrupt<T>(btn: PA8<T>, exti: EXTI, afio: &mut Afio) {
-    // IRQ
-    ECLIC::reset();
-    ECLIC::set_threshold_level(Level::L0);
-    // Use 3 bits for level, 1 for priority
-    ECLIC::set_level_priority_bits(LevelPriorityBits::L3P1);
-
-    // eclic_irq_enable(EXTI5_9_IRQn, 1, 1);
-    ECLIC::setup(
-        Interrupt::EXTI_LINE9_5,
-        TriggerType::Level,
-        Level::L1,
-        Priority::P1,
-    );
-
-    // gpio_exti_source_select(GPIO_PORT_SOURCE_GPIOA, GPIO_PIN_SOURCE_8);
-    afio.extiss(btn.port(), btn.pin_number());
-
-    // ECLIC::setup(Interrupt::TIMER0_UP, TriggerType::Level, Level::L0, Priority::P0);
-    ECLIC::unmask(Interrupt::EXTI_LINE9_5);
-
-    let mut exti = Exti::new(exti);
-
-    let extiline = ExtiLine::from_gpio_line(btn.pin_number()).unwrap();
-    exti.listen(extiline, TriggerEdge::Rising);
-    Exti::clear(extiline);
-
-    riscv::interrupt::enable();
-}
-
-type UartError = <Rx<USART1> as Read<u8>>::Error;
-
-struct Usart1Context {
-    rx: Rx<USART1>,
-    // Quick and dirty buffered serial port implementation.
-    // FIXME Rewrite it on the USART1 interrupts.
-    timer: Timer<TIMER1>,
-}
-
-static UART_QUEUE: Q64<Result<u8, UartError>> = Q64::new();
-static mut USART1_IRQ_CONTEXT: Option<Usart1Context> = None;
-
-#[export_name = "TIMER1"]
-unsafe fn handle_timer_1_update() {
-    let context = USART1_IRQ_CONTEXT
-        .as_mut()
-        .expect("the context should be initialized before getting");
-
-    riscv::interrupt::free(|_| loop {
-        let res = match context.rx.read() {
-            Err(nb::Error::WouldBlock) => break,
-            Ok(byte) => Ok(byte),
-            Err(nb::Error::Other(err)) => Err(err),
-        };
-
-        UART_QUEUE.enqueue(res).expect("queue buffer overrun");
-    });
-
-    context.timer.clear_update_interrupt_flag();
-}
-
-struct BufferedRx;
-
-impl Read<u8> for BufferedRx {
-    type Error = <Rx<USART1> as Read<u8>>::Error;
-
-    fn read(&mut self) -> nb::Result<u8, Self::Error> {
-        let value = UART_QUEUE.dequeue();
-
-        value
-            .ok_or(nb::Error::WouldBlock)?
-            .map_err(nb::Error::Other)
-    }
-}
-
-// Interrupts initialization step.
-unsafe fn init_uart_1_interrupted_mode(rx: Rx<USART1>, mut timer: Timer<TIMER1>) -> BufferedRx {
-    timer.listen(gd32vf103xx_hal::timer::Event::Update);
-    USART1_IRQ_CONTEXT.replace(Usart1Context { rx, timer });
-
-    // IRQ
-    ECLIC::reset();
-    ECLIC::set_threshold_level(Level::L0);
-    // Use 3 bits for level, 1 for priority
-    ECLIC::set_level_priority_bits(LevelPriorityBits::L3P1);
-
-    ECLIC::setup(
-        Interrupt::TIMER1,
-        TriggerType::RisingEdge,
-        Level::L1,
-        Priority::P1,
-    );
-
-    ECLIC::unmask(Interrupt::TIMER1);
-    riscv::interrupt::enable();
-
-    BufferedRx
+unsafe fn handle_btn_interrupt() {
+    irq::handle_button_pressed()
 }
 
 #[riscv_rt::entry]
@@ -229,23 +130,26 @@ fn main() -> ! {
         let rx = gpioa.pa3.into_floating_input();
 
         let serial = Serial::new(dp.USART1, (tx, rx), SERIAL_PORT_CONFIG, &mut afio, &mut rcu);
-        let (tx, rx) = serial.split();
-
-        let uart_timer = Timer::timer1(dp.TIMER1, 20.khz(), &mut rcu);
-        let buf_rx = unsafe { init_uart_1_interrupted_mode(rx, uart_timer) };
-        (tx, buf_rx)
+        serial.split()
     };
 
+    let (esp_rx, events) = irq::init_interrupts(
+        irq::Usart1 {
+            rx: esp_rx,
+            timer: Timer::timer1(dp.TIMER1, 20.khz(), &mut rcu),
+        },
+        irq::Button {
+            pin: gpioa.pa8,
+            exti: Exti::new(dp.EXTI),
+            afio: &mut &mut afio,
+        },
+    );
     uprintln!("esp32 serial communication port configured.");
-    let ap = {
-        let adapter = Adapter::new(esp_rx, esp_tx).unwrap();
-        SOFTAP_CONFIG.start(adapter).unwrap()
-    };
+    let ap = SOFTAP_CONFIG
+        .start(Adapter::new(esp_rx, esp_tx).unwrap())
+        .unwrap();
     let network = cyberpixie_firmware::transport::TransportImpl::new(ap);
     uprintln!("SoftAP has been successfuly configured.");
-
-    unsafe { init_button_interrupt(gpioa.pa8, dp.EXTI, &mut afio) };
-    uprintln!("Next image button has been inited.");
 
     AppConfig::<_, _, _, _, STRIP_LEDS_COUNT, ADAPTER_BUF_CAPACITY> {
         network,
@@ -253,7 +157,7 @@ fn main() -> ! {
         images: &images,
         strip,
         device_id: cyberpixie_firmware::device_id(),
-        events: &HwEventsReceiver,
+        events: &events,
     }
     .into_event_loop()
     .run()
