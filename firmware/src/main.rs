@@ -18,12 +18,11 @@ use cyberpixie_firmware::{
     irq::{self},
     splash::WanderingLight,
     storage::ImagesStorage,
-    TimerImpl,
+    NextImageBtn, TimerImpl,
 };
-use embedded_hal::{digital::v2::OutputPin};
+use embedded_hal::digital::v2::OutputPin;
 use esp8266_softap::{Adapter, ADAPTER_BUF_CAPACITY};
 use gd32vf103xx_hal::{
-    exti::{Exti},
     pac::{self},
     prelude::*,
     serial::{Event as SerialEvent, Serial},
@@ -35,11 +34,6 @@ use ws2812_spi::Ws2812;
 #[export_name = "TIMER1"]
 unsafe fn handle_uart1_interrupt() {
     irq::handle_usart1_update()
-}
-
-#[export_name = "EXTI_LINE9_5"]
-unsafe fn handle_btn_interrupt() {
-    irq::handle_button_pressed()
 }
 
 #[riscv_rt::entry]
@@ -133,17 +127,10 @@ fn main() -> ! {
         serial.split()
     };
 
-    let (esp_rx, events) = irq::init_interrupts(
-        irq::Usart1 {
-            rx: esp_rx,
-            timer: Timer::timer1(dp.TIMER1, 20.khz(), &mut rcu),
-        },
-        irq::Button {
-            pin: gpioa.pa8,
-            exti: Exti::new(dp.EXTI),
-            afio: &mut &mut afio,
-        },
-    );
+    let esp_rx = irq::init_interrupts(irq::Usart1 {
+        rx: esp_rx,
+        timer: Timer::timer1(dp.TIMER1, 15.khz(), &mut rcu),
+    });
     uprintln!("esp32 serial communication port configured.");
     let ap = SOFTAP_CONFIG
         .start(Adapter::new(esp_rx, esp_tx).unwrap())
@@ -151,13 +138,15 @@ fn main() -> ! {
     let network = cyberpixie_firmware::transport::TransportImpl::new(ap);
     uprintln!("SoftAP has been successfuly configured.");
 
+    let mut events = NextImageBtn::new(gpioa.pa8.into_pull_down_input());
+
     AppConfig::<_, _, _, _, STRIP_LEDS_COUNT, ADAPTER_BUF_CAPACITY> {
         network,
         timer,
         images: &images,
         strip,
         device_id: cyberpixie_firmware::device_id(),
-        events: &events,
+        events: &mut events,
     }
     .into_event_loop()
     .run()

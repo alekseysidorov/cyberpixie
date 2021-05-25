@@ -33,7 +33,7 @@ pub struct AppConfig<
     pub images: &'a Images,
     pub strip: Strip,
     pub device_id: [u32; 4],
-    pub events: &'a dyn HwEventSource,
+    pub events: &'a mut dyn HwEventSource,
 }
 
 macro_rules! poll_condition {
@@ -86,7 +86,7 @@ where
 {
     device_id: [u32; 4],
 
-    events: &'a dyn HwEventSource,
+    events: &'a mut dyn HwEventSource,
 
     timer: Timer,
     images: &'a Images,

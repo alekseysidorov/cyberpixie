@@ -4,11 +4,11 @@ pub enum HwEvent {
 }
 
 pub trait HwEventSource {
-    fn next_event(&self) -> Option<HwEvent>;
+    fn next_event(&mut self) -> Option<HwEvent>;
 }
 
 impl HwEventSource for () {
-    fn next_event(&self) -> Option<HwEvent> {
+    fn next_event(&mut self) -> Option<HwEvent> {
         None
     }
 }

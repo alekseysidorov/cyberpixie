@@ -1,10 +1,6 @@
-use cyberpixie::{HwEvent, HwEventSource};
 use embedded_hal::serial::Read;
 use gd32vf103xx_hal::{
-    afio::Afio,
     eclic::{EclicExt, Level, LevelPriorityBits, Priority, TriggerType},
-    exti::{Exti, ExtiLine, TriggerEdge},
-    gpio::gpioa::PA8,
     pac::{Interrupt, ECLIC, TIMER1, USART1},
     serial::Rx,
     timer::Timer,
@@ -40,33 +36,7 @@ impl Read<u8> for BufferedRx {
     }
 }
 
-// Button A8 Interrupt context
-
-struct BtnContext {
-    line: ExtiLine,
-}
-
-static HW_EVENTS: MpMcQueue<HwEvent, 1> = MpMcQueue::new();
-static mut BTN_IRQ_CONTEXT: Option<BtnContext> = None;
-
-pub struct HwEventsReceiver(());
-
-impl HwEventSource for HwEventsReceiver {
-    fn next_event(&self) -> Option<HwEvent> {
-        HW_EVENTS.dequeue()
-    }
-}
-
-pub struct Button<'a, T> {
-    pub pin: PA8<T>,
-    pub afio: &'a mut Afio,
-    pub exti: Exti,
-}
-
-pub fn init_interrupts<T>(
-    mut usart1: Usart1,
-    mut button: Button<'_, T>,
-) -> (BufferedRx, HwEventsReceiver) {
+pub fn init_interrupts(mut usart1: Usart1) -> BufferedRx {
     // Safety: we can enter this section only once during the interrupts
     // initialization routine.
     unsafe {
@@ -75,15 +45,6 @@ pub fn init_interrupts<T>(
         // Create USART1 interrupt context.
         usart1.timer.listen(gd32vf103xx_hal::timer::Event::Update);
         USART1_IRQ_CONTEXT.replace(usart1);
-
-        // Create Button interrupt context.
-        button
-            .afio
-            .extiss(button.pin.port(), button.pin.pin_number());
-        let line = ExtiLine::from_gpio_line(button.pin.pin_number()).unwrap();
-        button.exti.listen(line, TriggerEdge::Falling);
-        Exti::clear(line);
-        BTN_IRQ_CONTEXT.replace(BtnContext { line });
 
         // IRQ
         ECLIC::reset();
@@ -99,32 +60,14 @@ pub fn init_interrupts<T>(
         );
 
         ECLIC::unmask(Interrupt::TIMER1);
-        ECLIC::unmask(Interrupt::EXTI_LINE9_5);
-        
+
         riscv::interrupt::enable();
     }
 
-    (BufferedRx(()), HwEventsReceiver(()))
+    BufferedRx(())
 }
 
 // IRQ handlers
-
-#[inline(always)]
-pub fn handle_button_pressed() {
-    let line = riscv::interrupt::free(|_| unsafe {
-        let context = BTN_IRQ_CONTEXT
-            .as_ref()
-            .expect("the context should be initialized before getting");
-        context.line
-    });
-
-    if Exti::is_pending(line) {
-        Exti::unpend(line);
-        Exti::clear(line);
-
-        HW_EVENTS.enqueue(HwEvent::ShowNextImage).ok();
-    }
-}
 
 #[inline(always)]
 pub fn handle_usart1_update() {

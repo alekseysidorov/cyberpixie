@@ -2,14 +2,16 @@
 #![allow(incomplete_features)]
 #![feature(generic_associated_types)]
 
+use cyberpixie::{HwEvent, HwEventSource};
+
 pub use self::{storage::ImagesStorage, time::TimerImpl, transport::TransportImpl};
 
 pub mod config;
+pub mod irq;
 pub mod splash;
 pub mod storage;
 pub mod time;
 pub mod transport;
-pub mod irq;
 
 pub fn device_id() -> [u32; 4] {
     let mut id = [0; 4];
@@ -54,5 +56,36 @@ where
         (0..line.len()).for_each(|idx| line[idx] = self.iter.next().unwrap());
         self.lines_remaining -= 1;
         Some(line)
+    }
+}
+
+pub struct NextImageBtn<T: embedded_hal::digital::v2::InputPin> {
+    btn: T,
+    prev_value: bool,
+}
+
+impl<T: embedded_hal::digital::v2::InputPin> NextImageBtn<T> {
+    pub fn new(btn: T) -> Self {
+        let prev_value = btn.is_high().map_err(drop).unwrap();
+
+        Self { btn, prev_value }
+    }
+
+    fn is_triggered(&mut self) -> bool {
+        let value = self.btn.is_high().map_err(drop).unwrap();
+
+        let is_triggered = !self.prev_value && value;
+        self.prev_value = value;
+        is_triggered
+    }
+}
+
+impl<T: embedded_hal::digital::v2::InputPin> HwEventSource for NextImageBtn<T> {
+    fn next_event(&mut self) -> Option<HwEvent> {
+        if self.is_triggered() {
+            Some(HwEvent::ShowNextImage)
+        } else {
+            None
+        }
     }
 }
