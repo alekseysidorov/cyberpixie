@@ -4,7 +4,7 @@ use std::{
     time::Duration,
 };
 
-use cyberpixie_proto::{Packet, PacketData, PacketKind, Transport};
+use cyberpixie_proto::{Packet, PacketData, PacketKind, PacketWithPayload, Transport};
 
 pub struct TransportImpl {
     address: SocketAddr,
@@ -93,7 +93,7 @@ impl Transport for TransportImpl {
         _to: Self::Address,
     ) -> Result<(), Self::Error> {
         let mut packet: Vec<u8> = Vec::new();
-        packet.extend(payload);
+        packet.extend(PacketWithPayload::new(payload));
 
         log::trace!("Send packet: {:?}", packet);
         self.stream.write_all(packet.as_ref()).map_err(From::from)
