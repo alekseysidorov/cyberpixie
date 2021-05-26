@@ -118,7 +118,7 @@ pub fn run_transport_example(to: SocketAddr) -> anyhow::Result<()> {
 
         if let Ok(next_line) = lines.try_recv() {
             for data in next_line.as_bytes().chunks(256) {
-                transport.send_packet(data, to)?;
+                transport.send_packet(data.iter().copied(), to)?;
                 nb::block!(transport.poll_for_confirmation(to))?;
             }
         };

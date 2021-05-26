@@ -1,6 +1,6 @@
 use core::fmt::Debug;
 
-use cyberpixie::proto::{Packet, PacketData, PacketKind, Transport};
+use cyberpixie::proto::{Packet, PacketData, PacketKind, PacketWithPayload, Transport};
 use embedded_hal::serial::{Read, Write};
 use esp8266_softap::{Error as SoftApError, SoftAp, ADAPTER_BUF_CAPACITY};
 use heapless::Vec;
@@ -82,60 +82,13 @@ where
         self.0.send_packet_to_link(address, bytes)
     }
 
-    fn send_packet<P: AsRef<[u8]>>(
+    fn send_packet<P: Iterator<Item = u8> + ExactSizeIterator>(
         &mut self,
         payload: P,
         address: Self::Address,
     ) -> Result<(), Self::Error> {
-        assert!(payload.as_ref().len() <= MAX_PAYLOAD_LEN);
+        assert!(payload.len() <= MAX_PAYLOAD_LEN);
         self.0
-            .send_packet_to_link(address, PacketWithPayload::new(payload))
+            .send_packet_to_link(address, PacketWithPayload::from(payload))
     }
 }
-
-struct PacketWithPayload<P: AsRef<[u8]>> {
-    header: [u8; PacketKind::PACKED_LEN],
-    payload: P,
-    pos: usize,
-}
-
-impl<P: AsRef<[u8]>> PacketWithPayload<P> {
-    fn new(payload: P) -> Self {
-        let header = PacketKind::Payload(payload.as_ref().len()).to_bytes();
-        Self {
-            header,
-            payload,
-            pos: 0,
-        }
-    }
-
-    fn total_len(&self) -> usize {
-        self.header.len() + self.payload.as_ref().len()
-    }
-}
-
-impl<P: AsRef<[u8]>> Iterator for PacketWithPayload<P> {
-    type Item = u8;
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let bytes_remaining = self.total_len() - self.pos;
-        (bytes_remaining, Some(bytes_remaining))
-    }
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.pos == self.total_len() {
-            return None;
-        }
-
-        let byte = if self.pos < self.header.len() {
-            self.header[self.pos]
-        } else {
-            let pos = self.pos - self.header.len();
-            self.payload.as_ref()[pos]
-        };
-        self.pos += 1;
-        Some(byte)
-    }
-}
-
-impl<P: AsRef<[u8]>> ExactSizeIterator for PacketWithPayload<P> {}
