@@ -46,6 +46,10 @@ pub enum MessageHeader {
     Error(u16),
 }
 
+impl MessageHeader {
+    pub const MAX_LEN: usize = 128;
+}
+
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug, PartialOrd, Ord, Hash)]
 pub struct Hertz(pub u32);
 

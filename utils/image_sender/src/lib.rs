@@ -30,11 +30,11 @@ fn connect_to(addr: &SocketAddr) -> anyhow::Result<TcpStream> {
     Ok(stream)
 }
 
-fn service_impl(addr: SocketAddr) -> anyhow::Result<Service<tcp_transport::TransportImpl, 512>> {
+fn service_impl(addr: SocketAddr) -> anyhow::Result<Service<tcp_transport::TransportImpl>> {
     let stream = connect_to(&addr)?;
     let transport = tcp_transport::TransportImpl::new(addr, stream);
 
-    Ok(Service::new(transport))
+    Ok(Service::new(transport, 512))
 }
 
 pub fn convert_image_to_raw(path: impl AsRef<Path>) -> anyhow::Result<(usize, Vec<u8>)> {

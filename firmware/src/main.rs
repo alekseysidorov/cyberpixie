@@ -1,10 +1,7 @@
 #![no_std]
 #![no_main]
 
-use core::{
-    panic::PanicInfo,
-    time::Duration,
-};
+use core::{panic::PanicInfo, time::Duration};
 
 use cyberpixie::{
     leds::SmartLedsWrite,
@@ -139,12 +136,15 @@ fn main() -> ! {
 
     let mut events = NextImageBtn::new(gpioa.pa8.into_pull_down_input());
 
-    AppConfig::<_, _, _, _, STRIP_LEDS_COUNT, ADAPTER_BUF_CAPACITY> {
+    AppConfig {        
+        device_id: cyberpixie_firmware::device_id(),
+        receiver_buf_capacity: ADAPTER_BUF_CAPACITY,
+        strip_len: STRIP_LEDS_COUNT,
+
         network,
         timer,
         images: &images,
         strip,
-        device_id: cyberpixie_firmware::device_id(),
         events: &mut events,
     }
     .into_event_loop()
@@ -158,5 +158,7 @@ fn panic(info: &PanicInfo) -> ! {
     uprintln!("The firmware panicked!");
     uprintln!("- {}", info);
 
-    unsafe { riscv_rt::start_rust(); }
+    unsafe {
+        riscv_rt::start_rust();
+    }
 }
