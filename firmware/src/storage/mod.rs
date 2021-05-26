@@ -168,6 +168,21 @@ impl HeaderBlock {
     }
 }
 
+macro_rules! retry {
+    ($e:expr) => {
+        {
+            let mut res = Ok(());
+            for _ in 0..32 {
+                res = $e;
+                if res.is_ok() {
+                    break;
+                }
+            }
+            res
+        }
+    };
+}
+
 fn write_bytes<B, I>(
     device: &mut B,
     data: I,
@@ -189,7 +204,7 @@ where
         c += 1;
         // If the current block is filled just flush it to the block device.
         if i == BLOCK_SIZE {
-            device.write(&blocks, block_index)?;
+            retry!(device.write(&blocks, block_index))?;
             i = 0;
             block_index.0 += 1;
         }
@@ -200,7 +215,7 @@ where
         for j in i..BLOCK_SIZE {
             blocks[0][j] = 0;
         }
-        device.write(&blocks, block_index)?;
+        retry!(device.write(&blocks, block_index))?;
         block_index.0 += 1;
     }
 
