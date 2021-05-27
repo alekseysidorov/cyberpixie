@@ -15,6 +15,14 @@ pub enum PacketKind {
 impl PacketKind {
     pub const PACKED_LEN: usize = PacketBody::PACKED_LEN;
 
+    pub fn from_reader(reader: impl Iterator<Item = u8>) -> Self {
+        let mut header = [0_u8; PacketKind::PACKED_LEN];
+        for (idx, byte) in reader.take(header.len()).enumerate() {
+            header[idx] = byte;
+        }
+        Self::decode(&header)
+    }
+
     pub fn encode(self, buf: &mut [u8]) {
         match self {
             PacketKind::Confirmed => PacketBody { kind: 0, len: 0 }.encode_as_le_bytes(buf),

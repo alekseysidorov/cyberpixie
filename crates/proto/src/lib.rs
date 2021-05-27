@@ -6,7 +6,7 @@ pub use crate::{
     error::Error,
     message::{Message, SimpleMessage},
     service::Service,
-    transport::{Packet, PacketData, PacketKind, Transport, PacketWithPayload},
+    transport::{Event, NbResultExt, PacketData, PacketKind, PacketWithPayload, Transport},
     types::{DeviceRole, FirmwareInfo, Hertz},
 };
 pub use postcard::Error as PayloadError;

@@ -2,9 +2,8 @@ use core::mem::MaybeUninit;
 
 use crate::{
     message::{read_message, IncomingMessage, Message, SimpleMessage},
-    transport::{PacketData, PacketKind, Transport},
     types::{Hertz, MessageHeader},
-    FirmwareInfo,
+    FirmwareInfo, NbResultExt, PacketKind, Transport,
 };
 
 macro_rules! wait_for_response {
@@ -26,18 +25,29 @@ pub type Response<T> = Result<T, crate::Error>;
 #[derive(Debug)]
 pub struct Service<T> {
     transport: T,
-    receiver_buf_capacity: usize
+    receiver_buf_capacity: usize,
 }
 
 impl<T: Transport> Service<T> {
     pub fn new(transport: T, receiver_buf_capacity: usize) -> Self {
-        Self { transport, receiver_buf_capacity }
+        Self {
+            transport,
+            receiver_buf_capacity,
+        }
     }
 
     pub fn poll_next_message(
         &mut self,
     ) -> nb::Result<(T::Address, IncomingMessage<'_, T>), T::Error> {
-        let (address, header) = self.poll_for_message_header()?;
+        let (address, header) = self.transport.poll_next_event().filter_map(|event| {
+            let address = *event.address();
+            event.packet().map(|packet| {
+                // TODO: At the MPV stage, we assume that the incoming message is always correct.
+                let payload = packet.payload().unwrap();
+                let header = postcard::from_bytes(payload.as_ref()).unwrap();
+                (address, header)
+            })
+        })?;
 
         let msg = read_message(address, header, &mut self.transport)?;
         Ok((address, msg))
@@ -143,19 +153,5 @@ impl<T: Transport> Service<T> {
 
     fn poll_for_confirmation(&mut self, address: T::Address) -> nb::Result<(), T::Error> {
         self.transport.poll_for_confirmation(address)
-    }
-
-    fn poll_for_message_header(&mut self) -> nb::Result<(T::Address, MessageHeader), T::Error> {
-        let packet = self.transport.poll_next_packet()?;
-        let msg = match packet.data {
-            PacketData::Payload(bytes) => {
-                // TODO: At the MPV stage, we assume that the incoming message is always correct.
-                postcard::from_bytes(bytes.as_ref()).unwrap()
-            }
-
-            PacketData::Confirmed => unreachable!(),
-        };
-
-        Ok((packet.address, msg))
     }
 }
