@@ -1,4 +1,4 @@
-use core::{array::IntoIter, fmt::Debug, iter::Cycle, mem::size_of};
+use core::{fmt::Debug, iter::Cycle, mem::size_of};
 
 use cyberpixie_proto::{DeviceRole, FirmwareInfo};
 use embedded_hal::timer::CountDown;
@@ -14,15 +14,8 @@ const fn core_version() -> [u8; 4] {
     [0, 1, 0, 0]
 }
 
-pub struct AppConfig<
-    'a,
-    Network,
-    Timer,
-    Images,
-    Strip,
-    const STRIP_LEN: usize,
-    const BUF_LEN: usize,
-> where
+pub struct AppConfig<'a, Network, Timer, Images, Strip>
+where
     Network: Transport,
     Timer: CountDown<Time = Hertz>,
     Images: ImagesRepository,
@@ -34,6 +27,8 @@ pub struct AppConfig<
     pub strip: Strip,
     pub device_id: [u32; 4],
     pub events: &'a mut dyn HwEventSource,
+    pub receiver_buf_capacity: usize,
+    pub strip_len: usize,
 }
 
 macro_rules! poll_condition {
@@ -53,72 +48,63 @@ macro_rules! poll_condition {
     };
 }
 
-impl<'a, Network, Timer, Images, Strip, const STRIP_LEN: usize, const BUF_LEN: usize>
-    AppConfig<'a, Network, Timer, Images, Strip, STRIP_LEN, BUF_LEN>
+impl<'a, Network, Timer, Images, Strip> AppConfig<'a, Network, Timer, Images, Strip>
 where
     Network: Transport,
     Timer: CountDown<Time = Hertz>,
-    Images: ImagesRepository,
+    Images: ImagesRepository + 'static,
     Strip: SmartLedsWrite<Color = RGB8>,
 {
-    pub fn into_event_loop(
-        self,
-    ) -> EventLoop<'a, Network, Timer, Images, Strip, STRIP_LEN, BUF_LEN> {
+    pub fn into_event_loop(self) -> EventLoop<'a, Network, Timer, Images, Strip> {
         EventLoop {
             inner: EventLoopInner {
                 device_id: self.device_id,
+                strip_len: self.strip_len,
                 events: self.events,
-                timer: self.timer,
                 images: self.images,
                 strip: self.strip,
                 image: None,
             },
-            service: Service::new(self.network),
+            service: Service::new(self.network, self.receiver_buf_capacity),
+            timer: self.timer,
         }
     }
 }
 
-pub struct EventLoopInner<'a, Timer, Images, Strip, const STRIP_LEN: usize>
+pub struct EventLoopInner<'a, Images, Strip>
 where
-    Timer: CountDown<Time = Hertz>,
-    Images: ImagesRepository,
+    Images: ImagesRepository + 'static,
     Strip: SmartLedsWrite<Color = RGB8>,
 {
     device_id: [u32; 4],
+    strip_len: usize,
 
     events: &'a mut dyn HwEventSource,
 
-    timer: Timer,
     images: &'a Images,
 
     strip: Strip,
     image: Option<(Hertz, Cycle<Images::ImagePixels<'a>>, usize)>,
 }
 
-pub struct EventLoop<
-    'a,
-    Network,
-    Timer,
-    Images,
-    Strip,
-    const STRIP_LEN: usize,
-    const BUF_LEN: usize,
-> where
-    Network: Transport,
-    Timer: CountDown<Time = Hertz>,
-    Images: ImagesRepository,
-    Strip: SmartLedsWrite<Color = RGB8>,
-{
-    inner: EventLoopInner<'a, Timer, Images, Strip, STRIP_LEN>,
-    service: Service<Network, BUF_LEN>,
-}
-
-impl<'a, Network, Timer, Images, Strip, const STRIP_LEN: usize, const BUF_LEN: usize>
-    EventLoop<'a, Network, Timer, Images, Strip, STRIP_LEN, BUF_LEN>
+pub struct EventLoop<'a, Network, Timer, Images, Strip>
 where
     Network: Transport,
     Timer: CountDown<Time = Hertz>,
-    Images: ImagesRepository,
+    Images: ImagesRepository + 'static,
+    Strip: SmartLedsWrite<Color = RGB8>,
+{
+    inner: EventLoopInner<'a, Images, Strip>,
+
+    service: Service<Network>,
+    timer: Timer,
+}
+
+impl<'a, Network, Timer, Images, Strip> EventLoop<'a, Network, Timer, Images, Strip>
+where
+    Network: Transport,
+    Timer: CountDown<Time = Hertz>,
+    Images: ImagesRepository + 'static,
     Strip: SmartLedsWrite<Color = RGB8>,
 
     Strip::Error: Debug,
@@ -156,14 +142,9 @@ where
         })
         .expect("Unable to poll next event");
 
-        poll_condition!(self.inner.timer.wait(), _, {
-            let (rate, line) = self.inner.next_line();
-            self.inner
-                .strip
-                .write(IntoIter::new(line))
-                .expect("Unable to show the next strip line");
-
-            self.inner.timer.start(rate);
+        poll_condition!(self.timer.wait(), _, {
+            let refresh_rate = self.inner.show_line();
+            self.timer.start(refresh_rate);
         })
         .expect("Unable to write a next strip line");
     }
@@ -183,11 +164,9 @@ where
     }
 }
 
-impl<'a, Timer, Images, Strip, const STRIP_LEN: usize>
-    EventLoopInner<'a, Timer, Images, Strip, STRIP_LEN>
+impl<'a, Images, Strip> EventLoopInner<'a, Images, Strip>
 where
-    Timer: CountDown<Time = Hertz>,
-    Images: ImagesRepository,
+    Images: ImagesRepository + 'static,
     Strip: SmartLedsWrite<Color = RGB8>,
 
     Images::Error: Debug,
@@ -198,7 +177,7 @@ where
     {
         let response = match msg {
             Message::GetInfo => Some(SimpleMessage::Info(FirmwareInfo {
-                strip_len: STRIP_LEN as u16,
+                strip_len: self.strip_len as u16,
                 version: core_version(),
                 images_count: self.images.count() as u16,
                 device_id: self.device_id,
@@ -252,18 +231,14 @@ where
         let pixels = RgbIter::new(bytes);
         let pixels_len = pixels.len();
 
-        if strip_len != STRIP_LEN {
+        if strip_len != self.strip_len {
             return Error::StripLengthMismatch.into();
         }
 
-        let line_len_in_bytes = STRIP_LEN;
+        let line_len_in_bytes = self.strip_len;
         if pixels_len % line_len_in_bytes != 0 {
             return Error::ImageLengthMismatch.into();
         }
-
-        // if pixels_len > buf_len {
-        //     return Error::ImageTooBig.into();
-        // }
 
         if self.images.count() >= Images::MAX_COUNT {
             return Error::ImageRepositoryFull.into();
@@ -305,14 +280,15 @@ where
             .expect("Unable to clear images repository");
     }
 
-    fn next_line(&mut self) -> (Hertz, [RGB8; STRIP_LEN]) {
-        let mut line = [RGB8::default(); STRIP_LEN];
+    fn show_line(&mut self) -> Hertz {
         if let Some((rate, image, _)) = self.image.as_mut() {
-            (0..line.len()).for_each(|i| line[i] = image.next().unwrap());
-
-            (*rate, line)
+            self.strip.write(image.by_ref().take(self.strip_len)).ok();
+            *rate
         } else {
-            (Hertz(50), line)
+            self.strip
+                .write(core::iter::repeat(RGB8::default()).take(self.strip_len))
+                .ok();
+            Hertz(50)
         }
     }
 }

@@ -1,5 +1,4 @@
 use core::mem::MaybeUninit;
-use heapless::Vec;
 
 use crate::{
     message::{read_message, IncomingMessage, Message, SimpleMessage},
@@ -25,13 +24,14 @@ macro_rules! wait_for_response {
 pub type Response<T> = Result<T, crate::Error>;
 
 #[derive(Debug)]
-pub struct Service<T, const BUF_LEN: usize> {
+pub struct Service<T> {
     transport: T,
+    receiver_buf_capacity: usize
 }
 
-impl<T: Transport, const BUF_LEN: usize> Service<T, BUF_LEN> {
-    pub fn new(transport: T) -> Self {
-        Self { transport }
+impl<T: Transport> Service<T> {
+    pub fn new(transport: T, receiver_buf_capacity: usize) -> Self {
+        Self { transport, receiver_buf_capacity }
     }
 
     pub fn poll_next_message(
@@ -60,12 +60,10 @@ impl<T: Transport, const BUF_LEN: usize> Service<T, BUF_LEN> {
         nb::block!(self.poll_for_confirmation(address))?;
 
         if let Some(mut payload) = payload {
-            let payload_len = BUF_LEN - PacketKind::PACKED_LEN;
+            let payload_len = self.receiver_buf_capacity - PacketKind::PACKED_LEN;
             while payload.len() != 0 {
-                let mut buf: Vec<u8, BUF_LEN> = Vec::new();
-                buf.extend(payload.by_ref().take(payload_len));
-
-                self.transport.send_packet(buf, address)?;
+                self.transport
+                    .send_packet(payload.by_ref().take(payload_len), address)?;
                 nb::block!(self.poll_for_confirmation(address))?;
             }
         }
@@ -133,14 +131,14 @@ impl<T: Transport, const BUF_LEN: usize> Service<T, BUF_LEN> {
         address: T::Address,
         header: &MessageHeader,
     ) -> Result<(), T::Error> {
-        let mut buf: [u8; BUF_LEN] = unsafe {
+        let mut buf: [u8; MessageHeader::MAX_LEN] = unsafe {
             let buf = MaybeUninit::uninit();
             buf.assume_init()
         };
         // We assume that the buffer has sufficient size, and the message
         // is always successfully encoded.
         let buf = postcard::to_slice(header, &mut buf).unwrap();
-        self.transport.send_packet(buf, address)
+        self.transport.send_packet(buf.iter().copied(), address)
     }
 
     fn poll_for_confirmation(&mut self, address: T::Address) -> nb::Result<(), T::Error> {

@@ -4,7 +4,7 @@ use std::{
     time::Duration,
 };
 
-use cyberpixie_proto::{Packet, PacketData, PacketKind, Transport};
+use cyberpixie_proto::{Packet, PacketData, PacketKind, PacketWithPayload, Transport};
 
 pub struct TransportImpl {
     address: SocketAddr,
@@ -87,18 +87,13 @@ impl Transport for TransportImpl {
         self.stream.write_all(packet.as_ref()).map_err(From::from)
     }
 
-    fn send_packet<P: AsRef<[u8]>>(
+    fn send_packet<P: Iterator<Item = u8> + ExactSizeIterator>(
         &mut self,
         payload: P,
         _to: Self::Address,
     ) -> Result<(), Self::Error> {
         let mut packet: Vec<u8> = Vec::new();
-        packet.extend_from_slice(
-            PacketKind::Payload(payload.as_ref().len())
-                .to_bytes()
-                .as_ref(),
-        );
-        packet.extend_from_slice(payload.as_ref());
+        packet.extend(PacketWithPayload::new(payload));
 
         log::trace!("Send packet: {:?}", packet);
         self.stream.write_all(packet.as_ref()).map_err(From::from)
