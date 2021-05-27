@@ -136,7 +136,7 @@ fn main() -> ! {
 
     let mut events = NextImageBtn::new(gpioa.pa8.into_pull_down_input());
 
-    AppConfig {        
+    AppConfig {
         device_id: cyberpixie_firmware::device_id(),
         receiver_buf_capacity: ADAPTER_BUF_CAPACITY,
         strip_len: STRIP_LEDS_COUNT,

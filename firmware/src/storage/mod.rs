@@ -169,18 +169,16 @@ impl HeaderBlock {
 }
 
 macro_rules! retry {
-    ($e:expr) => {
-        {
-            let mut res = Ok(());
-            for _ in 0..32 {
-                res = $e;
-                if res.is_ok() {
-                    break;
-                }
+    ($e:expr) => {{
+        let mut res = Ok(());
+        for _ in 0..32 {
+            res = $e;
+            if res.is_ok() {
+                break;
             }
-            res
         }
-    };
+        res
+    }};
 }
 
 fn write_bytes<B, I>(
