@@ -104,7 +104,10 @@ pub fn run_transport_example(to: SocketAddr) -> anyhow::Result<()> {
     loop {
         match transport.poll_next_event() {
             Ok(event) => match event {
-                Event::Packet { address, data: PacketData::Payload(payload) } => {
+                Event::Packet {
+                    address,
+                    data: PacketData::Payload(payload),
+                } => {
                     for byte in payload {
                         eprint!("{}", byte as char);
                     }

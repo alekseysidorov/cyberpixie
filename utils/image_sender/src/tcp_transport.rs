@@ -49,9 +49,7 @@ impl Transport for TransportImpl {
     type Address = SocketAddr;
     type Payload = Vec<u8>;
 
-    fn poll_next_event(
-        &mut self,
-    ) -> nb::Result<Event<Self::Address, Self::Payload>, Self::Error> {
+    fn poll_next_event(&mut self) -> nb::Result<Event<Self::Address, Self::Payload>, Self::Error> {
         let kind = self.read_packet_kind()?;
 
         let packet = match kind {
