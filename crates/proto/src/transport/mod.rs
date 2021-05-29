@@ -11,8 +11,7 @@ pub trait Transport {
     type Address: PartialEq + Clone + Copy;
     type Payload: AsRef<[u8]>;
 
-    fn poll_next_packet(&mut self)
-        -> nb::Result<Packet<Self::Address, Self::Payload>, Self::Error>;
+    fn poll_next_event(&mut self) -> nb::Result<Event<Self::Address, Self::Payload>, Self::Error>;
 
     fn confirm_packet(&mut self, from: Self::Address) -> Result<(), Self::Error>;
 
@@ -23,42 +22,83 @@ pub trait Transport {
     ) -> Result<(), Self::Error>;
 
     fn poll_for_confirmation(&mut self, from: Self::Address) -> nb::Result<(), Self::Error> {
-        let packet = nb::block!(self.poll_next_packet())?;
-        if packet.address != from {
-            return Err(nb::Error::WouldBlock);
-        }
-
-        if let PacketData::Confirmed = packet.data {
-            Ok(())
-        } else {
-            Err(nb::Error::WouldBlock)
-        }
+        self.poll_next_event()
+            .filter(|event| event.address() == &from)
+            .filter_map(Event::packet)
+            .filter_map(PacketData::confirmed)
     }
 
     fn poll_for_payload(&mut self, from: Self::Address) -> nb::Result<Self::Payload, Self::Error> {
-        let packet = nb::block!(self.poll_next_packet())?;
-        if packet.address != from {
-            return Err(nb::Error::WouldBlock);
-        }
-
-        if let PacketData::Payload(payload) = packet.data {
-            Ok(payload)
-        } else {
-            Err(nb::Error::WouldBlock)
-        }
+        self.poll_next_event()
+            .filter(|event| event.address() == &from)
+            .filter_map(Event::packet)
+            .filter_map(PacketData::payload)
     }
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Packet<A, P> {
-    pub address: A,
-    pub data: PacketData<P>,
+pub enum Event<A, P> {
+    Connected { address: A },
+    Disconnected { address: A },
+    Packet { address: A, data: PacketData<P> },
+}
+
+impl<A, P> Event<A, P> {
+    pub fn address(&self) -> &A {
+        match self {
+            Event::Connected { address } => address,
+            Event::Disconnected { address } => address,
+            Event::Packet { address, .. } => address,
+        }
+    }
+
+    pub fn packet(self) -> Option<PacketData<P>> {
+        if let Self::Packet { data, .. } = self {
+            Some(data)
+        } else {
+            None
+        }
+    }
+
+    pub fn connected(self) -> Option<A> {
+        if let Self::Connected { address } = self {
+            Some(address)
+        } else {
+            None
+        }
+    }
+
+    pub fn disconnected(self) -> Option<A> {
+        if let Self::Disconnected { address } = self {
+            Some(address)
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
 pub enum PacketData<P> {
     Payload(P),
     Confirmed,
+}
+
+impl<P> PacketData<P> {
+    pub fn payload(self) -> Option<P> {
+        if let PacketData::Payload(payload) = self {
+            Some(payload)
+        } else {
+            None
+        }
+    }
+
+    pub fn confirmed(self) -> Option<()> {
+        if let PacketData::Confirmed = self {
+            Some(())
+        } else {
+            None
+        }
+    }
 }
 
 pub struct PacketWithPayload<P>
@@ -104,5 +144,40 @@ impl<P: Iterator<Item = u8> + ExactSizeIterator> ExactSizeIterator for PacketWit
 impl<P: Iterator<Item = u8> + ExactSizeIterator> From<P> for PacketWithPayload<P> {
     fn from(payload: P) -> Self {
         Self::new(payload)
+    }
+}
+
+pub trait NbResultExt<T, E> {
+    fn filter<P: FnOnce(&T) -> bool>(self, pred: P) -> Self;
+
+    fn filter_map<U, P: FnOnce(T) -> Option<U>>(self, pred: P) -> nb::Result<U, E>;
+}
+
+impl<T, E> NbResultExt<T, E> for nb::Result<T, E> {
+    fn filter<P: FnOnce(&T) -> bool>(self, pred: P) -> Self {
+        match self {
+            Ok(value) => {
+                if pred(&value) {
+                    Ok(value)
+                } else {
+                    Err(nb::Error::WouldBlock)
+                }
+            }
+            other => other,
+        }
+    }
+
+    fn filter_map<U, P: FnOnce(T) -> Option<U>>(self, pred: P) -> nb::Result<U, E> {
+        match self {
+            Ok(value) => {
+                if let Some(value) = pred(value) {
+                    Ok(value)
+                } else {
+                    Err(nb::Error::WouldBlock)
+                }
+            }
+            Err(nb::Error::Other(other)) => Err(nb::Error::Other(other)),
+            Err(nb::Error::WouldBlock) => Err(nb::Error::WouldBlock),
+        }
     }
 }

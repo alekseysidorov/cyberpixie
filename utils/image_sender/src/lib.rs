@@ -11,7 +11,7 @@ use std::{
     time::Duration,
 };
 
-use cyberpixie_proto::{Hertz, PacketData, Service, Transport};
+use cyberpixie_proto::{Event, Hertz, PacketData, Service, Transport};
 use image::io::Reader;
 
 mod tcp_transport;
@@ -102,15 +102,18 @@ pub fn run_transport_example(to: SocketAddr) -> anyhow::Result<()> {
     let mut transport = tcp_transport::TransportImpl::new(to, stream);
     let lines = spawn_stdin_channel();
     loop {
-        match transport.poll_next_packet() {
-            Ok(packet) => match packet.data {
-                PacketData::Payload(payload) => {
+        match transport.poll_next_event() {
+            Ok(event) => match event {
+                Event::Packet {
+                    address,
+                    data: PacketData::Payload(payload),
+                } => {
                     for byte in payload {
                         eprint!("{}", byte as char);
                     }
-                    transport.confirm_packet(packet.address)?;
+                    transport.confirm_packet(address)?;
                 }
-                PacketData::Confirmed => unreachable!(),
+                _ => unreachable!(),
             },
             Err(nb::Error::WouldBlock) => {}
             Err(nb::Error::Other(err)) => return Err(err),
