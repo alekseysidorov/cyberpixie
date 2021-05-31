@@ -1,6 +1,6 @@
 use core::fmt::Debug;
 
-use cyberpixie::proto::{Event, PacketData, PacketKind, PacketWithPayload, Transport};
+use cyberpixie::proto::{TransportEvent, PacketData, PacketKind, PacketWithPayload, Transport};
 use embedded_hal::serial::{Read, Write};
 use esp8266_softap::{Error as SoftApError, Event as SoftApEvent, SoftAp, ADAPTER_BUF_CAPACITY};
 use heapless::Vec;
@@ -11,6 +11,7 @@ pub struct TransportImpl<Tx, Rx>(SoftAp<Rx, Tx>)
 where
     Rx: Read<u8> + 'static,
     Tx: Write<u8> + 'static,
+
     Rx::Error: Debug,
     Tx::Error: Debug;
 
@@ -30,6 +31,7 @@ impl<Tx, Rx> Transport for TransportImpl<Tx, Rx>
 where
     Rx: Read<u8> + 'static,
     Tx: Write<u8> + 'static,
+    
     Rx::Error: Debug,
     Tx::Error: Debug,
 {
@@ -37,15 +39,15 @@ where
     type Address = usize;
     type Payload = Vec<u8, MAX_PAYLOAD_LEN>;
 
-    fn poll_next_event(&mut self) -> nb::Result<Event<Self::Address, Self::Payload>, Self::Error> {
+    fn poll_next_event(&mut self) -> nb::Result<TransportEvent<Self::Address, Self::Payload>, Self::Error> {
         let event = self
             .0
             .poll_next_event()
             .map_err(|x| x.map(SoftApError::Read))?;
 
         Ok(match event {
-            SoftApEvent::Connected { link_id } => Event::Connected { address: link_id },
-            SoftApEvent::Closed { link_id } => Event::Disconnected { address: link_id },
+            SoftApEvent::Connected { link_id } => TransportEvent::Connected { address: link_id },
+            SoftApEvent::Closed { link_id } => TransportEvent::Disconnected { address: link_id },
             SoftApEvent::DataAvailable {
                 link_id,
                 mut reader,
@@ -61,7 +63,7 @@ where
                 };
 
                 assert_eq!(reader.len(), 0);
-                Event::Packet {
+                TransportEvent::Packet {
                     address: link_id,
                     data,
                 }
