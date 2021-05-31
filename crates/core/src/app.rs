@@ -104,12 +104,8 @@ where
     StorageAccess::Error: Debug,
 {
     pub fn run(mut self) -> ! {
-        if self.inner.storage.images_count() > 0 {
-            self.inner.load_image(0);
-        } else {
-            self.inner.blank_strip();
-        }
-
+        self.inner
+            .set_image(self.inner.app_config.current_image_index as usize);
         loop {
             self.process_events();
         }
@@ -174,8 +170,8 @@ where
                 }
 
                 let index = (self.app_config.current_image_index as usize + 1)
-                    % self.storage.images_count();
-                self.load_image(index);
+                    % (self.storage.images_count() + 1);
+                self.set_image(index);
             }
         }
     }
@@ -210,10 +206,10 @@ where
                 Some(response)
             }
             Message::ShowImage { index } => {
-                if index >= self.storage.images_count() {
+                if index > self.storage.images_count() {
                     Some(Error::ImageNotFound.into())
                 } else {
-                    self.load_image(index);
+                    self.set_image(index);
                     Some(SimpleMessage::Ok)
                 }
             }
@@ -254,13 +250,15 @@ where
         }
 
         let count = self.save_image(refresh_rate, pixels);
-        Message::ImageAdded { index: count - 1 }
+        Message::ImageAdded { index: count }
     }
 
-    fn load_image(&mut self, index: usize) {
+    fn set_image(&mut self, index: usize) {
         self.blank_strip();
-        let (rate, image) = self.storage.read_image(index);
-        self.image.replace((rate, image.cycle()));
+        if index > 0 {
+            let (rate, image) = self.storage.read_image(index - 1);
+            self.image.replace((rate, image.cycle()));
+        }
 
         self.app_config.current_image_index = index as u16;
         self.storage
@@ -277,7 +275,7 @@ where
             .storage
             .add_image(bytes, refresh_rate)
             .expect("Unable to save image");
-        self.load_image(self.app_config.current_image_index as usize);
+        self.set_image(new_count as usize);
         new_count
     }
 
@@ -290,6 +288,7 @@ where
         self.storage
             .clear_images()
             .expect("Unable to clear images repository");
+        self.set_image(0);
     }
 
     fn show_line(&mut self) -> Hertz {
