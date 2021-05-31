@@ -11,7 +11,7 @@ use std::{
     time::Duration,
 };
 
-use cyberpixie_proto::{Event, Hertz, PacketData, Service, Transport};
+use cyberpixie_proto::{Hertz, PacketData, Service, Transport, TransportEvent};
 use image::io::Reader;
 
 mod tcp_transport;
@@ -104,7 +104,7 @@ pub fn run_transport_example(to: SocketAddr) -> anyhow::Result<()> {
     loop {
         match transport.poll_next_event() {
             Ok(event) => match event {
-                Event::Packet {
+                TransportEvent::Packet {
                     address,
                     data: PacketData::Payload(payload),
                 } => {

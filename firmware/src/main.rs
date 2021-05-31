@@ -1,23 +1,22 @@
 #![no_std]
 #![no_main]
 
-use core::{panic::PanicInfo, time::Duration};
+use core::{fmt::Write, panic::PanicInfo, time::Duration};
 
 use cyberpixie::{
     leds::SmartLedsWrite,
     stdio::uprintln,
     time::{CountDown, CountDownEx, Microseconds},
-    AppConfig, ImagesRepository,
+    App, AppConfig, Storage,
 };
 use cyberpixie_firmware::{
     config::{SERIAL_PORT_CONFIG, SOFTAP_CONFIG, STRIP_LEDS_COUNT},
     irq::{self},
     splash::WanderingLight,
-    storage::ImagesStorage,
-    NextImageBtn, TimerImpl,
+    transport, NextImageBtn, StorageImpl, TimerImpl,
 };
 use embedded_hal::digital::v2::OutputPin;
-use esp8266_softap::{Adapter, ADAPTER_BUF_CAPACITY};
+use esp8266_softap::{Adapter, SoftApConfig, ADAPTER_BUF_CAPACITY};
 use gd32vf103xx_hal::{
     pac::{self},
     prelude::*,
@@ -25,6 +24,8 @@ use gd32vf103xx_hal::{
     spi::{Spi, MODE_0},
     timer::Timer,
 };
+use heapless::String;
+use transport::TransportImpl;
 use ws2812_spi::Ws2812;
 
 #[export_name = "TIMER1"]
@@ -97,8 +98,25 @@ fn main() -> ! {
         device.init().unwrap();
         device
     };
-    let images = ImagesStorage::open(device).unwrap();
-    uprintln!("Total images count: {}", images.count());
+    let storage = StorageImpl::open(
+        device,
+        AppConfig {
+            current_image_index: 0,
+            receiver_buf_capacity: ADAPTER_BUF_CAPACITY,
+            strip_len: STRIP_LEDS_COUNT as u16,
+        },
+    )
+    .unwrap();
+
+    // storage
+    //     .reset(AppConfig {
+    //         current_image_index: 0,
+    //         receiver_buf_capacity: ADAPTER_BUF_CAPACITY,
+    //         strip_len: STRIP_LEDS_COUNT as u16,
+    //     })
+    //     .unwrap();
+
+    uprintln!("Total images count: {}", storage.images_count());
 
     uprintln!("Showing splash...");
     let splash = WanderingLight::<STRIP_LEDS_COUNT>::default();
@@ -128,22 +146,36 @@ fn main() -> ! {
         timer: Timer::timer1(dp.TIMER1, 15.khz(), &mut rcu),
     });
     uprintln!("esp32 serial communication port configured.");
-    let ap = SOFTAP_CONFIG
+
+    let device_id = cyberpixie_firmware::device_id();
+    let mut ssid: String<64> = String::new();
+    ssid.write_fmt(core::format_args!(
+        "cyberpixie_{:X}{:X}{:X}",
+        device_id[1],
+        device_id[2],
+        device_id[3]
+    ))
+    .unwrap();
+
+    let softap_config = SoftApConfig {
+        ssid: &ssid,
+        ..SOFTAP_CONFIG
+    };
+
+    let ap = softap_config
         .start(Adapter::new(esp_rx, esp_tx).unwrap())
         .unwrap();
-    let network = cyberpixie_firmware::transport::TransportImpl::new(ap);
-    uprintln!("SoftAP has been successfuly configured.");
+    let network = TransportImpl::new(ap);
+    uprintln!("SoftAP has been successfuly configured with ssid {}.", ssid);
 
     let mut events = NextImageBtn::new(gpioa.pa8.into_pull_down_input());
 
-    AppConfig {
-        device_id: cyberpixie_firmware::device_id(),
-        receiver_buf_capacity: ADAPTER_BUF_CAPACITY,
-        strip_len: STRIP_LEDS_COUNT,
+    App {
+        device_id,
 
         network,
         timer,
-        images: &images,
+        storage: &storage,
         strip,
         events: &mut events,
     }
@@ -158,7 +190,7 @@ fn panic(info: &PanicInfo) -> ! {
     uprintln!("The firmware panicked!");
     uprintln!("- {}", info);
 
-    unsafe {
-        riscv_rt::start_rust();
+    loop {
+        core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
     }
 }

@@ -99,6 +99,7 @@ impl From<Error> for SimpleMessage {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct PayloadReader<'a, T: Transport> {
     address: T::Address,
     transport: &'a mut T,

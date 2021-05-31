@@ -7,6 +7,7 @@ edition = "2018"
 nb = "1.0"
 embedded-hal = "0.2"
 smart-leds = "0.3"
+serde = { version = "1", default-features = false, features = ["derive"] }
 
 stdio-serial = { path = "../stdio-serial" }
 cyberpixie-proto = { path = "../proto" }

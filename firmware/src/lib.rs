@@ -4,7 +4,7 @@
 
 use cyberpixie::{HwEvent, HwEventSource};
 
-pub use self::{storage::ImagesStorage, time::TimerImpl, transport::TransportImpl};
+pub use self::{storage::StorageImpl, time::TimerImpl, transport::TransportImpl};
 
 pub mod config;
 pub mod irq;

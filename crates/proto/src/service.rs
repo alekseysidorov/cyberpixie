@@ -3,7 +3,7 @@ use core::mem::MaybeUninit;
 use crate::{
     message::{read_message, IncomingMessage, Message, SimpleMessage},
     types::{Hertz, MessageHeader},
-    FirmwareInfo, NbResultExt, PacketKind, Transport,
+    FirmwareInfo, NbResultExt, PacketKind, Transport, TransportEvent,
 };
 
 macro_rules! wait_for_response {
@@ -36,21 +36,26 @@ impl<T: Transport> Service<T> {
         }
     }
 
+    pub fn poll_next_event(&mut self) -> nb::Result<Event<'_, T>, T::Error> {
+        Ok(match self.transport.poll_next_event()? {
+            TransportEvent::Connected { address } => Event::Connected { address },
+            TransportEvent::Disconnected { address } => Event::Disconnected { address },
+            TransportEvent::Packet { address, data } => {
+                // TODO: At the MPV stage, we assume that the incoming message is always correct.
+                let payload = data.payload().unwrap();
+                let header = postcard::from_bytes(payload.as_ref()).unwrap();
+                Event::Message {
+                    address,
+                    message: read_message(address, header, &mut self.transport)?,
+                }
+            }
+        })
+    }
+
     pub fn poll_next_message(
         &mut self,
     ) -> nb::Result<(T::Address, IncomingMessage<'_, T>), T::Error> {
-        let (address, header) = self.transport.poll_next_event().filter_map(|event| {
-            let address = *event.address();
-            event.packet().map(|packet| {
-                // TODO: At the MPV stage, we assume that the incoming message is always correct.
-                let payload = packet.payload().unwrap();
-                let header = postcard::from_bytes(payload.as_ref()).unwrap();
-                (address, header)
-            })
-        })?;
-
-        let msg = read_message(address, header, &mut self.transport)?;
-        Ok((address, msg))
+        self.poll_next_event().filter_map(Event::message)
     }
 
     pub fn confirm_message(&mut self, from: T::Address) -> Result<(), T::Error> {
@@ -153,5 +158,58 @@ impl<T: Transport> Service<T> {
 
     fn poll_for_confirmation(&mut self, address: T::Address) -> nb::Result<(), T::Error> {
         self.transport.poll_for_confirmation(address)
+    }
+}
+
+pub enum Event<'a, T>
+where
+    T: Transport,
+{
+    Connected {
+        address: T::Address,
+    },
+    Disconnected {
+        address: T::Address,
+    },
+    Message {
+        address: T::Address,
+        message: IncomingMessage<'a, T>,
+    },
+}
+
+impl<'a, T> Event<'a, T>
+where
+    T: Transport,
+{
+    pub fn address(&self) -> &T::Address {
+        match self {
+            Event::Connected { address } => address,
+            Event::Disconnected { address } => address,
+            Event::Message { address, .. } => address,
+        }
+    }
+
+    pub fn connected(self) -> Option<T::Address> {
+        if let Event::Connected { address } = self {
+            Some(address)
+        } else {
+            None
+        }
+    }
+
+    pub fn disconnected(self) -> Option<T::Address> {
+        if let Event::Disconnected { address } = self {
+            Some(address)
+        } else {
+            None
+        }
+    }
+
+    pub fn message(self) -> Option<(T::Address, IncomingMessage<'a, T>)> {
+        if let Event::Message { address, message } = self {
+            Some((address, message))
+        } else {
+            None
+        }
     }
 }

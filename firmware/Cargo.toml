@@ -12,6 +12,7 @@ endian_codec = "0.1"
 heapless = "0.7"
 nb = "1.0"
 smart-leds = "0.3"
+postcard = "0.7"
 
 gd32vf103xx-hal = "0.4"
 riscv = "0.6"
