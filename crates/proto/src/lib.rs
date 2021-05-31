@@ -7,9 +7,10 @@ pub use crate::{
     message::{Message, SimpleMessage},
     service::{Event as ServiceEvent, Service},
     transport::{
-        Event as TransportEvent, NbResultExt, PacketData, PacketKind, PacketWithPayload, Transport,
+        Event as TransportEvent, PacketData, PacketKind, PacketWithPayload, Transport,
     },
     types::{DeviceRole, FirmwareInfo, Hertz},
+    nb::{NbResultExt, until_ok}, 
 };
 pub use postcard::Error as PayloadError;
 
@@ -21,3 +22,4 @@ mod service;
 mod tests;
 mod transport;
 mod types;
+mod nb;

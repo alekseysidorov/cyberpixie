@@ -4,10 +4,14 @@
 use core::{
     panic::PanicInfo,
     sync::atomic::{self, Ordering},
+    time::Duration,
 };
 
-use cyberpixie::time::{DeadlineTimer, Microseconds, Milliseconds};
-use cyberpixie_firmware::{config::SERIAL_PORT_CONFIG, splash::WanderingLight};
+use cyberpixie::{
+    proto::until_ok,
+    time::{CountDown, CountDownEx, Microseconds, Milliseconds},
+};
+use cyberpixie_firmware::{config::SERIAL_PORT_CONFIG, splash::WanderingLight, TimerImpl};
 use gd32vf103xx_hal::{pac, prelude::*, serial::Serial, spi::Spi, timer::Timer};
 use smart_leds::{SmartLedsWrite, RGB8};
 use stdio_serial::uprintln;
@@ -25,7 +29,8 @@ fn main() -> ! {
     let mut rcu = dp.RCU.configure().sysclk(108.mhz()).freeze();
     let mut afio = dp.AFIO.constrain(&mut rcu);
 
-    let mut timer = Timer::timer0(dp.TIMER0, 1.mhz(), &mut rcu);
+    let mut timer = TimerImpl::new(Timer::timer0(dp.TIMER0, 1.mhz(), &mut rcu));
+    let mut timer2 = TimerImpl::new(Timer::timer1(dp.TIMER1, 1.mhz(), &mut rcu));
 
     let gpioa = dp.GPIOA.split(&mut rcu);
     let (usb_tx, mut _usb_rx) = {
@@ -37,7 +42,7 @@ fn main() -> ! {
     };
     stdio_serial::init(usb_tx);
 
-    timer.delay(Milliseconds(1_000)).unwrap();
+    timer.delay_ms(Milliseconds(1_000));
     uprintln!("Serial port configured.");
 
     let spi = {
@@ -65,11 +70,29 @@ fn main() -> ! {
     uprintln!("Led strip cleaned.");
 
     let splash = WanderingLight::<STRIP_LEN>::default();
-    for (ticks, line) in splash.cycle() {
-        timer.deadline(Microseconds(TICK_DELAY * ticks));
-        strip.write(core::array::IntoIter::new(line)).ok();
-        nb::block!(timer.wait_deadline()).unwrap();
-    }
+    direct_executor::run_spinning(async move {
+        futures::future::join(
+            async {
+                for (ticks, line) in splash.cycle() {
+                    futures::future::join(
+                        timer.wait_async(Duration::from_micros((TICK_DELAY * ticks) as u64)),
+                        async {
+                            strip.write(core::array::IntoIter::new(line)).ok();
+                        },
+                    )
+                    .await;
+                }
+            },
+            
+            async {
+                loop {
+                    timer2.wait_async(Duration::from_secs(5)).await;
+                    uprintln!("Five more seconds passed.");
+                }
+            },
+        )
+        .await
+    });
 
     loop {
         atomic::compiler_fence(Ordering::SeqCst);

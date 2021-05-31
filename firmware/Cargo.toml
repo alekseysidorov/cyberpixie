@@ -13,14 +13,17 @@ heapless = "0.7"
 nb = "1.0"
 smart-leds = "0.3"
 postcard = "0.7"
+void = { version = "1.0", default-features = false }
 
 gd32vf103xx-hal = "0.4"
 riscv = "0.6"
 riscv-rt = "0.8"
 ws2812-spi = { version = "0.4" }
-void = { version = "1.0", default-features = false }
 
 stdio-serial = { path = "../crates/stdio-serial" }
 # stdio-serial = { path = "../crates/stdio-serial", features = [ "dprint"] }
 esp8266-softap = { path = "../crates/esp8266-softap" }
 cyberpixie = { path = "../crates/core" }
+
+futures = { version = "0.3", default-features = false }
+direct-executor = "0.3"

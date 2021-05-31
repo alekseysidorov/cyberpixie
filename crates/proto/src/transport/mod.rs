@@ -1,6 +1,10 @@
 pub use packet::PacketKind;
 
-use core::array::IntoIter;
+use core::{
+    array::IntoIter,
+};
+
+use crate::NbResultExt;
 
 mod packet;
 
@@ -144,52 +148,5 @@ impl<P: Iterator<Item = u8> + ExactSizeIterator> ExactSizeIterator for PacketWit
 impl<P: Iterator<Item = u8> + ExactSizeIterator> From<P> for PacketWithPayload<P> {
     fn from(payload: P) -> Self {
         Self::new(payload)
-    }
-}
-
-pub trait NbResultExt<T, E> {
-    fn filter<P: FnOnce(&T) -> bool>(self, pred: P) -> Self;
-
-    fn filter_map<U, P: FnOnce(T) -> Option<U>>(self, pred: P) -> nb::Result<U, E>;
-
-    fn expect_ok(self, msg: &str) -> Option<T>;
-}
-
-impl<T, E> NbResultExt<T, E> for nb::Result<T, E> {
-    fn filter<P: FnOnce(&T) -> bool>(self, pred: P) -> Self {
-        match self {
-            Ok(value) => {
-                if pred(&value) {
-                    Ok(value)
-                } else {
-                    Err(nb::Error::WouldBlock)
-                }
-            }
-            other => other,
-        }
-    }
-
-    fn filter_map<U, P: FnOnce(T) -> Option<U>>(self, pred: P) -> nb::Result<U, E> {
-        match self {
-            Ok(value) => {
-                if let Some(value) = pred(value) {
-                    Ok(value)
-                } else {
-                    Err(nb::Error::WouldBlock)
-                }
-            }
-            Err(nb::Error::Other(other)) => Err(nb::Error::Other(other)),
-            Err(nb::Error::WouldBlock) => Err(nb::Error::WouldBlock),
-        }
-    }
-
-    #[track_caller]
-    fn expect_ok(self, msg: &str) -> Option<T> {
-        match self {
-            Ok(value) => Some(value),
-            Err(nb::Error::WouldBlock) => None,
-
-            _ => panic!("{}", msg),
-        }
     }
 }
