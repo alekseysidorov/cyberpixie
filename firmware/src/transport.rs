@@ -31,7 +31,7 @@ impl<Tx, Rx> Transport for TransportImpl<Tx, Rx>
 where
     Rx: Read<u8> + 'static,
     Tx: Write<u8> + 'static,
-    
+
     Rx::Error: Debug,
     Tx::Error: Debug,
 {

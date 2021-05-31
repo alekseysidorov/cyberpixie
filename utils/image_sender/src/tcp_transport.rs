@@ -4,7 +4,7 @@ use std::{
     time::Duration,
 };
 
-use cyberpixie_proto::{TransportEvent, PacketData, PacketKind, PacketWithPayload, Transport};
+use cyberpixie_proto::{PacketData, PacketKind, PacketWithPayload, Transport, TransportEvent};
 
 pub struct TransportImpl {
     address: SocketAddr,
@@ -49,7 +49,9 @@ impl Transport for TransportImpl {
     type Address = SocketAddr;
     type Payload = Vec<u8>;
 
-    fn poll_next_event(&mut self) -> nb::Result<TransportEvent<Self::Address, Self::Payload>, Self::Error> {
+    fn poll_next_event(
+        &mut self,
+    ) -> nb::Result<TransportEvent<Self::Address, Self::Payload>, Self::Error> {
         let kind = self.read_packet_kind()?;
 
         let packet = match kind {
@@ -61,7 +63,7 @@ impl Transport for TransportImpl {
                     .read_exact(&mut payload)
                     .map_err(|e| nb::Error::Other(Self::Error::from(e)))?;
 
-                    TransportEvent::Packet {
+                TransportEvent::Packet {
                     address: self.address,
                     data: PacketData::Payload(payload),
                 }

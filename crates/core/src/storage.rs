@@ -2,11 +2,19 @@ use core::mem::size_of;
 
 use cyberpixie_proto::Hertz;
 use smart_leds::RGB8;
+use serde::{Serialize, Deserialize};
 
-pub trait ImagesRepository {
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+pub struct AppConfig {
+    pub current_image_index: u16,
+    pub strip_len: u16,
+    pub receiver_buf_capacity: usize,
+}
+
+pub trait Storage {
     type Error;
 
-    const MAX_COUNT: usize;
+    const MAX_IMAGES_COUNT: usize;
 
     type ImagePixels<'a>: Iterator<Item = RGB8> + ExactSizeIterator + Clone;
 
@@ -16,9 +24,13 @@ pub trait ImagesRepository {
 
     fn read_image(&self, index: usize) -> (Hertz, Self::ImagePixels<'_>);
 
-    fn count(&self) -> usize;
+    fn images_count(&self) -> usize;
 
-    fn clear(&self) -> Result<(), Self::Error>;
+    fn clear_images(&self) -> Result<(), Self::Error>;
+
+    fn load_config(&self) -> Result<AppConfig, Self::Error>;
+
+    fn save_config(&self, cfg: &AppConfig) -> Result<(), Self::Error>;
 }
 
 pub struct RgbIter<I>

@@ -3,7 +3,7 @@ use core::{
     mem::MaybeUninit,
 };
 
-use cyberpixie::{leds::RGB8, proto::Hertz, ImagesRepository};
+use cyberpixie::{leds::RGB8, proto::Hertz, AppConfig, Storage};
 use embedded_sdmmc::{Block, BlockDevice, BlockIdx};
 use endian_codec::{DecodeLE, EncodeLE, PackedSize};
 
@@ -16,32 +16,32 @@ pub const MAX_IMAGES_COUNT: usize = 60;
 
 const BLOCK_SIZE: usize = 512;
 
-struct ImageStorageInner<B> {
+struct StorageImplInner<B> {
     device: B,
     block: HeaderBlock,
 }
 
-pub struct ImagesStorage<B> {
-    inner: RefCell<ImageStorageInner<B>>,
+pub struct StorageImpl<B> {
+    inner: RefCell<StorageImplInner<B>>,
 }
 
-impl<B> ImagesStorage<B>
+impl<B> StorageImpl<B>
 where
     B: BlockDevice + 'static,
 {
-    pub fn open(device: B) -> Result<Self, B::Error> {
+    pub fn open(device: B, default_config: AppConfig) -> Result<Self, B::Error> {
         let repository = Self {
-            inner: RefCell::new(ImageStorageInner {
+            inner: RefCell::new(StorageImplInner {
                 device,
                 block: HeaderBlock::empty(),
             }),
         };
-        repository.inner.borrow_mut().get_or_init()?;
+        repository.inner.borrow_mut().get_or_init(default_config)?;
         Ok(repository)
     }
 }
 
-impl<B> ImageStorageInner<B>
+impl<B> StorageImplInner<B>
 where
     B: BlockDevice + 'static,
 {
@@ -52,20 +52,23 @@ where
     /// The message should be presented in the `INIT_BLOCK` if this repository
     /// is has been initialized.
     const INIT_MSG: &'static [u8] = b"POI_STORAGE";
-    /// This block contains the repository header.
+    /// This block contains the images repository header.
     const HEADER_BLOCK: BlockIdx = BlockIdx(10);
+    /// This block contains the configuration params.
+    const CONFIG_BLOCK: BlockIdx = BlockIdx(1);
 
     pub fn reset(&mut self) -> Result<&mut Self, B::Error> {
         self.init()?;
         Ok(self)
     }
 
-    fn get_or_init(&mut self) -> Result<(), B::Error> {
+    fn get_or_init(&mut self, default_config: AppConfig) -> Result<(), B::Error> {
         self.device
             .read(&mut self.block.inner, Self::INIT_BLOCK, "Load INIT block")?;
 
         if !self.block.inner[0].contents.starts_with(Self::INIT_MSG) {
             self.init()?;
+            self.save_config(&&default_config)?;
         } else {
             self.device.read(
                 &mut self.block.inner,
@@ -145,6 +148,24 @@ where
         // Store updated header block.
         self.device.write(&self.block.inner, Self::HEADER_BLOCK)?;
         Ok(images_count as usize)
+    }
+
+    fn read_config(&self) -> Result<AppConfig, B::Error> {
+        let mut blocks = [Block {
+            contents: unsafe { unitialized_block_content() },
+        }];
+        self.device
+            .read(&mut blocks, Self::CONFIG_BLOCK, "read config block")?;
+        Ok(postcard::from_bytes(&blocks[0].contents).unwrap())
+    }
+
+    fn save_config(&self, cfg: &AppConfig) -> Result<(), B::Error> {
+        let mut blocks = [Block {
+            contents: unsafe { unitialized_block_content() },
+        }];
+        postcard::to_slice(&cfg, &mut blocks[0].contents).unwrap();
+        
+        self.device.write(&blocks, Self::CONFIG_BLOCK)
     }
 }
 
@@ -308,13 +329,13 @@ impl<'a, B: BlockDevice> Iterator for ReadImageIter<'a, B> {
 
 impl<'a, B: BlockDevice> ExactSizeIterator for ReadImageIter<'a, B> {}
 
-impl<B> ImagesRepository for ImagesStorage<B>
+impl<B> Storage for StorageImpl<B>
 where
     B: BlockDevice + 'static,
 {
     type Error = B::Error;
 
-    const MAX_COUNT: usize = MAX_IMAGES_COUNT;
+    const MAX_IMAGES_COUNT: usize = MAX_IMAGES_COUNT;
 
     type ImagePixels<'b> = ReadImageIter<'b, B>;
 
@@ -339,12 +360,20 @@ where
         (refresh_rate, read_iter)
     }
 
-    fn count(&self) -> usize {
+    fn images_count(&self) -> usize {
         self.inner.borrow().block.header().images_count as usize
     }
 
-    fn clear(&self) -> Result<(), Self::Error> {
+    fn clear_images(&self) -> Result<(), Self::Error> {
         self.inner.borrow_mut().reset().map(drop)
+    }
+
+    fn load_config(&self) -> Result<AppConfig, Self::Error> {
+        self.inner.borrow().read_config()
+    }
+
+    fn save_config(&self, config: &AppConfig) -> Result<(), Self::Error> {
+        self.inner.borrow().save_config(config)
     }
 }
 
