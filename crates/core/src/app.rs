@@ -136,6 +136,9 @@ where
 
                 ServiceEvent::Message { address, message } => {
                     let response = self.inner.handle_message(address, message);
+                    self.service
+                        .confirm_message(address)
+                        .expect("unable to confirm message");
                     if let Some((to, response)) = response {
                         self.service
                             .send_message(to, response)

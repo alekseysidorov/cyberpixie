@@ -1,8 +1,8 @@
 use core::mem::size_of;
 
 use cyberpixie_proto::Hertz;
+use serde::{Deserialize, Serialize};
 use smart_leds::RGB8;
-use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 pub struct AppConfig {

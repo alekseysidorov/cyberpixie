@@ -39,6 +39,12 @@ where
         repository.inner.borrow_mut().get_or_init(default_config)?;
         Ok(repository)
     }
+
+    pub fn reset(&self, config: AppConfig) -> Result<(), B::Error> {
+        let mut inner = self.inner.borrow_mut();
+        inner.reset()?;
+        inner.save_config(&&config)
+    }
 }
 
 impl<B> StorageImplInner<B>
@@ -156,7 +162,9 @@ where
         }];
         self.device
             .read(&mut blocks, Self::CONFIG_BLOCK, "read config block")?;
-        Ok(postcard::from_bytes(&blocks[0].contents).unwrap())
+
+        let config = postcard::from_bytes(&blocks[0].contents).unwrap();
+        Ok(config)
     }
 
     fn save_config(&self, cfg: &AppConfig) -> Result<(), B::Error> {
@@ -164,7 +172,7 @@ where
             contents: unsafe { unitialized_block_content() },
         }];
         postcard::to_slice(&cfg, &mut blocks[0].contents).unwrap();
-        
+
         self.device.write(&blocks, Self::CONFIG_BLOCK)
     }
 }
