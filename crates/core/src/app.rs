@@ -5,6 +5,7 @@ use core::{
 };
 
 use embedded_hal::timer::CountDown;
+use heapless::Vec;
 
 use crate::{
     leds::{SmartLedsWrite, RGB8},
@@ -16,9 +17,8 @@ use crate::{
     AppConfig, HwEvent, HwEventSource,
 };
 
-const fn core_version() -> [u8; 4] {
-    [0, 1, 0, 0]
-}
+pub const MAX_STRIP_LED_LEN: usize = 144;
+pub const CORE_VERSION: [u8; 4] = [0, 1, 0, 0];
 
 pub struct App<'a, Network, Timer, StorageAccess, Strip>
 where
@@ -104,8 +104,11 @@ where
     StorageAccess::Error: Debug,
 {
     pub fn run(mut self) -> ! {
-        self.inner
-            .set_image(self.inner.app_config.current_image_index as usize);
+        if !self.inner.app_config.safe_mode {
+            self.inner
+                .set_image(self.inner.app_config.current_image_index as usize);
+        }
+
         loop {
             self.process_events();
         }
@@ -183,7 +186,7 @@ where
         let response = match msg {
             Message::GetInfo => Some(SimpleMessage::Info(FirmwareInfo {
                 strip_len: self.app_config.strip_len,
-                version: core_version(),
+                version: CORE_VERSION,
                 images_count: self.storage.images_count() as u16,
                 device_id: self.device_id,
                 // TODO implement composite role logic.
@@ -295,12 +298,17 @@ where
         let strip_len = self.strip_len();
 
         if let Some((rate, image)) = self.image.as_mut() {
-            self.strip.write(image.by_ref().take(strip_len)).ok();
+            let line = image
+                .by_ref()
+                .take(strip_len)
+                .collect::<Vec<RGB8, MAX_STRIP_LED_LEN>>();
+            self.strip.write(line.into_iter()).ok();
+
             *rate
         } else {
-            self.strip
-                .write(iter::repeat(RGB8::default()).take(strip_len))
-                .ok();
+            let line = iter::repeat(RGB8::default()).take(strip_len);
+            self.strip.write(line).ok();
+
             Hertz(50)
         }
     }

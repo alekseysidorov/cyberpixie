@@ -1,22 +1,22 @@
 #![no_std]
 #![no_main]
 
-use core::{fmt::Write, panic::PanicInfo, time::Duration};
+use core::{fmt::Write, panic::PanicInfo, time::Duration, iter::repeat};
 
 use cyberpixie::{
     leds::SmartLedsWrite,
     stdio::uprintln,
     time::{CountDown, CountDownEx, Microseconds},
-    App, AppConfig, Storage,
+    App, Storage,
 };
 use cyberpixie_firmware::{
     config::{SERIAL_PORT_CONFIG, SOFTAP_CONFIG, STRIP_LEDS_COUNT},
-    irq::{self},
+    irq,
     splash::WanderingLight,
     transport, NextImageBtn, StorageImpl, TimerImpl,
 };
 use embedded_hal::digital::v2::OutputPin;
-use esp8266_softap::{Adapter, SoftApConfig, ADAPTER_BUF_CAPACITY};
+use esp8266_softap::{Adapter, SoftApConfig};
 use gd32vf103xx_hal::{
     pac::{self},
     prelude::*,
@@ -25,6 +25,7 @@ use gd32vf103xx_hal::{
     timer::Timer,
 };
 use heapless::String;
+use smart_leds::RGB8;
 use transport::TransportImpl;
 use ws2812_spi::Ws2812;
 
@@ -75,6 +76,7 @@ fn main() -> ! {
         )
     };
     let mut strip = Ws2812::new(spi);
+    strip.write(repeat(RGB8::default()).take(STRIP_LEDS_COUNT)).ok();
     uprintln!("Ws2812 strip configured.");
 
     let device = {
@@ -87,7 +89,7 @@ fn main() -> ! {
                 gpiob.pb15.into_alternate_push_pull(),
             ),
             MODE_0,
-            20.mhz(),
+            50.mhz(),
             &mut rcu,
         );
 
@@ -98,34 +100,23 @@ fn main() -> ! {
         device.init().unwrap();
         device
     };
-    let storage = StorageImpl::open(
-        device,
-        AppConfig {
-            current_image_index: 0,
-            receiver_buf_capacity: ADAPTER_BUF_CAPACITY,
-            strip_len: STRIP_LEDS_COUNT as u16,
-        },
-    )
-    .unwrap();
-
+    let storage = StorageImpl::open(device).unwrap();
+    let cfg = storage.load_config().unwrap();
     // storage
-    //     .reset(AppConfig {
-    //         current_image_index: 0,
-    //         receiver_buf_capacity: ADAPTER_BUF_CAPACITY,
-    //         strip_len: STRIP_LEDS_COUNT as u16,
-    //     })
+    //     .reset(cyberpixie_firmware::config::DEFAULT_APP_CONFIG)
     //     .unwrap();
-
     uprintln!("Total images count: {}", storage.images_count());
 
-    uprintln!("Showing splash...");
-    let splash = WanderingLight::<STRIP_LEDS_COUNT>::default();
-    for (ticks, line) in splash {
-        timer.start(Microseconds(ticks));
-        strip.write(core::array::IntoIter::new(line)).ok();
-        nb::block!(timer.wait()).ok();
+    if !cfg.safe_mode {
+        uprintln!("Showing splash...");
+        let splash = WanderingLight::<STRIP_LEDS_COUNT>::default();
+        for (ticks, line) in splash {
+            timer.start(Microseconds(ticks));
+            strip.write(core::array::IntoIter::new(line)).ok();
+            nb::block!(timer.wait()).ok();
+        }
+        uprintln!("Splash has been showed.");
     }
-    uprintln!("Splash has been showed.");
 
     uprintln!("Enabling esp32 serial device");
     let mut esp_en = gpioa.pa4.into_push_pull_output();

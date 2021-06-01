@@ -7,6 +7,8 @@ use cyberpixie::{leds::RGB8, proto::Hertz, AppConfig, Storage};
 use embedded_sdmmc::{Block, BlockDevice, BlockIdx};
 use endian_codec::{DecodeLE, EncodeLE, PackedSize};
 
+use crate::config::DEFAULT_APP_CONFIG;
+
 use self::types::{Header, ImageDescriptor};
 
 mod types;
@@ -29,14 +31,14 @@ impl<B> StorageImpl<B>
 where
     B: BlockDevice + 'static,
 {
-    pub fn open(device: B, default_config: AppConfig) -> Result<Self, B::Error> {
+    pub fn open(device: B) -> Result<Self, B::Error> {
         let repository = Self {
             inner: RefCell::new(StorageImplInner {
                 device,
                 block: HeaderBlock::empty(),
             }),
         };
-        repository.inner.borrow_mut().get_or_init(default_config)?;
+        repository.inner.borrow_mut().get_or_init(DEFAULT_APP_CONFIG)?;
         Ok(repository)
     }
 
