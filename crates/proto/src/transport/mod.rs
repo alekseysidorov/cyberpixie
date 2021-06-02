@@ -1,8 +1,6 @@
 pub use packet::PacketKind;
 
-use core::{
-    array::IntoIter,
-};
+use core::array::IntoIter;
 
 use crate::NbResultExt;
 
