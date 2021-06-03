@@ -118,6 +118,8 @@ where
     }
 
     fn wait_async(&mut self) -> Self::WaitFuture<'_> {
-        async move { poll_nb_future(|| self.wait()).await.ok(); }
-    }    
+        async move {
+            poll_nb_future(|| self.wait()).await.ok();
+        }
+    }
 }
