@@ -3,16 +3,17 @@
 #![feature(generic_associated_types)]
 
 use cyberpixie::{HwEvent, HwEventSource};
+use void::Void;
 
 pub use self::{storage::StorageImpl, time::TimerImpl, transport::TransportImpl};
 
 pub mod config;
 pub mod irq;
+pub mod serial_log;
 pub mod splash;
 pub mod storage;
 pub mod time;
 pub mod transport;
-pub mod serial_log;
 
 pub fn device_id() -> [u32; 4] {
     let mut id = [0; 4];
@@ -82,11 +83,11 @@ impl<T: embedded_hal::digital::v2::InputPin> NextImageBtn<T> {
 }
 
 impl<T: embedded_hal::digital::v2::InputPin> HwEventSource for NextImageBtn<T> {
-    fn next_event(&mut self) -> Option<HwEvent> {
+    fn next_event(&mut self) -> nb::Result<HwEvent, Void> {
         if self.is_triggered() {
-            Some(HwEvent::ShowNextImage)
+            Ok(HwEvent::ShowNextImage)
         } else {
-            None
+            Err(nb::Error::WouldBlock)
         }
     }
 }

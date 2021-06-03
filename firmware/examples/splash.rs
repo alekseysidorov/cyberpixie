@@ -7,10 +7,7 @@ use core::{
     time::Duration,
 };
 
-use cyberpixie::{
-    proto::until_ok,
-    time::{CountDown, CountDownEx, Microseconds, Milliseconds},
-};
+use cyberpixie::time::{CountDown, CountDownEx, Microseconds, Milliseconds};
 use cyberpixie_firmware::{config::SERIAL_PORT_CONFIG, splash::WanderingLight, TimerImpl};
 use gd32vf103xx_hal::{pac, prelude::*, serial::Serial, spi::Spi, timer::Timer};
 use smart_leds::{SmartLedsWrite, RGB8};
@@ -75,7 +72,7 @@ fn main() -> ! {
             async {
                 for (ticks, line) in splash.cycle() {
                     futures::future::join(
-                        timer.wait_async(Duration::from_micros((TICK_DELAY * ticks) as u64)),
+                        timer.delay_async(Duration::from_micros((TICK_DELAY * ticks) as u64)),
                         async {
                             strip.write(core::array::IntoIter::new(line)).ok();
                         },
@@ -83,10 +80,9 @@ fn main() -> ! {
                     .await;
                 }
             },
-            
             async {
                 loop {
-                    timer2.wait_async(Duration::from_secs(5)).await;
+                    timer2.delay_async(Duration::from_secs(5)).await;
                     uprintln!("Five more seconds passed.");
                 }
             },

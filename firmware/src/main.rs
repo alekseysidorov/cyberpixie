@@ -1,8 +1,9 @@
 #![no_std]
 #![no_main]
 
-use core::{fmt::Write, panic::PanicInfo, time::Duration, iter::repeat};
+use core::{fmt::Write, iter::repeat, panic::PanicInfo, sync::atomic, time::Duration};
 
+use atomic::Ordering;
 use cyberpixie::{
     leds::SmartLedsWrite,
     stdio::uprintln,
@@ -76,7 +77,9 @@ fn main() -> ! {
         )
     };
     let mut strip = Ws2812::new(spi);
-    strip.write(repeat(RGB8::default()).take(STRIP_LEDS_COUNT)).ok();
+    strip
+        .write(repeat(RGB8::default()).take(STRIP_LEDS_COUNT))
+        .ok();
     uprintln!("Ws2812 strip configured.");
 
     let device = {
@@ -118,6 +121,9 @@ fn main() -> ! {
         uprintln!("Splash has been showed.");
     }
 
+    strip
+        .write([RGB8 { g: 0, r: 25, b: 0 }].iter().copied())
+        .ok();
     uprintln!("Enabling esp32 serial device");
     let mut esp_en = gpioa.pa4.into_push_pull_output();
     esp_en.set_high().ok();
@@ -158,10 +164,12 @@ fn main() -> ! {
         .unwrap();
     let network = TransportImpl::new(ap);
     uprintln!("SoftAP has been successfuly configured with ssid {}.", ssid);
+    strip
+        .write([RGB8 { g: 0, r: 0, b: 25 }].iter().copied())
+        .ok();
 
     let mut events = NextImageBtn::new(gpioa.pa8.into_pull_down_input());
-
-    App {
+    let app = App {
         device_id,
 
         network,
@@ -169,9 +177,8 @@ fn main() -> ! {
         storage: &storage,
         strip,
         events: &mut events,
-    }
-    .into_event_loop()
-    .run()
+    };
+    direct_executor::run_spinning(app.run())
 }
 
 #[inline(never)]
@@ -182,6 +189,6 @@ fn panic(info: &PanicInfo) -> ! {
     uprintln!("- {}", info);
 
     loop {
-        core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
+        atomic::compiler_fence(Ordering::SeqCst);
     }
 }

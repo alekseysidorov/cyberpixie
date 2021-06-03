@@ -1,4 +1,6 @@
-use crate::{until_ok, NbResultExt};
+use futures_util::StreamExt;
+
+use crate::{poll_nb_future, poll_nb_stream, NbResultExt};
 
 struct MaybeBlock {
     attempts: usize,
@@ -66,14 +68,28 @@ fn test_filter_map() {
 }
 
 #[test]
-fn test_until_ok() {
+fn test_poll_nb_future() {
     let mut block = MaybeBlock {
         value: 1,
         ..MaybeBlock::default()
     };
 
-    let poll_me_async = until_ok(|| block.poll_me());
+    let poll_me_async = poll_nb_future(|| block.poll_me());
     let value = spin_on::spin_on(poll_me_async).unwrap();
 
     assert_eq!(value, 1);
+}
+
+#[test]
+fn test_poll_nb_stream() {
+    let mut block = MaybeBlock {
+        value: 1,
+        ..MaybeBlock::default()
+    };
+
+    let mut poll_me_async = poll_nb_stream(move || block.poll_me());
+    spin_on::spin_on(async {
+        assert_eq!(poll_me_async.next().await, Some(Ok(1)));
+        assert_eq!(poll_me_async.next().await, Some(Ok(2)));
+    });
 }

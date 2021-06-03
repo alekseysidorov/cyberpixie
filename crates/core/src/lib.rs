@@ -4,14 +4,15 @@
 #![feature(min_type_alias_impl_trait)]
 
 pub use self::{
-    app::{App, EventLoop},
+    app::App,
     events::{HwEvent, HwEventSource},
     storage::{AppConfig, Storage},
 };
 pub use cyberpixie_proto as proto;
+pub use futures;
+pub use nb_utils;
 pub use smart_leds as leds;
 pub use stdio_serial as stdio;
-pub use nb_utils;
 
 pub mod time;
 

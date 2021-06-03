@@ -3,7 +3,7 @@ pub use embedded_hal::timer::CountDown;
 
 use core::{future::Future, time::Duration};
 
-use crate::nb_utils::until_ok;
+use crate::nb_utils::poll_nb_future;
 
 macro_rules! impl_time_unit {
     ($name:ident, $hz_factor:expr) => {
@@ -45,6 +45,7 @@ impl_time_unit!(Milliseconds, 1_000);
 
 pub trait CountDownEx: CountDown {
     type WaitFuture<'a>: Future<Output = ()>;
+    type DelayFuture<'a>: Future<Output = ()>;
 
     fn delay_us<I: Into<Microseconds>>(&mut self, timeout: I);
 
@@ -62,7 +63,9 @@ pub trait CountDownEx: CountDown {
         }
     }
 
-    fn wait_async(&mut self, duration: Duration) -> Self::WaitFuture<'_>;
+    fn delay_async(&mut self, duration: Duration) -> Self::DelayFuture<'_>;
+
+    fn wait_async(&mut self) -> Self::WaitFuture<'_>;
 }
 
 impl<T> CountDownEx for T
@@ -70,6 +73,7 @@ where
     T: CountDown<Time = Hertz> + 'static,
 {
     type WaitFuture<'a> = impl Future<Output = ()> + 'a;
+    type DelayFuture<'a> = impl Future<Output = ()> + 'a;
 
     fn delay_us<I: Into<Microseconds>>(&mut self, timeout: I) {
         let mut timeout = timeout.into();
@@ -95,21 +99,25 @@ where
         nb::block!(self.wait()).ok();
     }
 
-    fn wait_async(&mut self, duration: Duration) -> Self::WaitFuture<'_> {
+    fn delay_async(&mut self, duration: Duration) -> Self::DelayFuture<'_> {
         let mut secs = duration.as_secs() as u32;
         let us = duration.subsec_micros();
 
         async move {
             while secs > 0 {
                 self.start(Hertz(1));
-                until_ok(|| self.wait()).await.ok();
+                self.wait_async().await;
                 secs -= 1;
             }
 
             if us > 0 {
                 self.start(Microseconds(us));
-                until_ok(|| self.wait()).await.ok();
+                self.wait_async().await;
             }
         }
     }
+
+    fn wait_async(&mut self) -> Self::WaitFuture<'_> {
+        async move { poll_nb_future(|| self.wait()).await.ok(); }
+    }    
 }

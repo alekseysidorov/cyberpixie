@@ -7,6 +7,7 @@ use core::{
     pin::Pin,
     task::{Context, Poll},
 };
+use futures_util::Stream;
 
 #[cfg(test)]
 mod tests;
@@ -78,10 +79,46 @@ impl<T, E, F: FnMut() -> nb::Result<T, E> + Unpin> Future for UntilOk<T, E, F> {
     }
 }
 
+impl<T, E, F: FnMut() -> nb::Result<T, E> + Unpin> Stream for UntilOk<T, E, F> {
+    type Item = Result<T, E>;
+
+    fn poll_next(self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.poll(ctx).map(Option::Some)
+    }
+}
+
 /// Convert a function that returns `nb::Result<T, E>` into a valid but inefficient future. The future will
 /// resolve only when the function returns `Ok(T)` or `Err(nb::Error::Other).
-pub fn until_ok<T, E, F: FnMut() -> nb::Result<T, E> + Unpin>(
-    poll_fn: F,
-) -> impl Future<Output = Result<T, E>> {
+pub fn poll_nb_future<T, E, F>(poll_fn: F) -> impl Future<Output = Result<T, E>>
+where
+    F: FnMut() -> nb::Result<T, E> + Unpin,
+{
     UntilOk { poll_fn }
+}
+
+pub fn poll_nb_stream<T, E, F>(poll_fn: F) -> impl Stream<Item = Result<T, E>>
+where
+    F: FnMut() -> nb::Result<T, E> + Unpin,
+{
+    UntilOk { poll_fn }
+}
+
+struct Yeld(bool);
+
+impl Future for Yeld {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Self::Output> {
+        if self.0 {
+            self.0 = false;
+            ctx.waker().wake_by_ref();
+            Poll::Pending
+        } else {
+            Poll::Ready(())
+        }
+    }
+}
+
+pub fn yeld_executor() -> impl Future<Output = ()> {
+    Yeld(true)
 }
