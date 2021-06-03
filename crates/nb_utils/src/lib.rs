@@ -103,9 +103,9 @@ where
     UntilOk { poll_fn }
 }
 
-struct Yeld(bool);
+struct Yield(bool);
 
-impl Future for Yeld {
+impl Future for Yield {
     type Output = ();
 
     fn poll(mut self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -119,6 +119,6 @@ impl Future for Yeld {
     }
 }
 
-pub fn yeld_executor() -> impl Future<Output = ()> {
-    Yeld(true)
+pub fn yield_executor() -> impl Future<Output = ()> {
+    Yield(true)
 }

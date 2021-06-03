@@ -7,7 +7,7 @@ use core::{
 
 use embedded_hal::timer::CountDown;
 use heapless::Vec;
-use nb_utils::yeld_executor;
+use nb_utils::yield_executor;
 use smart_leds::{SmartLedsWrite, RGB8};
 
 use crate::{
@@ -178,7 +178,7 @@ where
             self.show_line(strip);
             timer.wait_async().await;
 
-            yeld_executor().await;
+            yield_executor().await;
         }
     }
 
@@ -235,7 +235,7 @@ where
         loop {
             self.handle_service_event(service).await;
 
-            yeld_executor().await;
+            yield_executor().await;
         }
     }
 
@@ -364,7 +364,7 @@ where
                 .unwrap();
             self.handle_hardware_event(hw_event);
 
-            yeld_executor().await;
+            yield_executor().await;
         }
     }
 
