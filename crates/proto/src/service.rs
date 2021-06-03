@@ -1,9 +1,11 @@
 use core::mem::MaybeUninit;
 
+use nb_utils::NbResultExt;
+
 use crate::{
     message::{read_message, IncomingMessage, Message, SimpleMessage},
     types::{Hertz, MessageHeader},
-    FirmwareInfo, NbResultExt, PacketKind, Transport, TransportEvent,
+    FirmwareInfo, PacketKind, Transport, TransportEvent,
 };
 
 macro_rules! wait_for_response {

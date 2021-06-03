@@ -11,6 +11,7 @@ pub use self::{
 pub use cyberpixie_proto as proto;
 pub use smart_leds as leds;
 pub use stdio_serial as stdio;
+pub use nb_utils;
 
 pub mod time;
 

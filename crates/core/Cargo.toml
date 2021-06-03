@@ -12,6 +12,6 @@ smart-leds = "0.3"
 
 stdio-serial = { path = "../stdio-serial" }
 cyberpixie-proto = { path = "../proto" }
-
+nb-utils = { path = "../nb_utils" }
 
 [dev-dependencies]

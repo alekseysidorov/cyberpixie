@@ -9,9 +9,10 @@ use heapless::Vec;
 
 use crate::{
     leds::{SmartLedsWrite, RGB8},
+    nb_utils::NbResultExt,
     proto::{
-        DeviceRole, Error, FirmwareInfo, Hertz, Message, NbResultExt, Service, ServiceEvent,
-        SimpleMessage, Transport,
+        DeviceRole, Error, FirmwareInfo, Hertz, Message, Service, ServiceEvent, SimpleMessage,
+        Transport,
     },
     storage::{RgbIter, Storage},
     AppConfig, HwEvent, HwEventSource,

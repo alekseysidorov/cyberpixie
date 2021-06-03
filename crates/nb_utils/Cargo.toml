@@ -1,0 +1,13 @@
+[package]
+name = "nb-utils"
+version = "0.1.0"
+authors = ["Aleksei Sidorov <gorthauer87@yandex.ru>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+nb = "1.0"
+
+[dev-dependencies]
+spin_on = "0.1.1"

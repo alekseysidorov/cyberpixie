@@ -2,7 +2,7 @@ pub use packet::PacketKind;
 
 use core::array::IntoIter;
 
-use crate::NbResultExt;
+use nb_utils::NbResultExt;
 
 mod packet;
 

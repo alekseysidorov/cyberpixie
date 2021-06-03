@@ -3,7 +3,7 @@ pub use embedded_hal::timer::CountDown;
 
 use core::{future::Future, time::Duration};
 
-use cyberpixie_proto::until_ok;
+use crate::nb_utils::until_ok;
 
 macro_rules! impl_time_unit {
     ($name:ident, $hz_factor:expr) => {
