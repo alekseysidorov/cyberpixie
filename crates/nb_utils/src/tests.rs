@@ -1,6 +1,6 @@
 use futures_util::StreamExt;
 
-use crate::{NbResultExt, poll_nb_future, poll_nb_stream, yield_executor};
+use crate::{poll_nb_future, poll_nb_stream, yield_executor, NbResultExt};
 
 struct MaybeBlock {
     attempts: usize,
