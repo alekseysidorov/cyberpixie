@@ -4,7 +4,6 @@
 
 use core::{
     future::Future,
-    pin::Pin,
     task::{Context, Poll},
 };
 use futures_util::Stream;
@@ -18,6 +17,8 @@ pub trait NbResultExt<T, E> {
     fn filter_map<U, P: FnOnce(T) -> Option<U>>(self, pred: P) -> nb::Result<U, E>;
 
     fn expect_ok(self, msg: &str) -> Option<T>;
+
+    fn into_poll(self, ctx: &mut Context<'_>) -> Poll<Result<T, E>>;
 }
 
 impl<T, E> NbResultExt<T, E> for nb::Result<T, E> {
@@ -57,18 +58,9 @@ impl<T, E> NbResultExt<T, E> for nb::Result<T, E> {
             _ => panic!("{}", msg),
         }
     }
-}
 
-struct UntilOk<T, E, F: FnMut() -> nb::Result<T, E>> {
-    poll_fn: F,
-}
-
-// TODO why do we need to implement Unpin here?
-impl<T, E, F: FnMut() -> nb::Result<T, E> + Unpin> Future for UntilOk<T, E, F> {
-    type Output = Result<T, E>;
-
-    fn poll(mut self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Self::Output> {
-        match (self.poll_fn)() {
+    fn into_poll(self, ctx: &mut Context<'_>) -> Poll<Result<T, E>> {
+        match self {
             Ok(output) => Poll::Ready(Ok(output)),
             Err(nb::Error::Other(err)) => Poll::Ready(Err(err)),
             Err(nb::Error::WouldBlock) => {
@@ -79,46 +71,31 @@ impl<T, E, F: FnMut() -> nb::Result<T, E> + Unpin> Future for UntilOk<T, E, F> {
     }
 }
 
-impl<T, E, F: FnMut() -> nb::Result<T, E> + Unpin> Stream for UntilOk<T, E, F> {
-    type Item = Result<T, E>;
-
-    fn poll_next(self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        self.poll(ctx).map(Option::Some)
-    }
-}
-
 /// Convert a function that returns `nb::Result<T, E>` into a valid but inefficient future. The future will
 /// resolve only when the function returns `Ok(T)` or `Err(nb::Error::Other).
-pub fn poll_nb_future<T, E, F>(poll_fn: F) -> impl Future<Output = Result<T, E>>
+pub fn poll_nb_future<T, E, F>(mut poll_fn: F) -> impl Future<Output = Result<T, E>>
+where
+    F: FnMut() -> nb::Result<T, E>,
+{
+    futures_util::future::poll_fn(move |ctx| poll_fn().into_poll(ctx))
+}
+
+pub fn poll_nb_stream<T, E, F>(mut poll_fn: F) -> impl Stream<Item = Result<T, E>>
 where
     F: FnMut() -> nb::Result<T, E> + Unpin,
 {
-    UntilOk { poll_fn }
+    futures_util::stream::poll_fn(move |ctx| poll_fn().into_poll(ctx).map(Some))
 }
 
-pub fn poll_nb_stream<T, E, F>(poll_fn: F) -> impl Stream<Item = Result<T, E>>
-where
-    F: FnMut() -> nb::Result<T, E> + Unpin,
-{
-    UntilOk { poll_fn }
-}
-
-struct Yield(bool);
-
-impl Future for Yield {
-    type Output = ();
-
-    fn poll(mut self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Self::Output> {
-        if self.0 {
-            self.0 = false;
+pub fn yield_executor() -> impl Future<Output = ()> {
+    let mut yielded = false;
+    futures_util::future::poll_fn(move |ctx| {
+        if !yielded {
+            yielded = true;
             ctx.waker().wake_by_ref();
             Poll::Pending
         } else {
             Poll::Ready(())
         }
-    }
-}
-
-pub fn yield_executor() -> impl Future<Output = ()> {
-    Yield(true)
+    })
 }

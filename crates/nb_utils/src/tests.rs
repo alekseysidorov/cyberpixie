@@ -1,6 +1,6 @@
 use futures_util::StreamExt;
 
-use crate::{poll_nb_future, poll_nb_stream, NbResultExt};
+use crate::{NbResultExt, poll_nb_future, poll_nb_stream, yield_executor};
 
 struct MaybeBlock {
     attempts: usize,
@@ -91,5 +91,12 @@ fn test_poll_nb_stream() {
     spin_on::spin_on(async {
         assert_eq!(poll_me_async.next().await, Some(Ok(1)));
         assert_eq!(poll_me_async.next().await, Some(Ok(2)));
+    });
+}
+
+#[test]
+fn test_yield() {
+    spin_on::spin_on(async {
+        yield_executor().await;
     });
 }

@@ -8,5 +8,6 @@ set confirm off
 # set backtrace limit to not have infinite backtrace loops
 set backtrace limit 32
 
+monitor reset halt
 load
 continue
