@@ -5,8 +5,7 @@ use core::{
     mem::size_of,
 };
 
-use embedded_hal::timer::CountDown;
-use futures::StreamExt;
+use futures::{future, StreamExt};
 use heapless::Vec;
 use smart_leds::{SmartLedsWrite, RGB8};
 
@@ -18,7 +17,7 @@ use crate::{
         Transport,
     },
     storage::RgbIter,
-    time::CountDownEx,
+    time::CountDownAsync,
     AppConfig, HwEvent, Storage,
 };
 
@@ -29,7 +28,7 @@ const CORE_VERSION: [u8; 4] = [0, 1, 0, 0];
 pub struct App<'a, Network, Timer, StorageAccess, Strip>
 where
     Network: Transport,
-    Timer: CountDown<Time = Hertz>,
+    Timer: CountDownAsync,
     StorageAccess: Storage,
     Strip: SmartLedsWrite<Color = RGB8>,
 {
@@ -169,7 +168,7 @@ where
 
     async fn run_show_image_task<T, S>(&self, timer: &mut T, strip: &mut S) -> !
     where
-        T: CountDown<Time = Hertz> + 'static,
+        T: CountDownAsync + 'static,
         S: SmartLedsWrite<Color = RGB8>,
     {
         let line = repeat(RGB8::default()).take(MAX_STRIP_LED_LEN);
@@ -178,7 +177,7 @@ where
         loop {
             timer.start(self.refresh_rate());
             self.show_line(strip);
-            timer.wait_async().await;
+            future::poll_fn(|ctx| timer.poll_wait(ctx)).await;
 
             yield_executor().await;
         }
@@ -374,7 +373,7 @@ where
 impl<'a, Network, Timer, StorageAccess, Strip> App<'a, Network, Timer, StorageAccess, Strip>
 where
     Network: Transport + Unpin + 'static,
-    Timer: CountDown<Time = Hertz> + 'static,
+    Timer: CountDownAsync + 'static,
     StorageAccess: Storage + 'static,
     Strip: SmartLedsWrite<Color = RGB8> + 'static,
 

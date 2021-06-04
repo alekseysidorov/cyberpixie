@@ -1,7 +1,11 @@
 pub use cyberpixie_proto::Hertz;
 pub use embedded_hal::timer::CountDown;
 
-use core::{future::Future, time::Duration};
+use core::{
+    future::Future,
+    task::{Context, Poll},
+    time::Duration,
+};
 
 use crate::nb_utils::poll_nb_future;
 
@@ -122,4 +126,13 @@ where
             poll_nb_future(|| self.wait()).await.ok();
         }
     }
+}
+
+pub trait CountDownAsync {
+    /// Starts a new count down
+    fn start<T>(&mut self, count: T)
+    where
+        T: Into<Hertz>;
+
+    fn poll_wait(&mut self, cx: &mut Context<'_>) -> Poll<()>;
 }
