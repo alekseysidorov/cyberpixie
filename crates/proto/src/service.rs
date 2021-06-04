@@ -38,7 +38,7 @@ impl<T: Transport> Service<T> {
         }
     }
 
-    pub async fn poll_next_event_async(&mut self) -> Result<Event<'_, T>, T::Error> {
+    pub async fn next_event(&mut self) -> Result<Event<'_, T>, T::Error> {
         Ok(
             match nb_utils::poll_nb_future(|| self.transport.poll_next_event()).await? {
                 TransportEvent::Connected { address } => Event::Connected { address },

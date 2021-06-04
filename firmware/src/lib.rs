@@ -2,8 +2,13 @@
 #![allow(incomplete_features)]
 #![feature(generic_associated_types)]
 
-use cyberpixie::{HwEvent, HwEventSource};
-use void::Void;
+use core::{
+    pin::Pin,
+    task::{Context, Poll},
+};
+
+use cyberpixie::{futures::Stream, HwEvent};
+use embedded_hal::digital::v2::InputPin;
 
 pub use self::{storage::StorageImpl, time::TimerImpl, transport::TransportImpl};
 
@@ -61,12 +66,12 @@ where
     }
 }
 
-pub struct NextImageBtn<T: embedded_hal::digital::v2::InputPin> {
+pub struct NextImageBtn<T: InputPin> {
     btn: T,
     prev_value: bool,
 }
 
-impl<T: embedded_hal::digital::v2::InputPin> NextImageBtn<T> {
+impl<T: InputPin> NextImageBtn<T> {
     pub fn new(btn: T) -> Self {
         let prev_value = btn.is_high().map_err(drop).unwrap();
 
@@ -82,12 +87,15 @@ impl<T: embedded_hal::digital::v2::InputPin> NextImageBtn<T> {
     }
 }
 
-impl<T: embedded_hal::digital::v2::InputPin> HwEventSource for NextImageBtn<T> {
-    fn next_event(&mut self) -> nb::Result<HwEvent, Void> {
-        if self.is_triggered() {
-            Ok(HwEvent::ShowNextImage)
+impl<T: InputPin + Unpin> Stream for NextImageBtn<T> {
+    type Item = HwEvent;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        if self.get_mut().is_triggered() {
+            Poll::Ready(Some(HwEvent::ShowNextImage))
         } else {
-            Err(nb::Error::WouldBlock)
+            cx.waker().wake_by_ref();
+            Poll::Pending
         }
     }
 }

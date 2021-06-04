@@ -1,5 +1,5 @@
 use cyberpixie::AppConfig;
-use esp8266_softap::{ADAPTER_BUF_CAPACITY, SoftApConfig};
+use esp8266_softap::{SoftApConfig, ADAPTER_BUF_CAPACITY};
 use gd32vf103xx_hal::{
     serial::{Config, Parity, StopBits},
     time::Bps,

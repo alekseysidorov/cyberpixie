@@ -38,7 +38,10 @@ where
                 block: HeaderBlock::empty(),
             }),
         };
-        repository.inner.borrow_mut().get_or_init(DEFAULT_APP_CONFIG)?;
+        repository
+            .inner
+            .borrow_mut()
+            .get_or_init(DEFAULT_APP_CONFIG)?;
         Ok(repository)
     }
 

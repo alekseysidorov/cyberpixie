@@ -5,7 +5,7 @@
 
 pub use self::{
     app::App,
-    events::{HwEvent, HwEventSource},
+    events::HwEvent,
     storage::{AppConfig, Storage},
 };
 pub use cyberpixie_proto as proto;

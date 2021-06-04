@@ -6,18 +6,20 @@ use core::{
 };
 
 use embedded_hal::timer::CountDown;
+use futures::StreamExt;
 use heapless::Vec;
-use nb_utils::yield_executor;
 use smart_leds::{SmartLedsWrite, RGB8};
 
 use crate::{
+    futures::Stream,
+    nb_utils::yield_executor,
     proto::{
         DeviceRole, Error, FirmwareInfo, Hertz, Message, Service, ServiceEvent, SimpleMessage,
         Transport,
     },
     storage::RgbIter,
     time::CountDownEx,
-    AppConfig, HwEvent, HwEventSource, Storage,
+    AppConfig, HwEvent, Storage,
 };
 
 const MAX_STRIP_LED_LEN: usize = 144;
@@ -36,7 +38,7 @@ where
     pub storage: &'a StorageAccess,
     pub strip: Strip,
     pub device_id: [u32; 4],
-    pub events: &'a mut dyn HwEventSource,
+    pub events: &'a mut (dyn Stream<Item = HwEvent> + Unpin),
 }
 
 struct ContextInner<'a, StorageAccess>
@@ -234,8 +236,6 @@ where
     {
         loop {
             self.handle_service_event(service).await;
-
-            yield_executor().await;
         }
     }
 
@@ -245,7 +245,7 @@ where
         T::Error: Debug,
     {
         let service_event = service
-            .poll_next_event_async()
+            .next_event()
             .await
             .expect("unable to get next service event");
 
@@ -357,14 +357,10 @@ where
 
     StorageAccess::Error: Debug,
 {
-    async fn run_hw_events_task(&self, hw_events: &mut dyn HwEventSource) -> ! {
+    async fn run_hw_events_task(&self, hw_events: &mut (dyn Stream<Item = HwEvent> + Unpin)) -> ! {
         loop {
-            let hw_event = nb_utils::poll_nb_future(|| hw_events.next_event())
-                .await
-                .unwrap();
+            let hw_event = hw_events.next().await.unwrap();
             self.handle_hardware_event(hw_event);
-
-            yield_executor().await;
         }
     }
 
