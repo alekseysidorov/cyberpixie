@@ -13,6 +13,34 @@ use crate::{
 
 use super::{Context, DeviceLink, CORE_VERSION};
 
+enum SlaveCommand {
+    ShowImage { index: usize },
+    AddImage { index: usize },
+    ClearImages,
+}
+
+#[derive(Default)]
+struct MessageResponse {
+    response: Option<SimpleMessage>,
+    slave_cmd: Option<SlaveCommand>,
+}
+
+impl MessageResponse {
+    fn empty() -> Self {
+        Self::default()
+    }
+
+    fn msg(&mut self, msg: SimpleMessage) -> &mut Self {
+        self.response = Some(msg);
+        self
+    }
+
+    fn cmd(&mut self, cmd: SlaveCommand) -> &mut Self {
+        self.slave_cmd = Some(cmd);
+        self
+    }
+}
+
 impl<'a, StorageAccess, Network> Context<'a, StorageAccess, Network>
 where
     StorageAccess: Storage,
@@ -41,58 +69,62 @@ where
                 self.links_mut().remove_address(&address);
             }
             ServiceEvent::Message { address, message } => {
-                let response = self.handle_message(address, message);
+                let output = self.handle_message(address, message);
                 service
                     .confirm_message(address)
                     .expect("unable to confirm message");
 
-                if let Some((to, response)) = response {
+                if let Some(cmd) = output.slave_cmd {
+                    self.send_command_to_slave(service, cmd)
+                        .expect("unable to send command to slave device");
+                }
+                if let Some(msg) = output.response {
                     service
-                        .send_message(to, response)
+                        .send_message(address, msg)
                         .expect("Unable to send response");
                 }
             }
         }
     }
 
-    fn handle_message<I>(
-        &self,
-        address: Network::Address,
-        message: Message<I>,
-    ) -> Option<(Network::Address, SimpleMessage)>
+    fn handle_message<I>(&self, address: Network::Address, message: Message<I>) -> MessageResponse
     where
         I: Iterator<Item = u8> + ExactSizeIterator,
     {
-        let response = match message {
-            Message::Handshake(handshake) => {
+        let mut response = MessageResponse::empty();
+        match message {
+            Message::HandshakeRequest(handshake) => {
                 let mut links = self.links_mut();
-                if links.contains_link(handshake.role) {
-                    None
-                } else {
+                if !links.contains_link(handshake.role) {
                     links.add_link(DeviceLink {
                         address,
                         data: handshake,
                     });
-                    Some(SimpleMessage::Handshake(Handshake {
+
+                    response.msg(SimpleMessage::HandshakeResponse(Handshake {
                         device_id: self.device_id,
                         group_id: Some(1), // TODO
                         role: self.role,
-                    }))
+                    }));
                 }
             }
 
-            Message::GetInfo => Some(SimpleMessage::Info(FirmwareInfo {
-                strip_len: self.strip_len() as u16,
-                version: CORE_VERSION,
-                images_count: self.images_count() as u16,
-                device_id: self.device_id,
-                // TODO implement composite role logic.
-                role: self.role,
-            })),
+            Message::GetInfo => {
+                response.msg(SimpleMessage::Info(FirmwareInfo {
+                    strip_len: self.strip_len() as u16,
+                    version: CORE_VERSION,
+                    images_count: self.images_count() as u16,
+                    device_id: self.device_id,
+                    // TODO implement composite role logic.
+                    role: self.role,
+                }));
+            }
 
             Message::ClearImages => {
                 self.clear_images();
-                Some(SimpleMessage::Ok)
+                response
+                    .msg(SimpleMessage::Ok)
+                    .cmd(SlaveCommand::ClearImages);
             }
 
             Message::AddImage {
@@ -100,27 +132,33 @@ where
                 refresh_rate,
                 strip_len,
             } => {
-                let response = self.handle_add_image(bytes.by_ref(), refresh_rate, strip_len);
+                let msg = self.handle_add_image(bytes.by_ref(), refresh_rate, strip_len);
                 // In order to use the reader further, we must read all of the remaining bytes.
                 // Otherwise, the reader will be in an inconsistent state.
                 for _ in bytes {}
 
-                Some(response)
+                if let Message::ImageAdded { index } = &msg {
+                    response.cmd(SlaveCommand::AddImage { index: *index });
+                }
+                response.msg(msg);
             }
 
             Message::ShowImage { index } => {
                 if index > self.images_count() {
-                    Some(Error::ImageNotFound.into())
+                    response.msg(Error::ImageNotFound.into());
                 } else {
                     self.set_image(index);
-                    Some(SimpleMessage::Ok)
+
+                    response
+                        .msg(SimpleMessage::Ok)
+                        .cmd(SlaveCommand::ShowImage { index });
                 }
             }
 
-            _ => None,
+            _ => {}
         };
 
-        response.map(|msg| (address, msg))
+        response
     }
 
     fn handle_add_image<I>(
@@ -154,5 +192,39 @@ where
 
         let count = self.add_image(refresh_rate, pixels);
         Message::ImageAdded { index: count }
+    }
+
+    fn send_command_to_slave(
+        &self,
+        service: &mut Service<Network>,
+        cmd: SlaveCommand,
+    ) -> Result<(), Network::Error> {
+        let address = if let Some(link) = self.links().slave.as_ref() {
+            link.address
+        } else {
+            return Ok(());
+        };
+
+        match cmd {
+            SlaveCommand::ShowImage { index } => {
+                service.show_image(address, index)?.ok();
+            }
+
+            SlaveCommand::ClearImages => {
+                service.clear_images(address)?.ok();
+            }
+
+            SlaveCommand::AddImage { index } => {
+                let strip_len = self.strip_len();
+                let (refresh_rate, bytes) = self.read_image(index);
+
+                todo!()
+                // service
+                //     .add_image(address, refresh_rate, strip_len, bytes)?
+                //     .ok();
+            }
+        }
+
+        Ok(())
     }
 }

@@ -5,7 +5,7 @@ use nb_utils::NbResultExt;
 use crate::{
     message::{read_message, IncomingMessage, Message, SimpleMessage},
     types::{Hertz, MessageHeader},
-    FirmwareInfo, PacketKind, Transport, TransportEvent,
+    FirmwareInfo, Handshake, PacketKind, Transport, TransportEvent,
 };
 
 macro_rules! wait_for_response {
@@ -156,6 +156,18 @@ impl<T: Transport> Service<T> {
     ) -> Result<Response<()>, T::Error> {
         self.send_message(address, SimpleMessage::ShowImage { index })?;
         let response = wait_for_response!(self, Ok);
+        self.confirm_message(address)?;
+
+        Ok(response)
+    }
+
+    pub fn handshake(
+        &mut self,
+        address: T::Address,
+        handshake: Handshake,
+    ) -> Result<Response<Handshake>, T::Error> {
+        self.send_message(address, SimpleMessage::HandshakeRequest(handshake))?;
+        let response = wait_for_response!(self, Message::HandshakeResponse(handshake), handshake);
         self.confirm_message(address)?;
 
         Ok(response)

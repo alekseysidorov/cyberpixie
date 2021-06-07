@@ -11,11 +11,13 @@ use std::{
     time::Duration,
 };
 
-use cyberpixie_proto::{Hertz, PacketData, Service, Transport, TransportEvent};
+use cyberpixie_proto::{
+    DeviceRole, Handshake, Hertz, PacketData, Service, Transport, TransportEvent,
+};
 use image::io::Reader;
 
-mod tcp_transport;
 mod app;
+mod tcp_transport;
 
 const TIMEOUT: Duration = Duration::from_secs(15);
 
@@ -75,6 +77,15 @@ pub fn send_image(
 
 pub fn send_clear_images(to: SocketAddr) -> anyhow::Result<()> {
     let mut service = service_impl(to)?;
+    let resp = service.handshake(
+        to,
+        Handshake {
+            device_id: [1, 2, 3, 4],
+            group_id: None,
+            role: DeviceRole::Slave,
+        },
+    );
+    log::debug!("handshake {:?}", resp);
 
     service.clear_images(to)?.map_err(display_err)?;
     log::trace!("Sent images clear command to {}", to);

@@ -1,5 +1,5 @@
 use core::{
-    cell::{RefCell, RefMut},
+    cell::{Ref, RefCell, RefMut},
     fmt::Debug,
     iter::{repeat, Cycle},
 };
@@ -22,19 +22,19 @@ const CORE_VERSION: [u8; 4] = [0, 1, 0, 0];
 const IDLE_REFRESH_RATE: Hertz = Hertz(50);
 const MAX_STRIP_LED_LEN: usize = 144;
 
-struct DeviceLink<A> {
-    address: A,
+struct DeviceLink<T: Transport> {
+    address: T::Address,
     data: Handshake,
 }
 
-struct DeviceLinks<A> {
-    host: Option<DeviceLink<A>>,
-    master: Option<DeviceLink<A>>,
-    slave: Option<DeviceLink<A>>,
+struct DeviceLinks<T: Transport> {
+    host: Option<DeviceLink<T>>,
+    master: Option<DeviceLink<T>>,
+    slave: Option<DeviceLink<T>>,
 }
 
-impl<A: PartialEq> DeviceLinks<A> {
-    fn add_link(&mut self, link: DeviceLink<A>) {
+impl<T: Transport> DeviceLinks<T> {
+    fn add_link(&mut self, link: DeviceLink<T>) {
         match link.data.role {
             DeviceRole::Host => self.host.replace(link),
             DeviceRole::Master => self.master.replace(link),
@@ -42,7 +42,7 @@ impl<A: PartialEq> DeviceLinks<A> {
         };
     }
 
-    fn get_link(&self, role: DeviceRole) -> &Option<DeviceLink<A>> {
+    fn get_link(&self, role: DeviceRole) -> &Option<DeviceLink<T>> {
         match role {
             DeviceRole::Host => &self.host,
             DeviceRole::Master => &self.master,
@@ -50,7 +50,7 @@ impl<A: PartialEq> DeviceLinks<A> {
         }
     }
 
-    fn remove_if_match(link: &mut Option<DeviceLink<A>>, address: &A) -> Option<()> {
+    fn remove_if_match(link: &mut Option<DeviceLink<T>>, address: &T::Address) -> Option<()> {
         let matched = link.as_ref().filter(|x| &x.address == address).is_some();
         if matched {
             *link = None;
@@ -60,7 +60,7 @@ impl<A: PartialEq> DeviceLinks<A> {
         }
     }
 
-    fn remove_address(&mut self, address: &A) -> Option<()> {
+    fn remove_address(&mut self, address: &T::Address) -> Option<()> {
         Self::remove_if_match(&mut self.host, address)?;
         Self::remove_if_match(&mut self.master, address)?;
         Self::remove_if_match(&mut self.slave, address)
@@ -71,7 +71,7 @@ impl<A: PartialEq> DeviceLinks<A> {
     }
 }
 
-impl<A> Default for DeviceLinks<A> {
+impl<T: Transport> Default for DeviceLinks<T> {
     fn default() -> Self {
         Self {
             host: None,
@@ -108,7 +108,7 @@ where
     refresh_rate: Hertz,
     image: Option<Cycle<StorageAccess::ImagePixels<'a>>>,
 
-    links: DeviceLinks<Network::Address>,
+    links: DeviceLinks<Network>,
 }
 
 impl<'a, StorageAccess, Network> ContextInner<'a, StorageAccess, Network>
@@ -256,6 +256,10 @@ where
         self.inner.borrow_mut().add_image(refresh_rate, bytes)
     }
 
+    fn read_image(&self, index: usize) -> (Hertz, StorageAccess::ImagePixels<'_>) {
+        self.inner.borrow().storage.read_image(index)
+    }
+
     fn clear_images(&self) {
         self.inner.borrow_mut().clear_images()
     }
@@ -264,7 +268,11 @@ where
         self.inner.borrow_mut().show_next_image()
     }
 
-    fn links_mut(&self) -> RefMut<DeviceLinks<Network::Address>> {
+    fn links(&self) -> Ref<DeviceLinks<Network>> {
+        Ref::map(self.inner.borrow(), |inner| &inner.links)
+    }
+
+    fn links_mut(&self) -> RefMut<DeviceLinks<Network>> {
         RefMut::map(self.inner.borrow_mut(), |inner| &mut inner.links)
     }
 }

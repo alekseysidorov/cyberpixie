@@ -40,7 +40,7 @@ pub struct Handshake {
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug)]
 pub enum MessageHeader {
     // Requests.
-    Handshake(Handshake),
+    HandshakeRequest(Handshake),
     GetInfo,
     ClearImages,
     AddImage(AddImage),
@@ -48,6 +48,7 @@ pub enum MessageHeader {
 
     // Responses.
     Ok,
+    HandshakeResponse(Handshake),
     ImageAdded(u16),
     Info(FirmwareInfo),
     Error(u16),
