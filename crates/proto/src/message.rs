@@ -2,7 +2,7 @@ use core::iter::Empty;
 
 use crate::{
     transport::Transport,
-    types::{AddImage, FirmwareInfo, Hertz, MessageHeader},
+    types::{AddImage, FirmwareInfo, Handshake, Hertz, MessageHeader},
     Error,
 };
 
@@ -12,6 +12,7 @@ where
     I: Iterator<Item = u8> + ExactSizeIterator,
 {
     // Requests.
+    Handshake(Handshake),
     GetInfo,
     AddImage {
         refresh_rate: Hertz,
@@ -38,6 +39,7 @@ where
 {
     pub(super) fn into_header_payload(self) -> (MessageHeader, Option<I>) {
         match self {
+            Message::Handshake(handshake) => (MessageHeader::Handshake(handshake), None),
             Message::GetInfo => (MessageHeader::GetInfo, None),
             Message::AddImage {
                 refresh_rate,
@@ -71,6 +73,7 @@ pub(super) fn read_message<T: Transport>(
     transport: &mut T,
 ) -> Result<IncomingMessage<'_, T>, T::Error> {
     let msg = match header {
+        MessageHeader::Handshake(handshake) => Message::Handshake(handshake),
         MessageHeader::GetInfo => Message::GetInfo,
         MessageHeader::ClearImages => Message::ClearImages,
         MessageHeader::AddImage(img) => Message::AddImage {

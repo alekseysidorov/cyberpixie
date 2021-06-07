@@ -15,6 +15,7 @@ use cyberpixie_proto::{Hertz, PacketData, Service, Transport, TransportEvent};
 use image::io::Reader;
 
 mod tcp_transport;
+mod app;
 
 const TIMEOUT: Duration = Duration::from_secs(15);
 

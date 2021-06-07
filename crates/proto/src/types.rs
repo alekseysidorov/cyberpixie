@@ -7,12 +7,11 @@ use serde::{Deserialize, Serialize};
 pub enum DeviceRole {
     /// A control device such as a telephone or laptop.
     Host = 0,
-    /// A single-handed device, like stuff without additional synchronization between
-    /// device parts.
-    Single = 1,
-    // More complex props, like a poi with the necessity to synchronize between several
-    // devices.
-    Composite = 2,
+    /// A master device that receives commands directly from the host and then re-sends them 
+    /// to the slave devices if they exist.
+    Master = 1,
+    /// A slave device that executes commands from the master one.
+    Slave = 2,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug)]
@@ -32,8 +31,16 @@ pub struct AddImage {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug)]
+pub struct Handshake {
+    pub device_id: [u32; 4],
+    pub role: DeviceRole,
+    pub group_id: Option<u32>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug)]
 pub enum MessageHeader {
     // Requests.
+    Handshake(Handshake),
     GetInfo,
     ClearImages,
     AddImage(AddImage),
