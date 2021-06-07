@@ -4,13 +4,16 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-nb = "1.0"
 embedded-hal = "0.2"
-smart-leds = "0.3"
+futures = { version = "0.3", default-features = false }
+heapless = "0.7"
+nb = "1.0"
 serde = { version = "1", default-features = false, features = ["derive"] }
+smart-leds = "0.3"
+void = { version = "1.0", default-features = false }
 
 stdio-serial = { path = "../stdio-serial" }
 cyberpixie-proto = { path = "../proto" }
-
+nb-utils = { path = "../nb_utils" }
 
 [dev-dependencies]

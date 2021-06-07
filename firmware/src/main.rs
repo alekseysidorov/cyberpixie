@@ -1,22 +1,18 @@
 #![no_std]
 #![no_main]
 
-use core::{fmt::Write, panic::PanicInfo, time::Duration};
+use core::{fmt::Write, iter::repeat, panic::PanicInfo, sync::atomic, time::Duration};
 
-use cyberpixie::{
-    leds::SmartLedsWrite,
-    stdio::uprintln,
-    time::{CountDown, CountDownEx, Microseconds},
-    App, AppConfig, Storage,
-};
+use atomic::Ordering;
+use cyberpixie::{leds::SmartLedsWrite, stdio::uprintln, time::Microseconds, App, Storage};
 use cyberpixie_firmware::{
     config::{SERIAL_PORT_CONFIG, SOFTAP_CONFIG, STRIP_LEDS_COUNT},
-    irq::{self},
+    irq, new_async_timer,
     splash::WanderingLight,
-    transport, NextImageBtn, StorageImpl, TimerImpl,
+    transport, NextImageBtn, StorageImpl,
 };
 use embedded_hal::digital::v2::OutputPin;
-use esp8266_softap::{Adapter, SoftApConfig, ADAPTER_BUF_CAPACITY};
+use esp8266_softap::{Adapter, SoftApConfig};
 use gd32vf103xx_hal::{
     pac::{self},
     prelude::*,
@@ -25,6 +21,7 @@ use gd32vf103xx_hal::{
     timer::Timer,
 };
 use heapless::String;
+use smart_leds::RGB8;
 use transport::TransportImpl;
 use ws2812_spi::Ws2812;
 
@@ -33,15 +30,11 @@ unsafe fn handle_uart1_interrupt() {
     irq::handle_usart1_update()
 }
 
-#[riscv_rt::entry]
-fn main() -> ! {
-    // Hardware initialization step.
-    let dp = pac::Peripherals::take().unwrap();
-
+async fn run_main_loop(dp: pac::Peripherals) -> ! {
     let mut rcu = dp.RCU.configure().sysclk(108.mhz()).freeze();
     let mut afio = dp.AFIO.constrain(&mut rcu);
 
-    let mut timer = TimerImpl::from(Timer::timer0(dp.TIMER0, 1.mhz(), &mut rcu));
+    let mut timer = new_async_timer(Timer::timer0(dp.TIMER0, 1.mhz(), &mut rcu));
 
     let gpioa = dp.GPIOA.split(&mut rcu);
     let (usb_tx, mut _usb_rx) = {
@@ -54,7 +47,7 @@ fn main() -> ! {
     };
     stdio_serial::init(usb_tx);
 
-    timer.delay(Duration::from_secs(2));
+    timer.delay(Duration::from_secs(2)).await;
     uprintln!();
     uprintln!("Welcome to Cyberpixie serial console!");
 
@@ -75,6 +68,9 @@ fn main() -> ! {
         )
     };
     let mut strip = Ws2812::new(spi);
+    strip
+        .write(repeat(RGB8::default()).take(STRIP_LEDS_COUNT))
+        .ok();
     uprintln!("Ws2812 strip configured.");
 
     let device = {
@@ -87,7 +83,7 @@ fn main() -> ! {
                 gpiob.pb15.into_alternate_push_pull(),
             ),
             MODE_0,
-            20.mhz(),
+            50.mhz(),
             &mut rcu,
         );
 
@@ -98,39 +94,31 @@ fn main() -> ! {
         device.init().unwrap();
         device
     };
-    let storage = StorageImpl::open(
-        device,
-        AppConfig {
-            current_image_index: 0,
-            receiver_buf_capacity: ADAPTER_BUF_CAPACITY,
-            strip_len: STRIP_LEDS_COUNT as u16,
-        },
-    )
-    .unwrap();
-
+    let storage = StorageImpl::open(device).unwrap();
+    let cfg = storage.load_config().unwrap();
     // storage
-    //     .reset(AppConfig {
-    //         current_image_index: 0,
-    //         receiver_buf_capacity: ADAPTER_BUF_CAPACITY,
-    //         strip_len: STRIP_LEDS_COUNT as u16,
-    //     })
+    //     .reset(cyberpixie_firmware::config::DEFAULT_APP_CONFIG)
     //     .unwrap();
-
     uprintln!("Total images count: {}", storage.images_count());
 
-    uprintln!("Showing splash...");
-    let splash = WanderingLight::<STRIP_LEDS_COUNT>::default();
-    for (ticks, line) in splash {
-        timer.start(Microseconds(ticks));
-        strip.write(core::array::IntoIter::new(line)).ok();
-        nb::block!(timer.wait()).ok();
+    if !cfg.safe_mode {
+        uprintln!("Showing splash...");
+        let splash = WanderingLight::<STRIP_LEDS_COUNT>::default();
+        for (ticks, line) in splash {
+            timer.start(Microseconds(ticks));
+            strip.write(core::array::IntoIter::new(line)).ok();
+            timer.wait().await;
+        }
+        uprintln!("Splash has been showed.");
     }
-    uprintln!("Splash has been showed.");
 
+    strip
+        .write([RGB8 { g: 0, r: 25, b: 0 }].iter().copied())
+        .ok();
     uprintln!("Enabling esp32 serial device");
     let mut esp_en = gpioa.pa4.into_push_pull_output();
     esp_en.set_high().ok();
-    timer.delay(Duration::from_secs(3));
+    timer.delay(Duration::from_secs(3)).await;
     uprintln!("esp32 device has been enabled");
 
     let (esp_tx, esp_rx) = {
@@ -167,10 +155,12 @@ fn main() -> ! {
         .unwrap();
     let network = TransportImpl::new(ap);
     uprintln!("SoftAP has been successfuly configured with ssid {}.", ssid);
+    strip
+        .write([RGB8 { g: 0, r: 0, b: 25 }].iter().copied())
+        .ok();
 
     let mut events = NextImageBtn::new(gpioa.pa8.into_pull_down_input());
-
-    App {
+    let app = App {
         device_id,
 
         network,
@@ -178,9 +168,15 @@ fn main() -> ! {
         storage: &storage,
         strip,
         events: &mut events,
-    }
-    .into_event_loop()
-    .run()
+    };
+
+    app.run().await
+}
+
+#[riscv_rt::entry]
+fn main() -> ! {
+    let dp = pac::Peripherals::take().unwrap();
+    direct_executor::run_spinning(run_main_loop(dp))
 }
 
 #[inline(never)]
@@ -191,6 +187,6 @@ fn panic(info: &PanicInfo) -> ! {
     uprintln!("- {}", info);
 
     loop {
-        core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
+        atomic::compiler_fence(Ordering::SeqCst);
     }
 }

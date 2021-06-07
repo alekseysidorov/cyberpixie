@@ -8,7 +8,7 @@ use core::{
 
 use cyberpixie::{
     stdio::uprintln,
-    time::{CountDownEx, Milliseconds},
+    time::{Milliseconds, TimerAsync},
 };
 use cyberpixie_firmware::{config::SERIAL_PORT_CONFIG, TimerImpl};
 use embedded_hal::digital::v2::OutputPin;

@@ -1,9 +1,11 @@
 use core::mem::MaybeUninit;
 
+use nb_utils::NbResultExt;
+
 use crate::{
     message::{read_message, IncomingMessage, Message, SimpleMessage},
     types::{Hertz, MessageHeader},
-    FirmwareInfo, NbResultExt, PacketKind, Transport, TransportEvent,
+    FirmwareInfo, PacketKind, Transport, TransportEvent,
 };
 
 macro_rules! wait_for_response {
@@ -34,6 +36,24 @@ impl<T: Transport> Service<T> {
             transport,
             receiver_buf_capacity,
         }
+    }
+
+    pub async fn next_event(&mut self) -> Result<Event<'_, T>, T::Error> {
+        Ok(
+            match nb_utils::poll_nb_future(|| self.transport.poll_next_event()).await? {
+                TransportEvent::Connected { address } => Event::Connected { address },
+                TransportEvent::Disconnected { address } => Event::Disconnected { address },
+                TransportEvent::Packet { address, data } => {
+                    // TODO: At the MPV stage, we assume that the incoming message is always correct.
+                    let payload = data.payload().unwrap();
+                    let header = postcard::from_bytes(payload.as_ref()).unwrap();
+                    Event::Message {
+                        address,
+                        message: read_message(address, header, &mut self.transport)?,
+                    }
+                }
+            },
+        )
     }
 
     pub fn poll_next_event(&mut self) -> nb::Result<Event<'_, T>, T::Error> {

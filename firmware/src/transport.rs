@@ -1,6 +1,6 @@
 use core::fmt::Debug;
 
-use cyberpixie::proto::{TransportEvent, PacketData, PacketKind, PacketWithPayload, Transport};
+use cyberpixie::proto::{PacketData, PacketKind, PacketWithPayload, Transport, TransportEvent};
 use embedded_hal::serial::{Read, Write};
 use esp8266_softap::{Error as SoftApError, Event as SoftApEvent, SoftAp, ADAPTER_BUF_CAPACITY};
 use heapless::Vec;
@@ -39,7 +39,9 @@ where
     type Address = usize;
     type Payload = Vec<u8, MAX_PAYLOAD_LEN>;
 
-    fn poll_next_event(&mut self) -> nb::Result<TransportEvent<Self::Address, Self::Payload>, Self::Error> {
+    fn poll_next_event(
+        &mut self,
+    ) -> nb::Result<TransportEvent<Self::Address, Self::Payload>, Self::Error> {
         let event = self
             .0
             .poll_next_event()

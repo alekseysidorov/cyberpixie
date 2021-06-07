@@ -1,7 +1,12 @@
 pub use cyberpixie_proto::Hertz;
 pub use embedded_hal::timer::CountDown;
 
-use core::time::Duration;
+use core::{
+    task::{Context, Poll},
+    time::Duration,
+};
+
+use crate::futures::future;
 
 macro_rules! impl_time_unit {
     ($name:ident, $hz_factor:expr) => {
@@ -41,54 +46,46 @@ impl From<Milliseconds> for Microseconds {
 impl_time_unit!(Microseconds, 1_000_000);
 impl_time_unit!(Milliseconds, 1_000);
 
-pub trait CountDownEx: CountDown {
-    fn delay_us<I: Into<Microseconds>>(&mut self, timeout: I);
+pub trait AsyncCountDown {
+    /// Starts a new count down
+    fn start<T>(&mut self, count: T)
+    where
+        T: Into<Hertz>;
 
-    fn delay_ms<I: Into<Milliseconds>>(&mut self, timeout: I);
-
-    fn delay(&mut self, duration: Duration) {
-        let secs = duration.as_secs();
-        if secs > 0 {
-            self.delay_ms(Milliseconds(secs as u32 * Milliseconds::SECS_FACTOR));
-        }
-
-        let ms = duration.subsec_millis();
-        if ms > 0 {
-            self.delay_ms(Milliseconds(ms));
-        }
-
-        let us = duration.subsec_micros();
-        if us > 0 {
-            self.delay_us(Microseconds(us));
-        }
-    }
+    fn poll_wait(&mut self, cx: &mut Context<'_>) -> Poll<()>;
 }
 
-impl<T> CountDownEx for T
-where
-    T: CountDown<Time = Hertz>,
-{
-    fn delay_us<I: Into<Microseconds>>(&mut self, timeout: I) {
-        let mut timeout = timeout.into();
-        while timeout.0 > Microseconds::SECS_FACTOR {
-            self.start(Microseconds::SECS_FACTOR);
-            nb::block!(self.wait()).ok();
-            timeout.0 -= Microseconds::SECS_FACTOR;
-        }
+pub struct AsyncTimer<T: AsyncCountDown>(T);
 
-        self.start(timeout);
-        nb::block!(self.wait()).ok();
+impl<T: AsyncCountDown> AsyncTimer<T> {
+    pub fn new(inner: T) -> Self {
+        Self(inner)
     }
 
-    fn delay_ms<I: Into<Milliseconds>>(&mut self, timeout: I) {
-        let mut timeout = timeout.into();
-        while timeout.0 > Milliseconds::SECS_FACTOR {
-            self.start(Milliseconds::SECS_FACTOR);
-            nb::block!(self.wait()).ok();
-            timeout.0 -= Milliseconds::SECS_FACTOR;
+    pub fn start<H>(&mut self, count: H)
+    where
+        H: Into<Hertz>,
+    {
+        self.0.start(count)
+    }
+
+    pub async fn wait(&mut self) {
+        future::poll_fn(|ctx| self.0.poll_wait(ctx)).await
+    }
+
+    pub async fn delay(&mut self, duration: Duration) {
+        let mut secs = duration.as_secs() as u32;
+        let us = duration.subsec_micros();
+
+        while secs > 0 {
+            self.start(Hertz(1));
+            self.wait().await;
+            secs -= 1;
         }
 
-        self.start(timeout);
-        nb::block!(self.wait()).ok();
+        if us > 0 {
+            self.start(Microseconds(us));
+            self.wait().await;
+        }
     }
 }
