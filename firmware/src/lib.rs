@@ -10,7 +10,7 @@ use core::{
 use cyberpixie::{futures::Stream, HwEvent};
 use embedded_hal::digital::v2::InputPin;
 
-pub use self::{storage::StorageImpl, time::TimerImpl, transport::TransportImpl};
+pub use self::{storage::StorageImpl, time::new_async_timer, transport::TransportImpl};
 
 pub mod config;
 pub mod irq;

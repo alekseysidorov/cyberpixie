@@ -1,28 +1,24 @@
 use cyberpixie::{
     nb_utils::NbResultExt,
-    time::{CountDown, CountDownAsync, Hertz},
+    time::{CountDown, AsyncCountDown, Hertz, AsyncTimer},
 };
 use gd32vf103xx_hal::time as gd32_time;
 
-pub struct TimerImpl<T: CountDown<Time = gd32_time::Hertz>>(T);
+struct TimerWrapper<T: CountDown<Time = gd32_time::Hertz>>(T);
 
-impl<T: CountDown<Time = gd32_time::Hertz>> TimerImpl<T> {
+impl<T: CountDown<Time = gd32_time::Hertz>> TimerWrapper<T> {
     pub fn new(inner: T) -> Self {
         Self(inner)
     }
-
-    pub fn release(self) -> T {
-        self.0
-    }
 }
 
-impl<T: CountDown<Time = gd32_time::Hertz>> From<T> for TimerImpl<T> {
+impl<T: CountDown<Time = gd32_time::Hertz>> From<T> for TimerWrapper<T> {
     fn from(inner: T) -> Self {
         Self::new(inner)
     }
 }
 
-impl<T: CountDown<Time = gd32_time::Hertz>> CountDown for TimerImpl<T> {
+impl<T: CountDown<Time = gd32_time::Hertz>> CountDown for TimerWrapper<T> {
     type Time = Hertz;
 
     fn start<C>(&mut self, count: C)
@@ -40,7 +36,7 @@ impl<T: CountDown<Time = gd32_time::Hertz>> CountDown for TimerImpl<T> {
     }
 }
 
-impl<T: CountDown<Time = gd32_time::Hertz>> CountDownAsync for TimerImpl<T> {
+impl<T: CountDown<Time = gd32_time::Hertz>> AsyncCountDown for TimerWrapper<T> {
     fn start<C>(&mut self, count: C)
     where
         C: Into<Hertz>,
@@ -54,4 +50,10 @@ impl<T: CountDown<Time = gd32_time::Hertz>> CountDownAsync for TimerImpl<T> {
     fn poll_wait(&mut self, ctx: &mut core::task::Context<'_>) -> core::task::Poll<()> {
         self.0.wait().into_poll(ctx).map(drop)
     }
+}
+
+pub fn new_async_timer<T: CountDown<Time = gd32_time::Hertz>>(
+    inner: T,
+) -> AsyncTimer<impl AsyncCountDown> {
+    AsyncTimer::new(TimerWrapper::new(inner))
 }

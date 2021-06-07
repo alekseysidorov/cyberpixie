@@ -4,17 +4,12 @@
 use core::{fmt::Write, iter::repeat, panic::PanicInfo, sync::atomic, time::Duration};
 
 use atomic::Ordering;
-use cyberpixie::{
-    leds::SmartLedsWrite,
-    stdio::uprintln,
-    time::{CountDown, CountDownEx, Microseconds},
-    App, Storage,
-};
+use cyberpixie::{leds::SmartLedsWrite, stdio::uprintln, time::Microseconds, App, Storage};
 use cyberpixie_firmware::{
     config::{SERIAL_PORT_CONFIG, SOFTAP_CONFIG, STRIP_LEDS_COUNT},
-    irq,
+    irq, new_async_timer,
     splash::WanderingLight,
-    transport, NextImageBtn, StorageImpl, TimerImpl,
+    transport, NextImageBtn, StorageImpl,
 };
 use embedded_hal::digital::v2::OutputPin;
 use esp8266_softap::{Adapter, SoftApConfig};
@@ -35,15 +30,11 @@ unsafe fn handle_uart1_interrupt() {
     irq::handle_usart1_update()
 }
 
-#[riscv_rt::entry]
-fn main() -> ! {
-    // Hardware initialization step.
-    let dp = pac::Peripherals::take().unwrap();
-
+async fn run_main_loop(dp: pac::Peripherals) -> ! {
     let mut rcu = dp.RCU.configure().sysclk(108.mhz()).freeze();
     let mut afio = dp.AFIO.constrain(&mut rcu);
 
-    let mut timer = TimerImpl::from(Timer::timer0(dp.TIMER0, 1.mhz(), &mut rcu));
+    let mut timer = new_async_timer(Timer::timer0(dp.TIMER0, 1.mhz(), &mut rcu));
 
     let gpioa = dp.GPIOA.split(&mut rcu);
     let (usb_tx, mut _usb_rx) = {
@@ -56,7 +47,7 @@ fn main() -> ! {
     };
     stdio_serial::init(usb_tx);
 
-    timer.delay(Duration::from_secs(2));
+    timer.delay(Duration::from_secs(2)).await;
     uprintln!();
     uprintln!("Welcome to Cyberpixie serial console!");
 
@@ -116,7 +107,7 @@ fn main() -> ! {
         for (ticks, line) in splash {
             timer.start(Microseconds(ticks));
             strip.write(core::array::IntoIter::new(line)).ok();
-            nb::block!(timer.wait()).ok();
+            timer.wait().await;
         }
         uprintln!("Splash has been showed.");
     }
@@ -127,7 +118,7 @@ fn main() -> ! {
     uprintln!("Enabling esp32 serial device");
     let mut esp_en = gpioa.pa4.into_push_pull_output();
     esp_en.set_high().ok();
-    timer.delay(Duration::from_secs(3));
+    timer.delay(Duration::from_secs(3)).await;
     uprintln!("esp32 device has been enabled");
 
     let (esp_tx, esp_rx) = {
@@ -178,7 +169,14 @@ fn main() -> ! {
         strip,
         events: &mut events,
     };
-    direct_executor::run_spinning(app.run())
+
+    app.run().await
+}
+
+#[riscv_rt::entry]
+fn main() -> ! {
+    let dp = pac::Peripherals::take().unwrap();
+    direct_executor::run_spinning(run_main_loop(dp))
 }
 
 #[inline(never)]
