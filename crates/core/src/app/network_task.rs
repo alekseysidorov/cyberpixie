@@ -215,8 +215,8 @@ where
             }
 
             SlaveCommand::AddImage { index } => {
-                let strip_len = self.strip_len();
-                let (refresh_rate, bytes) = self.read_image(index);
+                let _strip_len = self.strip_len();
+                let (_refresh_rate, _bytes) = self.read_image(index);
 
                 todo!()
                 // service

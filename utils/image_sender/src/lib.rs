@@ -1,6 +1,8 @@
 #![allow(incomplete_features)]
 #![feature(generic_associated_types)]
 
+pub use self::app::App;
+
 use std::{
     fmt::Display,
     io,

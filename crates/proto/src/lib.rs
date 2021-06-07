@@ -7,7 +7,7 @@ pub use crate::{
     message::{Message, SimpleMessage},
     service::{Event as ServiceEvent, Service},
     transport::{Event as TransportEvent, PacketData, PacketKind, PacketWithPayload, Transport},
-    types::{DeviceRole, FirmwareInfo, Hertz, Handshake},
+    types::{DeviceRole, FirmwareInfo, Handshake, Hertz},
 };
 pub use postcard::Error as PayloadError;
 

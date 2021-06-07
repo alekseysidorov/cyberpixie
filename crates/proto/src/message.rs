@@ -40,7 +40,9 @@ where
 {
     pub(super) fn into_header_payload(self) -> (MessageHeader, Option<I>) {
         match self {
-            Message::HandshakeRequest(handshake) => (MessageHeader::HandshakeRequest(handshake), None),
+            Message::HandshakeRequest(handshake) => {
+                (MessageHeader::HandshakeRequest(handshake), None)
+            }
             Message::GetInfo => (MessageHeader::GetInfo, None),
             Message::AddImage {
                 refresh_rate,
@@ -57,7 +59,9 @@ where
             Message::ClearImages => (MessageHeader::ClearImages, None),
             Message::ShowImage { index } => (MessageHeader::ShowImage(index as u16), None),
 
-            Message::HandshakeResponse(handshake) => (MessageHeader::HandshakeResponse(handshake), None),
+            Message::HandshakeResponse(handshake) => {
+                (MessageHeader::HandshakeResponse(handshake), None)
+            }
             Message::ImageAdded { index } => (MessageHeader::ImageAdded(index as u16), None),
             Message::Ok => (MessageHeader::Ok, None),
             Message::Info(info) => (MessageHeader::Info(info), None),

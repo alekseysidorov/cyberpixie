@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 pub enum DeviceRole {
     /// A control device such as a telephone or laptop.
     Host = 0,
-    /// A master device that receives commands directly from the host and then re-sends them 
+    /// A master device that receives commands directly from the host and then re-sends them
     /// to the slave devices if they exist.
     Master = 1,
     /// A slave device that executes commands from the master one.
