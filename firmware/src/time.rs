@@ -1,6 +1,6 @@
 use cyberpixie::{
     nb_utils::NbResultExt,
-    time::{CountDown, AsyncCountDown, Hertz, AsyncTimer},
+    time::{AsyncCountDown, AsyncTimer, CountDown, Hertz},
 };
 use gd32vf103xx_hal::time as gd32_time;
 
