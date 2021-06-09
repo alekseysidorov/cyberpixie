@@ -3,10 +3,7 @@ use std::{net::SocketAddr, path::PathBuf};
 use cyberpixie_proto::Hertz;
 use structopt::StructOpt;
 
-use image_sender::{
-    convert_image_to_raw, run_transport_example, send_clear_images, send_firmware_info, send_image,
-    send_show_image,
-};
+use image_sender::{convert_image_to_raw, create_service, display_err};
 
 #[derive(Debug, StructOpt)]
 enum Commands {
@@ -32,13 +29,6 @@ enum Commands {
     /// Send clear images command to the device.
     #[structopt(name = "clear")]
     ClearImages { address: SocketAddr },
-    /// Run transport example.
-    #[structopt(name = "run-transport")]
-    RunTransport { address: SocketAddr },
-
-    /// Generate completions
-    #[structopt(name = "gen-completions")]
-    GenCompletions,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -54,33 +44,42 @@ fn main() -> anyhow::Result<()> {
             log::info!("Sending image {:?} to {}", image_path, address);
 
             let (strip_len, raw) = convert_image_to_raw(image_path)?;
-            send_image(strip_len, refresh_rate, raw, address)?;
+
+            let index = create_service(address)?
+                .add_image(address, refresh_rate, strip_len, raw.into_iter())?
+                .map_err(display_err)?;
+            log::info!(
+                "Image loaded into the device {} with index {}",
+                address,
+                index
+            );
         }
 
         Commands::ShowImage { address, index } => {
             log::info!("Sending show image {} command to {}", index, address);
-            send_show_image(index, address)?;
+
+            create_service(address)?
+                .show_image(address, index)?
+                .map_err(display_err)?;
+            log::trace!("Showing image at {} on device {}", index, address);
         }
 
         Commands::ClearImages { address } => {
             log::info!("Sending clear images command to {}", address);
-            send_clear_images(address)?;
+
+            create_service(address)?
+                .clear_images(address)?
+                .map_err(display_err)?;
+            log::trace!("Sent images clear command to {}", address);
         }
 
         Commands::FirmwareInfo { address } => {
             log::info!("Sending firmare info request to {}", address);
-            send_firmware_info(address)?;
-        }
 
-        Commands::GenCompletions => {
-            let _clap = Commands::clap();
-            // clap.gen_completions(bin_name, for_shell, out_dir)
-            todo!()
-        }
-
-        Commands::RunTransport { address } => {
-            log::info!("Running transport example for {}", address);
-            run_transport_example(address)?;
+            let info = create_service(address)?
+                .request_firmware_info(address)?
+                .map_err(display_err)?;
+            log::info!("Got {:#?} from the {}", info, address);
         }
     }
 

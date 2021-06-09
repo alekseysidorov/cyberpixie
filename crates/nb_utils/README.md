@@ -1,2 +1,3 @@
 # nb-utils
-A some useful extensions for the `nb`.
+
+Some useful extensions for the `nb`.

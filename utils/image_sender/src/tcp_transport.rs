@@ -4,15 +4,54 @@ use std::{
     time::Duration,
 };
 
-use cyberpixie_proto::{PacketData, PacketKind, PacketWithPayload, Transport, TransportEvent};
+use cyberpixie_proto::{
+    DeviceRole, Handshake, PacketData, PacketKind, PacketWithPayload, Service, Transport,
+    TransportEvent,
+};
 
-pub struct TransportImpl {
+use crate::display_err;
+
+const TIMEOUT: Duration = Duration::from_secs(15);
+const HOST_DEVICE_ID: [u32; 4] = [0; 4];
+
+pub fn connect_to(addr: &SocketAddr) -> anyhow::Result<TcpStream> {
+    log::debug!("Connecting to the {}", addr);
+    let stream = TcpStream::connect_timeout(addr, TIMEOUT)?;
+    log::debug!("Connected");
+
+    stream.set_read_timeout(Some(TIMEOUT))?;
+    stream.set_write_timeout(Some(TIMEOUT))?;
+    stream.set_nodelay(true).ok();
+
+    Ok(stream)
+}
+
+pub fn create_service(addr: SocketAddr) -> anyhow::Result<Service<TcpTransport>> {
+    let stream = connect_to(&addr)?;
+    let transport = TcpTransport::new(addr, stream);
+
+    let mut service = Service::new(transport, 512);
+    let response = service
+        .handshake(
+            addr,
+            Handshake {
+                device_id: HOST_DEVICE_ID,
+                group_id: None,
+                role: DeviceRole::Host,
+            },
+        )?
+        .map_err(display_err)?;
+    log::trace!("Connected with device: {:?}", response);
+    Ok(service)
+}
+
+pub struct TcpTransport {
     address: SocketAddr,
     stream: TcpStream,
     next_msg: Vec<u8>,
 }
 
-impl TransportImpl {
+impl TcpTransport {
     pub fn new(address: SocketAddr, stream: TcpStream) -> Self {
         // TODO rewrite on tokio.
         stream
@@ -44,7 +83,7 @@ impl TransportImpl {
     }
 }
 
-impl Transport for TransportImpl {
+impl Transport for TcpTransport {
     type Error = anyhow::Error;
     type Address = SocketAddr;
     type Payload = Vec<u8>;

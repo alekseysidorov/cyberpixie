@@ -4,7 +4,9 @@
 use core::{fmt::Write, iter::repeat, panic::PanicInfo, sync::atomic, time::Duration};
 
 use atomic::Ordering;
-use cyberpixie::{leds::SmartLedsWrite, stdio::uprintln, time::Microseconds, App, Storage};
+use cyberpixie::{
+    leds::SmartLedsWrite, proto::DeviceRole, stdio::uprintln, time::Microseconds, App, Storage,
+};
 use cyberpixie_firmware::{
     config::{SERIAL_PORT_CONFIG, SOFTAP_CONFIG, STRIP_LEDS_COUNT},
     irq, new_async_timer,
@@ -161,6 +163,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
 
     let mut events = NextImageBtn::new(gpioa.pa8.into_pull_down_input());
     let app = App {
+        role: DeviceRole::Master,
         device_id,
 
         network,

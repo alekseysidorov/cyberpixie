@@ -215,16 +215,54 @@ where
             }
 
             SlaveCommand::AddImage { index } => {
-                let _strip_len = self.strip_len();
-                let (_refresh_rate, _bytes) = self.read_image(index);
+                let strip_len = self.strip_len();
+                let (refresh_rate, pixels) = self.read_image(index);
 
-                todo!()
-                // service
-                //     .add_image(address, refresh_rate, strip_len, bytes)?
-                //     .ok();
+                service
+                    .add_image(address, refresh_rate, strip_len, rgb8_to_bytes(pixels))?
+                    .ok();
             }
         }
 
         Ok(())
     }
 }
+
+fn rgb8_to_bytes<I>(iter: I) -> Rgb8ToBytesIter<impl Iterator<Item = u8>>
+where
+    I: Iterator<Item = RGB8> + ExactSizeIterator,
+{
+    let bytes_remaining = iter.len() * size_of::<RGB8>();
+
+    Rgb8ToBytesIter {
+        inner: iter.map(|rgb| [rgb.r, rgb.g, rgb.b]).flatten(),
+        bytes_remaining,
+    }
+}
+
+struct Rgb8ToBytesIter<T: Iterator<Item = u8>> {
+    inner: T,
+    bytes_remaining: usize,
+}
+
+impl<T> Iterator for Rgb8ToBytesIter<T>
+where
+    T: Iterator<Item = u8>,
+{
+    type Item = u8;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(byte) = self.inner.next() {
+            self.bytes_remaining -= 1;
+            Some(byte)
+        } else {
+            None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.bytes_remaining, Some(self.bytes_remaining))
+    }
+}
+
+impl<T: Iterator<Item = u8>> ExactSizeIterator for Rgb8ToBytesIter<T> {}
