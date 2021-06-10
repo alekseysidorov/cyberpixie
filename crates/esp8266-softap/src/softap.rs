@@ -24,7 +24,7 @@ impl<'a> SoftApConfig<'a> {
     pub fn start<Rx, Tx>(
         mut self,
         mut adapter: Adapter<Rx, Tx>,
-    ) -> crate::Result<TcpSocket<Rx, Tx>, Rx::Error, Tx::Error>
+    ) -> crate::Result<TcpStream<Rx, Tx>, Rx::Error, Tx::Error>
     where
         Rx: serial::Read<u8> + 'static,
         Tx: serial::Write<u8> + 'static,
@@ -32,7 +32,7 @@ impl<'a> SoftApConfig<'a> {
         Tx::Error: core::fmt::Debug,
     {
         self.init(&mut adapter)?;
-        Ok(TcpSocket { adapter })
+        Ok(TcpStream { adapter })
     }
 
     fn init<Rx, Tx>(
@@ -86,7 +86,7 @@ impl<'a> SoftApConfig<'a> {
     }
 }
 
-pub struct TcpSocket<Rx, Tx>
+pub struct TcpStream<Rx, Tx>
 where
     Rx: serial::Read<u8> + 'static,
     Tx: serial::Write<u8> + 'static,
@@ -96,7 +96,7 @@ where
     adapter: Adapter<Rx, Tx>,
 }
 
-impl<Rx, Tx> TcpSocket<Rx, Tx>
+impl<Rx, Tx> TcpStream<Rx, Tx>
 where
     Rx: serial::Read<u8> + 'static,
     Tx: serial::Write<u8> + 'static,

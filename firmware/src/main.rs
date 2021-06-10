@@ -161,7 +161,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
 
     strip.write(MAGENTA_LED.iter().copied()).ok();
     let adapter = Adapter::new(esp_rx, esp_tx).unwrap();
-    let socket = softap_config.start(adapter).unwrap();
+    let stream = softap_config.start(adapter).unwrap();
 
     uprintln!("SoftAP has been successfuly configured with ssid {}.", ssid);
     strip.write(BLUE_LED.iter().copied()).ok();
@@ -171,7 +171,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
         role: DeviceRole::Master,
         device_id,
 
-        network: TransportImpl::new(socket),
+        network: TransportImpl::new(stream),
         timer,
         storage: &storage,
         strip,

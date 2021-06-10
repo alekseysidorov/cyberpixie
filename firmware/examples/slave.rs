@@ -18,7 +18,7 @@ use cyberpixie_firmware::{
     transport, NextImageBtn, StorageImpl, BLUE_LED, RED_LED,
 };
 use embedded_hal::digital::v2::OutputPin;
-use esp8266_softap::{Adapter, SoftApConfig, TcpSocket, ADAPTER_BUF_CAPACITY};
+use esp8266_softap::{Adapter, SoftApConfig, TcpStream, ADAPTER_BUF_CAPACITY};
 use gd32vf103xx_hal::{
     pac::{self},
     prelude::*,
@@ -165,7 +165,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
     uprintln!("Sending handshake to the master device...");
     timer.delay(Duration::from_millis(200)).await;
 
-    let network = TransportImpl::new(TcpSocket::from_raw(adapter));
+    let network = TransportImpl::new(TcpStream::from_raw(adapter));
     let mut service = Service::new(network, ADAPTER_BUF_CAPACITY);
     let resp = service
         .handshake(

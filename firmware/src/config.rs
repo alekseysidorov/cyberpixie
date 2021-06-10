@@ -6,7 +6,7 @@ use gd32vf103xx_hal::{
 };
 
 pub const SERIAL_PORT_CONFIG: Config = Config {
-    baudrate: Bps(57600),
+    baudrate: Bps(56700), // Bps(460800),
     parity: Parity::ParityEven,
     stopbits: StopBits::STOP1,
 };

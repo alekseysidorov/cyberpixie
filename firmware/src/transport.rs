@@ -2,12 +2,12 @@ use core::fmt::Debug;
 
 use cyberpixie::proto::{PacketData, PacketKind, PacketWithPayload, Transport, TransportEvent};
 use embedded_hal::serial::{Read, Write};
-use esp8266_softap::{Error as SocketError, Event as SoftApEvent, TcpSocket, ADAPTER_BUF_CAPACITY};
+use esp8266_softap::{Error as SocketError, Event as SoftApEvent, TcpStream, ADAPTER_BUF_CAPACITY};
 use heapless::Vec;
 
 const MAX_PAYLOAD_LEN: usize = ADAPTER_BUF_CAPACITY - PacketKind::PACKED_LEN;
 
-pub struct TransportImpl<Tx, Rx>(TcpSocket<Rx, Tx>)
+pub struct TransportImpl<Tx, Rx>(TcpStream<Rx, Tx>)
 where
     Rx: Read<u8> + 'static,
     Tx: Write<u8> + 'static,
@@ -22,8 +22,8 @@ where
     Rx::Error: Debug,
     Tx::Error: Debug,
 {
-    pub fn new(socket: TcpSocket<Rx, Tx>) -> Self {
-        Self(socket)
+    pub fn new(stream: TcpStream<Rx, Tx>) -> Self {
+        Self(stream)
     }
 }
 

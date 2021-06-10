@@ -1,6 +1,7 @@
 use core::{fmt::Debug, mem::size_of};
 
 use smart_leds::RGB8;
+use stdio_serial::uprintln;
 
 use crate::{
     proto::{
@@ -62,12 +63,12 @@ where
             .expect("unable to get next service event");
 
         match service_event {
-            ServiceEvent::Connected { .. } => {
-                // TODO
-            }
+            ServiceEvent::Connected { .. } => {}
+
             ServiceEvent::Disconnected { address } => {
                 self.links_mut().remove_address(&address);
             }
+            
             ServiceEvent::Message { address, message } => {
                 let output = self.handle_message(address, message);
                 service
@@ -94,6 +95,8 @@ where
         let mut response = MessageResponse::empty();
         match message {
             Message::HandshakeRequest(handshake) => {
+                uprintln!("{:?}", handshake);
+
                 let mut links = self.links_mut();
                 if !links.contains_link(handshake.role) {
                     links.add_link(DeviceLink {
