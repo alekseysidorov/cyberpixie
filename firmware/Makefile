@@ -2,6 +2,7 @@ UART ?= /dev/ttyUSB0
 
 firmware_cmd = -p cyberpixie-firmware --release
 target_arch = riscv32imac-unknown-none-elf
+serial_monitor = serial-monitor --enter crlf -b 57600 --parity even
 
 all: hex
 
@@ -21,22 +22,22 @@ flash: hex
 	stm32flash -w target/firmware.hex -v -g 0x0 $(UART)
 
 run: flash
-	serial-monitor --enter crlf
+	$(serial_monitor)
 
 run_retransmitter: 
 	cargo objcopy --target ${target_arch} $(firmware_cmd) --example retransmitter -- -O ihex target/retransmitter.hex
 	stm32flash -w target/retransmitter.hex -v -g 0x0 $(UART)
-	serial-monitor --enter crlf
+	$(serial_monitor)
 
-run_softap: 
-	cargo objcopy --target ${target_arch} $(firmware_cmd) --example softap -- -O ihex target/softap.hex
-	stm32flash -w target/softap.hex -v -g 0x0 $(UART)
-	serial-monitor --enter crlf	
+run_slave: 
+	cargo objcopy --target ${target_arch} $(firmware_cmd) --example slave -- -O ihex target/slave.hex
+	stm32flash -w target/slave.hex -v -g 0x0 $(UART)
+	$(serial_monitor)
 
 run_splash: 
 	cargo objcopy --target ${target_arch} $(firmware_cmd) --example splash -- -O ihex target/splash.hex
 	stm32flash -w target/splash.hex -v -g 0x0 $(UART)
-	serial-monitor --enter crlf	
+	$(serial_monitor)
 
 clean:
 	rm -rf target

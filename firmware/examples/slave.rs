@@ -51,7 +51,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
 
     timer.delay(Duration::from_secs(2)).await;
     uprintln!();
-    uprintln!("Welcome to Cyberpixie serial console!");
+    uprintln!("Welcome to slave example serial console!");
 
     let spi = {
         let pins = (
@@ -75,50 +75,11 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
         .ok();
     uprintln!("Ws2812 strip configured.");
 
-    let device = {
-        let gpiob = dp.GPIOB.split(&mut rcu);
-        let spi = Spi::spi1(
-            dp.SPI1,
-            (
-                gpiob.pb13.into_alternate_push_pull(),
-                gpiob.pb14.into_floating_input(),
-                gpiob.pb15.into_alternate_push_pull(),
-            ),
-            MODE_0,
-            50.mhz(),
-            &mut rcu,
-        );
-
-        let mut cs = gpiob.pb12.into_push_pull_output();
-        cs.set_low().unwrap();
-
-        let mut device = embedded_sdmmc::SdMmcSpi::new(spi, cs);
-        device.init().unwrap();
-        device
-    };
-    let storage = StorageImpl::open(device).unwrap();
-    let cfg = storage.load_config().unwrap();
-    // storage
-    //     .reset(cyberpixie_firmware::config::DEFAULT_APP_CONFIG)
-    //     .unwrap();
-    uprintln!("Total images count: {}", storage.images_count());
-
-    if !cfg.safe_mode {
-        uprintln!("Showing splash...");
-        let splash = WanderingLight::<STRIP_LEDS_COUNT>::default();
-        for (ticks, line) in splash {
-            timer.start(Microseconds(ticks));
-            strip.write(core::array::IntoIter::new(line)).ok();
-            timer.wait().await;
-        }
-        uprintln!("Splash has been showed.");
-    }
-
     strip.write(RED_LED.iter().copied()).ok();
     uprintln!("Enabling esp32 serial device");
     let mut esp_en = gpioa.pa4.into_push_pull_output();
     esp_en.set_high().ok();
-    timer.delay(Duration::from_secs(3)).await;
+    timer.delay(Duration::from_secs(5)).await;
     uprintln!("esp32 device has been enabled");
 
     let (esp_tx, esp_rx) = {
@@ -135,41 +96,37 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
     });
     uprintln!("esp32 serial communication port configured.");
 
-    let device_id = cyberpixie_firmware::device_id();
-    let mut ssid: String<64> = String::new();
-    ssid.write_fmt(core::format_args!(
-        "cyberpixie_{:X}{:X}{:X}",
-        device_id[1],
-        device_id[2],
-        device_id[3]
-    ))
-    .unwrap();
+    let mut adapter = Adapter::new(esp_rx, esp_tx).unwrap();
+    uprintln!("{:?}", adapter.list_wifi_ap().unwrap());
 
-    let softap_config = SoftApConfig {
-        ssid: &ssid,
-        ..SOFTAP_CONFIG
-    };
+    // let device_id = cyberpixie_firmware::device_id();
+    // let mut ssid: String<64> = String::new();
+    // ssid.write_fmt(core::format_args!(
+    //     "cyberpixie_{:X}{:X}{:X}",
+    //     device_id[1],
+    //     device_id[2],
+    //     device_id[3]
+    // ))
+    // .unwrap();
 
-    let ap = softap_config
-        .start(Adapter::new(esp_rx, esp_tx).unwrap())
-        .unwrap();
-    let network = TransportImpl::new(ap);
-    uprintln!("SoftAP has been successfuly configured with ssid {}.", ssid);
-    strip.write(BLUE_LED.iter().copied()).ok();
+    // let softap_config = SoftApConfig {
+    //     ssid: &ssid,
+    //     ..SOFTAP_CONFIG
+    // };
 
-    let mut events = NextImageBtn::new(gpioa.pa8.into_pull_down_input());
-    let app = App {
-        role: DeviceRole::Master,
-        device_id,
+    // let mut ap = softap_config
+    //     .start()
+    //     .unwrap();
+    // uprintln!("SoftAP has been successfuly configured with ssid {}.", ssid);
+    // strip.write(BLUE_LED.iter().copied()).ok();
 
-        network,
-        timer,
-        storage: &storage,
-        strip,
-        events: &mut events,
-    };
+    // uprintln!("{:?}", ap.list_wifi_ap().unwrap());
 
-    app.run().await
+    // let network = TransportImpl::new(ap);
+
+    loop {
+        atomic::compiler_fence(Ordering::SeqCst);
+    }
 }
 
 #[riscv_rt::entry]
@@ -181,9 +138,9 @@ fn main() -> ! {
 #[inline(never)]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    uprintln!();
-    uprintln!("The firmware panicked!");
-    uprintln!("- {}", info);
+    // uprintln!();
+    // uprintln!("The firmware panicked!");
+    // uprintln!("- {}", info);
 
     loop {
         atomic::compiler_fence(Ordering::SeqCst);

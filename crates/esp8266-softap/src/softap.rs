@@ -1,4 +1,7 @@
-use core::fmt::{self, Debug};
+use core::{
+    fmt::{self, Debug},
+    format_args,
+};
 
 use embedded_hal::serial;
 use heapless::Vec;
@@ -82,12 +85,9 @@ where
 
         // Start SoftAP.
         self.adapter
-            .send_at_command_fmt(core::format_args!(
+            .send_at_command_fmt(format_args!(
                 "AT+CWSAP=\"{}\",\"{}\",{},{}",
-                config.ssid,
-                config.password,
-                config.channel,
-                config.mode,
+                config.ssid, config.password, config.channel, config.mode,
             ))?
             .map_err(|_| Error::MalformedCommand {
                 cmd: "CWSAP",
@@ -122,11 +122,8 @@ where
         );
         assert!(self.adapter.reader.buf.is_empty());
 
-        self.adapter.write_command_fmt(core::format_args!(
-            "AT+CIPSEND={},{}",
-            link_id,
-            bytes_len
-        ))?;
+        self.adapter
+            .write_command_fmt(format_args!("AT+CIPSEND={},{}", link_id, bytes_len))?;
         self.adapter.read_until(CarretCondition)?;
 
         for byte in bytes {

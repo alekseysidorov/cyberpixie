@@ -4,7 +4,7 @@ use cyberpixie::{
 };
 use gd32vf103xx_hal::time as gd32_time;
 
-struct TimerWrapper<T: CountDown<Time = gd32_time::Hertz>>(T);
+pub struct TimerWrapper<T: CountDown<Time = gd32_time::Hertz>>(T);
 
 impl<T: CountDown<Time = gd32_time::Hertz>> TimerWrapper<T> {
     pub fn new(inner: T) -> Self {

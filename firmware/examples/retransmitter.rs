@@ -6,23 +6,19 @@ use core::{
     sync::atomic::{self, Ordering},
 };
 
-use cyberpixie::{
-    stdio::uprintln,
-    time::{Milliseconds, TimerAsync},
-};
-use cyberpixie_firmware::{config::SERIAL_PORT_CONFIG, TimerImpl};
+use cyberpixie::stdio::uprintln;
+use cyberpixie_firmware::config::SERIAL_PORT_CONFIG;
 use embedded_hal::digital::v2::OutputPin;
-use gd32vf103xx_hal::{pac::Peripherals, prelude::*, serial::Serial, timer::Timer};
+use gd32vf103xx_hal::{delay::McycleDelay, pac::Peripherals, prelude::*, serial::Serial};
 
 #[riscv_rt::entry]
 fn main() -> ! {
-    // Hardware initialization step.
     let dp = Peripherals::take().unwrap();
 
     let mut rcu = dp.RCU.configure().sysclk(108.mhz()).freeze();
     let mut afio = dp.AFIO.constrain(&mut rcu);
 
-    let mut timer = TimerImpl::from(Timer::timer0(dp.TIMER0, 1.mhz(), &mut rcu));
+    let mut delay = McycleDelay::new(&rcu.clocks);
 
     let gpioa = dp.GPIOA.split(&mut rcu);
     let (usb_tx, mut usb_rx) = {
@@ -34,13 +30,16 @@ fn main() -> ! {
     };
     stdio_serial::init(usb_tx);
 
-    timer.delay(Milliseconds(1_000));
+    delay.delay_ms(2_000);
     uprintln!("Serial port configured.");
 
     uprintln!("Enabling esp32 serial device");
     let mut esp_en = gpioa.pa4.into_push_pull_output();
-    esp_en.set_high().ok();
-    timer.delay(Milliseconds(5_000));
+    esp_en.set_low().unwrap();
+    delay.delay_ms(2_000);
+
+    esp_en.set_high().unwrap();
+    delay.delay_ms(5_000);
     uprintln!("esp32 device has been enabled");
 
     let (mut esp_tx, mut esp_rx) = {

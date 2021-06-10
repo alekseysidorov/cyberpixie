@@ -21,22 +21,29 @@ where
 }
 
 /// Writes a single byte without blocking.
-pub fn write_byte(word: u8) -> nb::Result<(), fmt::Error> {
-    inner::with_writer(|writer| writer.write(word))
+pub fn write_byte(word: u8) -> Result<(), fmt::Error> {
+    inner::with_writer(|writer| nb::block!(writer.write(word)).map_err(|_| fmt::Error))
 }
 
 /// Writes a string to the configured serial port device.
 pub fn write_str(s: &str) -> fmt::Result {
-    nb::block!(inner::with_writer(|writer| writer
-        .write_str(s)
-        .map_err(nb::Error::Other)))
+    inner::with_writer(|writer| {
+        nb::block!(writer.write_str(s).map_err(nb::Error::Other))?;
+        nb::block!(writer.flush()).map_err(|_| fmt::Error)
+    })
 }
 
 /// Writes a formatted string to the configured serial port device.
 pub fn write_fmt(args: fmt::Arguments) -> fmt::Result {
-    nb::block!(inner::with_writer(|writer| writer
-        .write_fmt(args)
-        .map_err(nb::Error::Other)))
+    inner::with_writer(|writer| {
+        nb::block!(writer.write_fmt(args).map_err(nb::Error::Other))?;
+        nb::block!(writer.flush()).map_err(|_| fmt::Error)
+    })
+}
+
+/// Ensures that none of the previously written words are still buffered.
+pub fn flush() -> fmt::Result {
+    inner::with_writer(|writer| nb::block!(writer.flush()).map_err(|_| fmt::Error))
 }
 
 /// Macro for printing to the configured stdout, without a newline.
