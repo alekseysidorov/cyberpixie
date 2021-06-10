@@ -2,12 +2,12 @@ use core::fmt::Debug;
 
 use cyberpixie::proto::{PacketData, PacketKind, PacketWithPayload, Transport, TransportEvent};
 use embedded_hal::serial::{Read, Write};
-use esp8266_softap::{Error as SoftApError, Event as SoftApEvent, SoftAp, ADAPTER_BUF_CAPACITY};
+use esp8266_softap::{Error as SocketError, Event as SoftApEvent, TcpSocket, ADAPTER_BUF_CAPACITY};
 use heapless::Vec;
 
 const MAX_PAYLOAD_LEN: usize = ADAPTER_BUF_CAPACITY - PacketKind::PACKED_LEN;
 
-pub struct TransportImpl<Tx, Rx>(SoftAp<Rx, Tx>)
+pub struct TransportImpl<Tx, Rx>(TcpSocket<Rx, Tx>)
 where
     Rx: Read<u8> + 'static,
     Tx: Write<u8> + 'static,
@@ -22,8 +22,8 @@ where
     Rx::Error: Debug,
     Tx::Error: Debug,
 {
-    pub fn new(ap: SoftAp<Rx, Tx>) -> Self {
-        Self(ap)
+    pub fn new(socket: TcpSocket<Rx, Tx>) -> Self {
+        Self(socket)
     }
 }
 
@@ -35,7 +35,7 @@ where
     Rx::Error: Debug,
     Tx::Error: Debug,
 {
-    type Error = SoftApError<Rx::Error, Tx::Error>;
+    type Error = SocketError<Rx::Error, Tx::Error>;
     type Address = usize;
     type Payload = Vec<u8, MAX_PAYLOAD_LEN>;
 
@@ -45,7 +45,7 @@ where
         let event = self
             .0
             .poll_next_event()
-            .map_err(|x| x.map(SoftApError::Read))?;
+            .map_err(|x| x.map(SocketError::Read))?;
 
         Ok(match event {
             SoftApEvent::Connected { link_id } => TransportEvent::Connected { address: link_id },

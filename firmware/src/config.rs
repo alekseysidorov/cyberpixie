@@ -11,6 +11,12 @@ pub const SERIAL_PORT_CONFIG: Config = Config {
     stopbits: StopBits::STOP1,
 };
 
+pub const ESP32_SERIAL_PORT_CONFIG: Config = Config {
+    baudrate: Bps(115200),
+    parity: Parity::ParityNone,
+    stopbits: StopBits::STOP1,
+};
+
 pub const SOFTAP_CONFIG: SoftApConfig = SoftApConfig {
     ssid: "cyberpixie",
     password: "12345678",

@@ -22,22 +22,71 @@ pub struct SoftApConfig<'a> {
 
 impl<'a> SoftApConfig<'a> {
     pub fn start<Rx, Tx>(
-        self,
-        adapter: Adapter<Rx, Tx>,
-    ) -> crate::Result<SoftAp<Rx, Tx>, Rx::Error, Tx::Error>
+        mut self,
+        mut adapter: Adapter<Rx, Tx>,
+    ) -> crate::Result<TcpSocket<Rx, Tx>, Rx::Error, Tx::Error>
     where
         Rx: serial::Read<u8> + 'static,
         Tx: serial::Write<u8> + 'static,
         Rx::Error: core::fmt::Debug,
         Tx::Error: core::fmt::Debug,
     {
-        let mut ap = SoftAp { adapter };
-        ap.init(self)?;
-        Ok(ap)
+        self.init(&mut adapter)?;
+        Ok(TcpSocket { adapter })
+    }
+
+    fn init<Rx, Tx>(
+        &mut self,
+        adapter: &mut Adapter<Rx, Tx>,
+    ) -> crate::Result<(), Rx::Error, Tx::Error>
+    where
+        Rx: serial::Read<u8> + 'static,
+        Tx: serial::Write<u8> + 'static,
+        
+        Rx::Error: core::fmt::Debug,
+        Tx::Error: core::fmt::Debug,
+    {
+        // Enable SoftAP+Station mode.
+        adapter
+            .send_at_command_str("AT+CWMODE=3")?
+            .map_err(|_| Error::MalformedCommand {
+                cmd: "CWMODE",
+                msg: "Unable to set Wifi mode",
+            })?;
+
+        // Enable multiple connections.
+        adapter
+            .send_at_command_str("AT+CIPMUX=1")?
+            .map_err(|_| Error::MalformedCommand {
+                cmd: "CIPMUX",
+                msg: "Unable to enable multiple connections",
+            })?;
+
+        // Setup a TCP server.
+        adapter
+            .send_at_command_str("AT+CIPSERVER=1")?
+            .map_err(|_| Error::MalformedCommand {
+                cmd: "CIPSERVER",
+                msg: "Unable to setup a TCP server",
+            })?;
+
+        // Start SoftAP.
+        adapter
+            .send_at_command_fmt(format_args!(
+                "AT+CWSAP=\"{}\",\"{}\",{},{}",
+                self.ssid, self.password, self.channel, self.mode,
+            ))?
+            .map_err(|_| Error::MalformedCommand {
+                cmd: "CWSAP",
+                msg: "Incorrect soft AP configuration",
+            })?;
+        adapter.clear_reader_buf();
+
+        Ok(())
     }
 }
 
-pub struct SoftAp<Rx, Tx>
+pub struct TcpSocket<Rx, Tx>
 where
     Rx: serial::Read<u8> + 'static,
     Tx: serial::Write<u8> + 'static,
@@ -47,55 +96,15 @@ where
     adapter: Adapter<Rx, Tx>,
 }
 
-impl<Rx, Tx> SoftAp<Rx, Tx>
+impl<Rx, Tx> TcpSocket<Rx, Tx>
 where
     Rx: serial::Read<u8> + 'static,
     Tx: serial::Write<u8> + 'static,
     Rx::Error: core::fmt::Debug,
     Tx::Error: core::fmt::Debug,
 {
-    pub fn new(adapter: Adapter<Rx, Tx>) -> Self {
+    pub fn from_raw(adapter: Adapter<Rx, Tx>) -> Self {
         Self { adapter }
-    }
-
-    fn init(&mut self, config: SoftApConfig<'_>) -> crate::Result<(), Rx::Error, Tx::Error> {
-        // Enable SoftAP+Station mode.
-        self.adapter
-            .send_at_command_str("AT+CWMODE=3")?
-            .map_err(|_| Error::MalformedCommand {
-                cmd: "CWMODE",
-                msg: "Unable to set Wifi mode",
-            })?;
-
-        // Enable multiple connections.
-        self.adapter
-            .send_at_command_str("AT+CIPMUX=1")?
-            .map_err(|_| Error::MalformedCommand {
-                cmd: "CIPMUX",
-                msg: "Unable to enable multiple connections",
-            })?;
-
-        // Setup a TCP server.
-        self.adapter
-            .send_at_command_str("AT+CIPSERVER=1")?
-            .map_err(|_| Error::MalformedCommand {
-                cmd: "CIPSERVER",
-                msg: "Unable to setup a TCP server",
-            })?;
-
-        // Start SoftAP.
-        self.adapter
-            .send_at_command_fmt(format_args!(
-                "AT+CWSAP=\"{}\",\"{}\",{},{}",
-                config.ssid, config.password, config.channel, config.mode,
-            ))?
-            .map_err(|_| Error::MalformedCommand {
-                cmd: "CWSAP",
-                msg: "Incorrect soft AP configuration",
-            })?;
-        self.adapter.clear_reader_buf();
-
-        Ok(())
     }
 
     pub fn read_bytes(&mut self) -> nb::Result<(), Rx::Error> {

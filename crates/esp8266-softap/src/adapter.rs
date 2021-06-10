@@ -87,17 +87,6 @@ where
         self.read_until(OkCondition)
     }
 
-    pub fn list_wifi_ap(&mut self) -> Result<&[u8], Rx::Error, Tx::Error> {
-        let raw_resp =
-            self.send_at_command_str("AT+CWLAP")?
-                .map_err(|_| Error::MalformedCommand {
-                    cmd: "CWLAP",
-                    msg: "Unable to list Wifi access points",
-                })?;
-
-        Ok(raw_resp)
-    }
-
     fn disable_echo(&mut self) -> Result<(), Rx::Error, Tx::Error> {
         self.send_at_command_str(b"ATE0").map(drop)
     }
