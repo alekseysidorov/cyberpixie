@@ -35,26 +35,23 @@ fn main() -> ! {
 
     uprintln!("Enabling esp32 serial device");
     let mut esp_en = gpioa.pa4.into_push_pull_output();
-    esp_en.set_low().unwrap();
-    delay.delay_ms(2_000);
-
     esp_en.set_high().unwrap();
-    delay.delay_ms(2_000);
     uprintln!("esp32 device has been enabled");
 
     let (mut esp_tx, mut esp_rx) = {
         let tx = gpioa.pa2.into_alternate_push_pull();
         let rx = gpioa.pa3.into_floating_input();
 
-        let serial = Serial::new(dp.USART1, (tx, rx), ESP32_SERIAL_PORT_CONFIG, &mut afio, &mut rcu);
+        let serial = Serial::new(
+            dp.USART1,
+            (tx, rx),
+            ESP32_SERIAL_PORT_CONFIG,
+            &mut afio,
+            &mut rcu,
+        );
         serial.split()
     };
     uprintln!("esp32 serial communication port configured.");
-
-    loop {
-        let byte = nb::block!(usb_rx.read());
-        uprintln!("{:?}", byte);
-    }
 
     loop {
         match (usb_rx.read(), esp_rx.read()) {
@@ -72,7 +69,9 @@ fn main() -> ! {
                 continue;
             }
             (Err(nb::Error::WouldBlock), Err(nb::Error::WouldBlock)) => continue,
-            _ => {}
+            other => {
+                uprintln!("{:?}", other);
+            }
         };
     }
 }

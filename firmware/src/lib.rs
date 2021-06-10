@@ -22,6 +22,7 @@ pub mod transport;
 
 pub const RED_LED: [RGB8; 1] = [RGB8 { r: 10, g: 0, b: 0 }];
 pub const BLUE_LED: [RGB8; 1] = [RGB8 { r: 0, g: 0, b: 10 }];
+pub const MAGENTA_LED: [RGB8; 1] = [RGB8 { r: 10, g: 0, b: 10 }];
 
 pub fn device_id() -> [u32; 4] {
     let mut id = [0; 4];

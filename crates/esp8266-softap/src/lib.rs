@@ -4,7 +4,7 @@ pub use crate::{
     adapter::{Adapter, ReadPart, WritePart},
     bytes_iter::BytesIter,
     error::{Error, Result},
-    softap::{DataReader, Event, TcpSocket, SoftApConfig},
+    softap::{DataReader, Event, SoftApConfig, TcpSocket},
 };
 
 pub mod adapter;

@@ -8,10 +8,10 @@ use cyberpixie::{
     leds::SmartLedsWrite, proto::DeviceRole, stdio::uprintln, time::Microseconds, App, Storage,
 };
 use cyberpixie_firmware::{
-    config::{SERIAL_PORT_CONFIG, SOFTAP_CONFIG, STRIP_LEDS_COUNT},
+    config::{ESP32_SERIAL_PORT_CONFIG, SERIAL_PORT_CONFIG, SOFTAP_CONFIG, STRIP_LEDS_COUNT},
     irq, new_async_timer,
     splash::WanderingLight,
-    transport, NextImageBtn, StorageImpl, BLUE_LED, RED_LED,
+    transport, NextImageBtn, StorageImpl, BLUE_LED, MAGENTA_LED, RED_LED,
 };
 use embedded_hal::digital::v2::OutputPin;
 use esp8266_softap::{Adapter, SoftApConfig};
@@ -117,15 +117,24 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
     strip.write(RED_LED.iter().copied()).ok();
     uprintln!("Enabling esp32 serial device");
     let mut esp_en = gpioa.pa4.into_push_pull_output();
+    esp_en.set_low().ok();
+    timer.delay(Duration::from_secs(2)).await;
+
     esp_en.set_high().ok();
-    timer.delay(Duration::from_secs(3)).await;
+    timer.delay(Duration::from_secs(2)).await;
     uprintln!("esp32 device has been enabled");
 
     let (esp_tx, esp_rx) = {
         let tx = gpioa.pa2.into_alternate_push_pull();
         let rx = gpioa.pa3.into_floating_input();
 
-        let serial = Serial::new(dp.USART1, (tx, rx), SERIAL_PORT_CONFIG, &mut afio, &mut rcu);
+        let serial = Serial::new(
+            dp.USART1,
+            (tx, rx),
+            ESP32_SERIAL_PORT_CONFIG,
+            &mut afio,
+            &mut rcu,
+        );
         serial.split()
     };
 
@@ -150,10 +159,10 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
         ..SOFTAP_CONFIG
     };
 
-    let ap = softap_config
-        .start(Adapter::new(esp_rx, esp_tx).unwrap())
-        .unwrap();
-    let network = TransportImpl::new(ap);
+    strip.write(MAGENTA_LED.iter().copied()).ok();
+    let adapter = Adapter::new(esp_rx, esp_tx).unwrap();
+    let socket = softap_config.start(adapter).unwrap();
+
     uprintln!("SoftAP has been successfuly configured with ssid {}.", ssid);
     strip.write(BLUE_LED.iter().copied()).ok();
 
@@ -162,13 +171,12 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
         role: DeviceRole::Master,
         device_id,
 
-        network,
+        network: TransportImpl::new(socket),
         timer,
         storage: &storage,
         strip,
         events: &mut events,
     };
-
     app.run().await
 }
 

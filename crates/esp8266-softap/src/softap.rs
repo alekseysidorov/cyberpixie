@@ -42,7 +42,7 @@ impl<'a> SoftApConfig<'a> {
     where
         Rx: serial::Read<u8> + 'static,
         Tx: serial::Write<u8> + 'static,
-        
+
         Rx::Error: core::fmt::Debug,
         Tx::Error: core::fmt::Debug,
     {

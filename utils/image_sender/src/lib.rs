@@ -1,9 +1,6 @@
 pub use self::tcp_transport::{connect_to, create_service, TcpTransport};
 
-use std::{
-    fmt::Display,
-    path::Path,
-};
+use std::{fmt::Display, path::Path};
 
 use image::io::Reader;
 
