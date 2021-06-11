@@ -1,32 +1,28 @@
 #![no_std]
 #![no_main]
 
-use core::{fmt::Write, iter::repeat, panic::PanicInfo, sync::atomic, time::Duration};
+use core::{iter::repeat, panic::PanicInfo, sync::atomic, time::Duration};
 
 use atomic::Ordering;
 use cyberpixie::{
     leds::SmartLedsWrite,
-    proto::{DeviceRole, Handshake, Service},
+    proto::{DeviceRole, Handshake, Message, Service, SimpleMessage},
     stdio::{uprint, uprintln},
-    time::{AsyncCountDown, AsyncTimer, Microseconds},
-    App, Storage,
+    time::{AsyncCountDown, AsyncTimer},
 };
 use cyberpixie_firmware::{
-    config::{ESP32_SERIAL_PORT_CONFIG, SERIAL_PORT_CONFIG, SOFTAP_CONFIG, STRIP_LEDS_COUNT},
-    device_id, irq, new_async_timer,
-    splash::WanderingLight,
-    transport, NextImageBtn, StorageImpl, BLUE_LED, RED_LED,
+    config::{ESP32_SERIAL_PORT_CONFIG, SERIAL_PORT_CONFIG, STRIP_LEDS_COUNT},
+    device_id, irq, new_async_timer, transport, BLUE_LED, MAGENTA_LED, RED_LED,
 };
 use embedded_hal::digital::v2::OutputPin;
-use esp8266_softap::{Adapter, SoftApConfig, TcpStream, ADAPTER_BUF_CAPACITY};
+use esp8266_softap::{Adapter, TcpStream, ADAPTER_BUF_CAPACITY};
 use gd32vf103xx_hal::{
     pac::{self},
     prelude::*,
     serial::{Event as SerialEvent, Serial},
-    spi::{Spi, MODE_0},
+    spi::Spi,
     timer::Timer,
 };
-use heapless::String;
 use smart_leds::RGB8;
 use transport::TransportImpl;
 use ws2812_spi::Ws2812;
@@ -160,58 +156,74 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
         "AT+CIPSTART=0,\"TCP\",\"192.168.4.1\",333",
     )
     .await;
-    let master_link = 0;
+    invoke_cmd_response(&mut timer, &mut adapter, "AT+CIPSTATUS").await;
 
+    strip.write(MAGENTA_LED.iter().copied()).ok();
     uprintln!("Sending handshake to the master device...");
     timer.delay(Duration::from_millis(200)).await;
 
     let network = TransportImpl::new(TcpStream::from_raw(adapter));
     let mut service = Service::new(network, ADAPTER_BUF_CAPACITY);
-    let resp = service
-        .handshake(
-            master_link,
-            Handshake {
-                device_id: device_id(),
-                group_id: None,
-                role: DeviceRole::Slave,
-            },
-        )
-        .unwrap();
+
+    let handshake = Handshake {
+        device_id: device_id(),
+        group_id: None,
+        role: DeviceRole::Slave,
+    };
+    let resp = service.handshake(0, handshake).unwrap();
 
     uprintln!("Got handshake: {:?}", resp);
+    timer.delay(Duration::from_millis(200)).await;
 
-    // let resp = adapter.send_at_command_str("AT+CWSTATE?").unwrap();
-    // print_response(resp);
+    strip.write(BLUE_LED.iter().copied()).ok();
 
-    // let resp = adapter.send_at_command_str("AT+CWMODE=3").unwrap();
-    // print_response(resp);
-
-    // let resp = adapter.send_at_command_str("AT+CWLAP").unwrap();
-    // print_response(resp);
-
-    // let device_id = cyberpixie_firmware::device_id();
-    // let mut ssid: String<64> = String::new();
-    // ssid.write_fmt(core::format_args!(
-    //     "cyberpixie_{:X}{:X}{:X}",
-    //     device_id[1],
-    //     device_id[2],
-    //     device_id[3]
-    // ))
-    // .unwrap();
-
-    // let softap_config = SoftApConfig {
-    //     ssid: &ssid,
-    //     ..SOFTAP_CONFIG
-    // };
-
-    // let mut ap = softap_config.start(adapter).unwrap();
-    // uprintln!("SoftAP has been successfuly configured with ssid {}.", ssid);
-    // strip.write(BLUE_LED.iter().copied()).ok();
-
-    // let network = TransportImpl::new(ap);
-
+    let mut image_index = 0;
     loop {
-        atomic::compiler_fence(Ordering::SeqCst);
+        let event = service.next_event().await.unwrap();
+
+        let (address, message) = if let Some(message) = event.message() {
+            message
+        } else {
+            continue;
+        };
+
+        let response = match message {
+            Message::HandshakeRequest(msg) => {
+                uprintln!("Handle HandshakeRequest: {:?}", msg);
+
+                Some(SimpleMessage::HandshakeResponse(handshake))
+            }
+
+            Message::AddImage { bytes, .. } => {
+                for _ in bytes {}
+
+                uprintln!("Handle AddImage");
+
+                image_index += 1;
+                Some(SimpleMessage::ImageAdded { index: image_index })
+            }
+
+            Message::ShowImage { .. } => {
+                uprintln!("Handle ShowImage");
+
+                Some(SimpleMessage::Ok)
+            }
+
+            Message::ClearImages => {
+                uprintln!("Handle ClearImages");
+
+                image_index = 0;
+                Some(SimpleMessage::Ok)
+            }
+
+            Message::GetInfo => unimplemented!(),
+            _ => None,
+        };
+        service.confirm_message(address).unwrap();
+
+        if let Some(message) = response {
+            service.send_message(address, message).unwrap();
+        }
     }
 }
 
@@ -224,9 +236,9 @@ fn main() -> ! {
 #[inline(never)]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    // uprintln!();
-    // uprintln!("The firmware panicked!");
-    // uprintln!("- {}", info);
+    uprintln!();
+    uprintln!("The firmware panicked!");
+    uprintln!("- {}", info);
 
     loop {
         atomic::compiler_fence(Ordering::SeqCst);

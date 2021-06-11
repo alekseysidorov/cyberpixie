@@ -68,7 +68,7 @@ where
             ServiceEvent::Disconnected { address } => {
                 self.links_mut().remove_address(&address);
             }
-            
+
             ServiceEvent::Message { address, message } => {
                 let output = self.handle_message(address, message);
                 service

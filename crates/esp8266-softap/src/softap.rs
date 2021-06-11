@@ -103,7 +103,8 @@ where
     Rx::Error: core::fmt::Debug,
     Tx::Error: core::fmt::Debug,
 {
-    pub fn from_raw(adapter: Adapter<Rx, Tx>) -> Self {
+    pub fn from_raw(mut adapter: Adapter<Rx, Tx>) -> Self {
+        adapter.reader.buf.clear();
         Self { adapter }
     }
 
