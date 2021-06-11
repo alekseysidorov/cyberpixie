@@ -14,6 +14,7 @@ use crate::{
 
 use super::{Context, DeviceLink, CORE_VERSION};
 
+#[derive(Debug)]
 enum SlaveCommand {
     ShowImage { index: usize },
     AddImage { index: usize },
@@ -76,8 +77,10 @@ where
                     .expect("unable to confirm message");
 
                 if let Some(cmd) = output.slave_cmd {
+                    uprintln!("Sending command {:?} to slave...", cmd);
                     self.send_command_to_slave(service, cmd)
                         .expect("unable to send command to slave device");
+                    uprintln!("Confirmed.");
                 }
                 if let Some(msg) = output.response {
                     service
@@ -141,7 +144,7 @@ where
                 for _ in bytes {}
 
                 if let Message::ImageAdded { index } = &msg {
-                    response.cmd(SlaveCommand::AddImage { index: *index });
+                    response.cmd(SlaveCommand::AddImage { index: *index - 1 });
                 }
                 response.msg(msg);
             }
