@@ -1,4 +1,4 @@
-use core::fmt;
+use std::fmt;
 
 use embedded_hal::serial::Write;
 
@@ -17,9 +17,9 @@ impl Write<u8> for StdoutWriter {
     }
 }
 
-pub fn with_writer<F>(f: F) -> nb::Result<(), fmt::Error>
+pub fn with_writer<F>(f: F) -> Result<(), fmt::Error>
 where
-    F: FnOnce(&mut (dyn Write<u8, Error = fmt::Error> + 'static)) -> nb::Result<(), fmt::Error>,
+    F: FnOnce(&mut (dyn Write<u8, Error = fmt::Error> + 'static)) -> Result<(), fmt::Error>,
 {
     f(&mut StdoutWriter)
 }
