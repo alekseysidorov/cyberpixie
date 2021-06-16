@@ -1,7 +1,6 @@
 use core::{fmt::Debug, mem::size_of};
 
 use smart_leds::RGB8;
-use stdio_serial::uprintln;
 
 use crate::{
     proto::{
@@ -77,10 +76,8 @@ where
                     .expect("unable to confirm message");
 
                 if let Some(cmd) = output.slave_cmd {
-                    uprintln!("Sending command {:?} to slave...", cmd);
                     self.send_command_to_slave(service, cmd)
                         .expect("unable to send command to slave device");
-                    uprintln!("Confirmed.");
                 }
                 if let Some(msg) = output.response {
                     service
@@ -98,8 +95,6 @@ where
         let mut response = MessageResponse::empty();
         match message {
             Message::HandshakeRequest(handshake) => {
-                uprintln!("{:?}", handshake);
-
                 let mut links = self.links_mut();
                 if !links.contains_link(handshake.role) {
                     links.add_link(DeviceLink {
@@ -121,7 +116,6 @@ where
                     version: CORE_VERSION,
                     images_count: self.images_count() as u16,
                     device_id: self.device_id,
-                    // TODO implement composite role logic.
                     role: self.role,
                 }));
             }
@@ -129,8 +123,8 @@ where
             Message::ClearImages => {
                 self.clear_images();
                 response
-                    .msg(SimpleMessage::Ok)
-                    .cmd(SlaveCommand::ClearImages);
+                    .cmd(SlaveCommand::ClearImages)
+                    .msg(SimpleMessage::Ok);
             }
 
             Message::AddImage {
@@ -141,7 +135,7 @@ where
                 let msg = self.handle_add_image(bytes.by_ref(), refresh_rate, strip_len);
                 // In order to use the reader further, we must read all of the remaining bytes.
                 // Otherwise, the reader will be in an inconsistent state.
-                for _ in bytes {}
+                assert_eq!(bytes.len(), 0);
 
                 if let Message::ImageAdded { index } = &msg {
                     response.cmd(SlaveCommand::AddImage { index: *index - 1 });
@@ -205,28 +199,27 @@ where
         service: &mut Service<Network>,
         cmd: SlaveCommand,
     ) -> Result<(), Network::Error> {
-        let address = if let Some(link) = self.links().slave.as_ref() {
-            link.address
-        } else {
-            return Ok(());
-        };
+        for link in self.links().slave_devices() {
+            let address = link.address;
+            match cmd {
+                SlaveCommand::ShowImage { index } => {
+                    service.show_image(address, index)?.ok();
+                }
 
-        match cmd {
-            SlaveCommand::ShowImage { index } => {
-                service.show_image(address, index)?.ok();
-            }
+                SlaveCommand::ClearImages if !self.save_mode() => {
+                    service.clear_images(address)?.ok();
+                }
 
-            SlaveCommand::ClearImages => {
-                service.clear_images(address)?.ok();
-            }
+                SlaveCommand::AddImage { index } if !self.save_mode() => {
+                    let strip_len = self.strip_len();
+                    let (refresh_rate, pixels) = self.read_image(index);
 
-            SlaveCommand::AddImage { index } => {
-                let strip_len = self.strip_len();
-                let (refresh_rate, pixels) = self.read_image(index);
+                    service
+                        .add_image(address, refresh_rate, strip_len, rgb8_to_bytes(pixels))?
+                        .ok();
+                }
 
-                service
-                    .add_image(address, refresh_rate, strip_len, rgb8_to_bytes(pixels))?
-                    .ok();
+                _ => {}
             }
         }
 

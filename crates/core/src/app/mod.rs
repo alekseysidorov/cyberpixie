@@ -69,6 +69,10 @@ impl<T: Transport> DeviceLinks<T> {
     fn contains_link(&self, role: DeviceRole) -> bool {
         self.get_link(role).is_some()
     }
+
+    fn slave_devices(&self) -> impl Iterator<Item = &DeviceLink<T>> {
+        self.slave.iter()
+    }
 }
 
 impl<T: Transport> Default for DeviceLinks<T> {
@@ -274,6 +278,10 @@ where
 
     fn links_mut(&self) -> RefMut<DeviceLinks<Network>> {
         RefMut::map(self.inner.borrow_mut(), |inner| &mut inner.links)
+    }
+
+    fn save_mode(&self) -> bool {
+        self.inner.borrow().app_config.safe_mode
     }
 }
 
