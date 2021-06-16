@@ -94,16 +94,16 @@ impl<T: Transport> Service<T> {
     {
         let (header, payload) = message.into_header_payload();
         self.send_message_header(address, &header)?;
+        uprintln!("SM");
         nb::block!(self.poll_for_confirmation(address))?;
+        uprintln!("RC");
 
         if let Some(mut payload) = payload {
             let payload_len = self.receiver_buf_capacity - PacketKind::PACKED_LEN;
             while payload.len() != 0 {
-                uprintln!("Sending packet, remaining bytes: {}", payload.len());
                 self.transport
                     .send_packet(payload.by_ref().take(payload_len), address)?;
                 nb::block!(self.poll_for_confirmation(address))?;
-                uprintln!("Confirmed");
             }
         }
 

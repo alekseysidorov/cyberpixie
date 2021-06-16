@@ -87,7 +87,7 @@ where
     }
 
     fn get_or_init(&mut self, default_config: AppConfig) -> Result<(), B::Error> {
-        self.read_block(Self::INIT_BLOCK, "Load INIT block")?;
+        self.read_inner_block(Self::INIT_BLOCK, "Load INIT block")?;
 
         if !self.block.inner[0].contents.starts_with(Self::INIT_MSG) {
             self.init()?;
@@ -173,12 +173,13 @@ where
         Ok(images_count as usize)
     }
 
-    fn read_config(&self) -> Result<AppConfig, B::Error> {
+    fn load_config(&self) -> Result<AppConfig, B::Error> {
         let mut blocks = [Block {
             contents: unsafe { unitialized_block_content() },
         }];
-        self.device
-            .read(&mut blocks, Self::CONFIG_BLOCK, "read config block")?;
+        retry!(self
+            .device
+            .read(&mut blocks, Self::CONFIG_BLOCK, "read config block"))?;
 
         let config = postcard::from_bytes(&blocks[0].contents).unwrap();
         Ok(config)
@@ -197,7 +198,7 @@ where
         retry!(self.device.write(blocks, start_block_idx))
     }
 
-    fn read_block(
+    fn read_inner_block(
         &mut self,
         start_block_idx: BlockIdx,
         reason: &str,
@@ -394,7 +395,7 @@ where
     }
 
     fn load_config(&self) -> Result<AppConfig, Self::Error> {
-        self.inner.borrow().read_config()
+        self.inner.borrow().load_config()
     }
 
     fn save_config(&self, config: &AppConfig) -> Result<(), Self::Error> {

@@ -1,7 +1,6 @@
 use core::{fmt::Debug, mem::size_of};
 
 use smart_leds::RGB8;
-use stdio_serial::uprintln;
 
 use crate::{
     proto::{
@@ -77,10 +76,8 @@ where
                     .expect("unable to confirm message");
 
                 if let Some(cmd) = output.slave_cmd {
-                    uprintln!("Sending command {:?} to slave...", cmd);
                     self.send_command_to_slave(service, cmd)
                         .expect("unable to send command to slave device");
-                    uprintln!("Confirmed.");
                 }
                 if let Some(msg) = output.response {
                     service
@@ -98,8 +95,6 @@ where
         let mut response = MessageResponse::empty();
         match message {
             Message::HandshakeRequest(handshake) => {
-                uprintln!("{:?}", handshake);
-
                 let mut links = self.links_mut();
                 if !links.contains_link(handshake.role) {
                     links.add_link(DeviceLink {

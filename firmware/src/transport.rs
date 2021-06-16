@@ -4,6 +4,7 @@ use cyberpixie::proto::{PacketData, PacketKind, PacketWithPayload, Transport, Tr
 use embedded_hal::serial::{Read, Write};
 use esp8266_softap::{Error as SocketError, Event as SoftApEvent, TcpStream, ADAPTER_BUF_CAPACITY};
 use heapless::Vec;
+use stdio_serial::uprintln;
 
 const MAX_PAYLOAD_LEN: usize = ADAPTER_BUF_CAPACITY - PacketKind::PACKED_LEN;
 
@@ -59,9 +60,14 @@ where
                         assert_eq!(len, reader.len());
                         let mut payload: Vec<u8, MAX_PAYLOAD_LEN> = Vec::new();
                         payload.extend(reader.by_ref());
+
+                        uprintln!("RM");
                         PacketData::Payload(payload)
                     }
-                    PacketKind::Confirmed => PacketData::Confirmed,
+                    PacketKind::Confirmed => {
+                        uprintln!("RC");
+                        PacketData::Confirmed
+                    },
                 };
 
                 assert_eq!(reader.len(), 0);
@@ -74,6 +80,7 @@ where
     }
 
     fn confirm_packet(&mut self, address: Self::Address) -> Result<(), Self::Error> {
+        uprintln!("Sending packet confirmation to {}", address);
         let packet = PacketKind::Confirmed.to_bytes();
 
         let bytes = packet.iter().copied();
@@ -85,6 +92,8 @@ where
         payload: P,
         address: Self::Address,
     ) -> Result<(), Self::Error> {
+        uprintln!("Sending packet to {} with len {}", address, payload.len());
+
         assert!(payload.len() <= MAX_PAYLOAD_LEN);
         self.0
             .send_packet_to_link(address, PacketWithPayload::from(payload))

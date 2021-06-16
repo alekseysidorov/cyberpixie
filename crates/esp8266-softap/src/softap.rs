@@ -53,23 +53,6 @@ impl<'a> SoftApConfig<'a> {
                 cmd: "CWMODE",
                 msg: "Unable to set Wifi mode",
             })?;
-
-        // Enable multiple connections.
-        adapter
-            .send_at_command_str("AT+CIPMUX=1")?
-            .map_err(|_| Error::MalformedCommand {
-                cmd: "CIPMUX",
-                msg: "Unable to enable multiple connections",
-            })?;
-
-        // Setup a TCP server.
-        adapter
-            .send_at_command_str("AT+CIPSERVER=1")?
-            .map_err(|_| Error::MalformedCommand {
-                cmd: "CIPSERVER",
-                msg: "Unable to setup a TCP server",
-            })?;
-
         // Start SoftAP.
         adapter
             .send_at_command_fmt(format_args!(
@@ -80,8 +63,23 @@ impl<'a> SoftApConfig<'a> {
                 cmd: "CWSAP",
                 msg: "Incorrect soft AP configuration",
             })?;
-        adapter.clear_reader_buf();
 
+        // Enable multiple connections.
+        adapter
+            .send_at_command_str("AT+CIPMUX=1")?
+            .map_err(|_| Error::MalformedCommand {
+                cmd: "CIPMUX",
+                msg: "Unable to enable multiple connections",
+            })?;
+
+        adapter
+            .send_at_command_str("AT+CIPSTART=0,\"UDP\",\"0.0.0.0\",8000,8000,2")?
+            .map_err(|_| Error::MalformedCommand {
+                cmd: "CIPSTART",
+                msg: "Unable to setup a UDP connection",
+            })?;
+
+        adapter.clear_reader_buf();
         Ok(())
     }
 }

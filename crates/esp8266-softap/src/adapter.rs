@@ -200,13 +200,14 @@ pub(crate) struct OkCondition;
 impl OkCondition {
     const OK: &'static [u8] = b"OK\r\n";
     const ERROR: &'static [u8] = b"ERROR\r\n";
+    const CONNECT_FAIL: &'static [u8] = b"CONNECT FAIL\r\n";
 }
 
 impl<'a> Condition<'a> for OkCondition {
     type Output = core::result::Result<&'a [u8], &'a [u8]>;
 
     fn is_performed(self, buf: &[u8]) -> bool {
-        buf.ends_with(Self::OK) || buf.ends_with(Self::ERROR)
+        buf.ends_with(Self::OK) || buf.ends_with(Self::ERROR) || buf.ends_with(Self::CONNECT_FAIL)
     }
 
     fn output(self, buf: &'a [u8]) -> Self::Output {

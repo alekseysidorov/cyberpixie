@@ -140,7 +140,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
 
     let esp_rx = irq::init_interrupts(irq::Usart1 {
         rx: esp_rx,
-        timer: Timer::timer1(dp.TIMER1, 15.khz(), &mut rcu),
+        timer: Timer::timer1(dp.TIMER1, 20.khz(), &mut rcu),
     });
     uprintln!("esp32 serial communication port configured.");
 
