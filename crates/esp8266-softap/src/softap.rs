@@ -193,6 +193,9 @@ where
                         reader: self,
                     },
                 },
+                CommandResponse::WifiDisconnect => {
+                    return Err(nb::Error::WouldBlock)
+                }
             };
 
             return Ok(event);

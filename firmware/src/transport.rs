@@ -1,6 +1,6 @@
 use core::fmt::Debug;
 
-use cyberpixie::proto::{PacketData, PacketKind, PacketWithPayload, Transport, TransportEvent};
+use cyberpixie::{proto::{PacketData, PacketKind, PacketWithPayload, Transport, TransportEvent}, stdio::uprintln};
 use embedded_hal::serial::{Read, Write};
 use esp8266_softap::{Error as SocketError, Event as SoftApEvent, TcpStream, ADAPTER_BUF_CAPACITY};
 use heapless::Vec;
@@ -54,6 +54,7 @@ where
                 link_id,
                 mut reader,
             } => {
+                uprintln!("{}", reader.len());
                 let data = match PacketKind::from_reader(reader.by_ref()) {
                     PacketKind::Payload(len) => {
                         assert_eq!(len, reader.len());
