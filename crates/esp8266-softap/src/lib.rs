@@ -2,17 +2,17 @@
 
 pub use crate::{
     adapter::{Adapter, ReadPart, WritePart},
-    bytes_iter::BytesIter,
     error::{Error, Result},
-    softap::{DataReader, Event, SoftApConfig, TcpStream},
+    softap::SoftApConfig,
+    tcp_socket::{Data, Event, TcpSocket},
 };
 
 pub mod adapter;
 pub mod error;
 pub mod softap;
 
-mod bytes_iter;
 mod parser;
+mod tcp_socket;
 #[cfg(test)]
 mod tests;
 
