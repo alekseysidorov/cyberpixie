@@ -32,11 +32,12 @@ unsafe fn handle_uart1_interrupt() {
     irq::handle_usart1_update()
 }
 
-async fn invoke_cmd_response<Rx, Tx>(
+async fn invoke_cmd_response<'a, Rx, Tx>(
     timer: &mut AsyncTimer<impl AsyncCountDown>,
-    adapter: &mut Adapter<Rx, Tx>,
+    adapter: &'a mut Adapter<Rx, Tx>,
     cmd: &str,
-) where
+)
+where
     Rx: embedded_hal::serial::Read<u8> + 'static,
     Tx: embedded_hal::serial::Write<u8> + 'static,
     Rx::Error: core::fmt::Debug,
@@ -112,7 +113,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
     let mut esp_en = gpioa.pa4.into_push_pull_output();
 
     esp_en.set_low().ok();
-    timer.delay(Duration::from_secs(1)).await;
+    timer.delay(Duration::from_secs(2)).await;
 
     esp_en.set_high().ok();
     timer.delay(Duration::from_secs(2)).await;
@@ -134,7 +135,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
 
     let esp_rx = irq::init_interrupts(irq::Usart1 {
         rx: esp_rx,
-        timer: Timer::timer1(dp.TIMER1, 15.khz(), &mut rcu),
+        timer: Timer::timer1(dp.TIMER1, 30.khz(), &mut rcu),
     });
     uprintln!("esp32 serial communication port configured.");
 
@@ -153,7 +154,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
     invoke_cmd_response(
         &mut timer,
         &mut adapter,
-        "AT+CIPSTART=0,\"TCP\",\"192.168.4.1\",333",
+        "AT+CIPSTART=0,\"UDP\",\"192.168.4.1\",8000",
     )
     .await;
     invoke_cmd_response(&mut timer, &mut adapter, "AT+CIPSTATUS").await;
@@ -195,7 +196,9 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
             }
 
             Message::AddImage { bytes, .. } => {
-                for _ in bytes {}
+                for _ in bytes {
+                    timer.delay(Duration::from_millis(10)).await;
+                }
 
                 uprintln!("Handle AddImage");
 
@@ -219,10 +222,12 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
             Message::GetInfo => unimplemented!(),
             _ => None,
         };
-        service.confirm_message(address).unwrap();
 
+        service.confirm_message(address).unwrap();
+        uprintln!("Message confirmed");
         if let Some(message) = response {
             service.send_message(address, message).unwrap();
+            uprintln!("Sent response");
         }
     }
 }

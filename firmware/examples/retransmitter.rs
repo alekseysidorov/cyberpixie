@@ -36,6 +36,7 @@ fn main() -> ! {
     uprintln!("Enabling esp32 serial device");
     let mut esp_en = gpioa.pa4.into_push_pull_output();
     esp_en.set_high().unwrap();
+    delay.delay_ms(3_000);
     uprintln!("esp32 device has been enabled");
 
     let (mut esp_tx, mut esp_rx) = {

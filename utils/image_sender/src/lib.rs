@@ -1,10 +1,10 @@
-pub use self::tcp_transport::{connect_to, create_service, TcpTransport};
+pub use self::udp_transport::{connect_to, create_service, UdpTransport};
 
 use std::{fmt::Display, path::Path};
 
 use image::io::Reader;
 
-mod tcp_transport;
+mod udp_transport;
 
 pub fn convert_image_to_raw(path: impl AsRef<Path>) -> anyhow::Result<(usize, Vec<u8>)> {
     let image = Reader::open(path)?.decode()?.to_rgb8();
