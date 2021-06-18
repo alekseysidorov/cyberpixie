@@ -13,7 +13,9 @@ serde = { version = "1", default-features = false, features = ["derive"] }
 
 nb-utils = { path = "../nb_utils" }
 
+stdio-serial = { path = "../stdio-serial" }
+
 [dev-dependencies]
 embedded-hal = "0.2"
 esp8266-softap = { path = "../esp8266-softap" }
-stdio-serial = { path = "../stdio-serial", features = ["std", "dprint"] }
+# stdio-serial = { path = "../stdio-serial", features = ["std", "dprint"] }

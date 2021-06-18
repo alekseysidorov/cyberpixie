@@ -2,9 +2,9 @@ use core::fmt;
 
 use embedded_hal::serial::Write;
 
-pub fn with_writer<F>(_f: F) -> nb::Result<(), fmt::Error>
+pub fn with_writer<F>(_f: F) -> Result<(), fmt::Error>
 where
-    F: FnOnce(&mut (dyn Write<u8, Error = fmt::Error> + 'static)) -> nb::Result<(), fmt::Error>,
+    F: FnOnce(&mut (dyn Write<u8, Error = fmt::Error> + 'static)) -> Result<(), fmt::Error>,
 {
     Ok(())
 }

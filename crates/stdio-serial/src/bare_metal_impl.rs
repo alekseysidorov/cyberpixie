@@ -43,9 +43,9 @@ where
 
 static STDOUT: Mutex<RefCell<Option<SerialWriter>>> = Mutex::new(RefCell::new(None));
 
-pub fn with_writer<F>(f: F) -> nb::Result<(), fmt::Error>
+pub fn with_writer<F>(f: F) -> Result<(), fmt::Error>
 where
-    F: FnOnce(&mut (dyn Write<u8, Error = fmt::Error> + 'static)) -> nb::Result<(), fmt::Error>,
+    F: FnOnce(&mut (dyn Write<u8, Error = fmt::Error> + 'static)) -> Result<(), fmt::Error>,
 {
     interrupt::free(|cs| {
         let mut inner = STDOUT.borrow(cs).borrow_mut();

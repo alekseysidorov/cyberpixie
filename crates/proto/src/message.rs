@@ -2,7 +2,7 @@ use core::iter::Empty;
 
 use crate::{
     transport::Transport,
-    types::{AddImage, FirmwareInfo, Hertz, MessageHeader},
+    types::{AddImage, FirmwareInfo, Handshake, Hertz, MessageHeader},
     Error,
 };
 
@@ -12,6 +12,7 @@ where
     I: Iterator<Item = u8> + ExactSizeIterator,
 {
     // Requests.
+    HandshakeRequest(Handshake),
     GetInfo,
     AddImage {
         refresh_rate: Hertz,
@@ -25,6 +26,7 @@ where
 
     // Responses.
     Ok,
+    HandshakeResponse(Handshake),
     ImageAdded {
         index: usize,
     },
@@ -38,6 +40,9 @@ where
 {
     pub(super) fn into_header_payload(self) -> (MessageHeader, Option<I>) {
         match self {
+            Message::HandshakeRequest(handshake) => {
+                (MessageHeader::HandshakeRequest(handshake), None)
+            }
             Message::GetInfo => (MessageHeader::GetInfo, None),
             Message::AddImage {
                 refresh_rate,
@@ -54,6 +59,9 @@ where
             Message::ClearImages => (MessageHeader::ClearImages, None),
             Message::ShowImage { index } => (MessageHeader::ShowImage(index as u16), None),
 
+            Message::HandshakeResponse(handshake) => {
+                (MessageHeader::HandshakeResponse(handshake), None)
+            }
             Message::ImageAdded { index } => (MessageHeader::ImageAdded(index as u16), None),
             Message::Ok => (MessageHeader::Ok, None),
             Message::Info(info) => (MessageHeader::Info(info), None),
@@ -71,6 +79,7 @@ pub(super) fn read_message<T: Transport>(
     transport: &mut T,
 ) -> Result<IncomingMessage<'_, T>, T::Error> {
     let msg = match header {
+        MessageHeader::HandshakeRequest(handshake) => Message::HandshakeRequest(handshake),
         MessageHeader::GetInfo => Message::GetInfo,
         MessageHeader::ClearImages => Message::ClearImages,
         MessageHeader::AddImage(img) => Message::AddImage {
@@ -82,8 +91,9 @@ pub(super) fn read_message<T: Transport>(
             index: index as usize,
         },
 
-        MessageHeader::Info(info) => Message::Info(info),
         MessageHeader::Ok => Message::Ok,
+        MessageHeader::HandshakeResponse(handshake) => Message::HandshakeResponse(handshake),
+        MessageHeader::Info(info) => Message::Info(info),
         MessageHeader::Error(code) => Message::Error(Error::from_code(code)),
         MessageHeader::ImageAdded(index) => Message::ImageAdded {
             index: index as usize,

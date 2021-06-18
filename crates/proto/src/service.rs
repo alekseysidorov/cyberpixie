@@ -5,7 +5,7 @@ use nb_utils::NbResultExt;
 use crate::{
     message::{read_message, IncomingMessage, Message, SimpleMessage},
     types::{Hertz, MessageHeader},
-    FirmwareInfo, PacketKind, Transport, TransportEvent,
+    FirmwareInfo, Handshake, PacketKind, Transport, TransportEvent,
 };
 
 macro_rules! wait_for_response {
@@ -39,21 +39,22 @@ impl<T: Transport> Service<T> {
     }
 
     pub async fn next_event(&mut self) -> Result<Event<'_, T>, T::Error> {
-        Ok(
-            match nb_utils::poll_nb_future(|| self.transport.poll_next_event()).await? {
-                TransportEvent::Connected { address } => Event::Connected { address },
-                TransportEvent::Disconnected { address } => Event::Disconnected { address },
-                TransportEvent::Packet { address, data } => {
-                    // TODO: At the MPV stage, we assume that the incoming message is always correct.
-                    let payload = data.payload().unwrap();
-                    let header = postcard::from_bytes(payload.as_ref()).unwrap();
-                    Event::Message {
-                        address,
-                        message: read_message(address, header, &mut self.transport)?,
-                    }
+        let transport_event = nb_utils::poll_nb_future(|| self.transport.poll_next_event()).await?;
+
+        let service_event = match transport_event {
+            TransportEvent::Connected { address } => Event::Connected { address },
+            TransportEvent::Disconnected { address } => Event::Disconnected { address },
+            TransportEvent::Packet { address, data } => {
+                // TODO: At the MPV stage, we assume that the incoming message is always correct.
+                let payload = data.payload().unwrap();
+                let header = postcard::from_bytes(payload.as_ref()).unwrap();
+                Event::Message {
+                    address,
+                    message: read_message(address, header, &mut self.transport)?,
                 }
-            },
-        )
+            }
+        };
+        Ok(service_event)
     }
 
     pub fn poll_next_event(&mut self) -> nb::Result<Event<'_, T>, T::Error> {
@@ -156,6 +157,18 @@ impl<T: Transport> Service<T> {
     ) -> Result<Response<()>, T::Error> {
         self.send_message(address, SimpleMessage::ShowImage { index })?;
         let response = wait_for_response!(self, Ok);
+        self.confirm_message(address)?;
+
+        Ok(response)
+    }
+
+    pub fn handshake(
+        &mut self,
+        address: T::Address,
+        handshake: Handshake,
+    ) -> Result<Response<Handshake>, T::Error> {
+        self.send_message(address, SimpleMessage::HandshakeRequest(handshake))?;
+        let response = wait_for_response!(self, Message::HandshakeResponse(handshake), handshake);
         self.confirm_message(address)?;
 
         Ok(response)

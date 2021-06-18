@@ -1,8 +1,7 @@
 use core::{
-    cell::RefCell,
+    cell::{Ref, RefCell, RefMut},
     fmt::Debug,
     iter::{repeat, Cycle},
-    mem::size_of,
 };
 
 use futures::StreamExt;
@@ -11,19 +10,80 @@ use smart_leds::{SmartLedsWrite, RGB8};
 
 use crate::{
     futures::Stream,
-    nb_utils::yield_executor,
-    proto::{
-        DeviceRole, Error, FirmwareInfo, Hertz, Message, Service, ServiceEvent, SimpleMessage,
-        Transport,
-    },
-    storage::RgbIter,
+    proto::{DeviceRole, Handshake, Hertz, Service, Transport},
     time::{AsyncCountDown, AsyncTimer},
     AppConfig, HwEvent, Storage,
 };
 
-const MAX_STRIP_LED_LEN: usize = 144;
-const IDLE_REFRESH_RATE: Hertz = Hertz(50);
+mod image_task;
+mod network_task;
+
 const CORE_VERSION: [u8; 4] = [0, 1, 0, 0];
+const IDLE_REFRESH_RATE: Hertz = Hertz(50);
+const MAX_STRIP_LED_LEN: usize = 144;
+
+struct DeviceLink<T: Transport> {
+    address: T::Address,
+    data: Handshake,
+}
+
+struct DeviceLinks<T: Transport> {
+    host: Option<DeviceLink<T>>,
+    master: Option<DeviceLink<T>>,
+    slave: Option<DeviceLink<T>>,
+}
+
+impl<T: Transport> DeviceLinks<T> {
+    fn add_link(&mut self, link: DeviceLink<T>) {
+        match link.data.role {
+            DeviceRole::Host => self.host.replace(link),
+            DeviceRole::Master => self.master.replace(link),
+            DeviceRole::Slave => self.slave.replace(link),
+        };
+    }
+
+    fn get_link(&self, role: DeviceRole) -> &Option<DeviceLink<T>> {
+        match role {
+            DeviceRole::Host => &self.host,
+            DeviceRole::Master => &self.master,
+            DeviceRole::Slave => &self.slave,
+        }
+    }
+
+    fn remove_if_match(link: &mut Option<DeviceLink<T>>, address: &T::Address) -> Option<()> {
+        let matched = link.as_ref().filter(|x| &x.address == address).is_some();
+        if matched {
+            *link = None;
+            None
+        } else {
+            Some(())
+        }
+    }
+
+    fn remove_address(&mut self, address: &T::Address) -> Option<()> {
+        Self::remove_if_match(&mut self.host, address)?;
+        Self::remove_if_match(&mut self.master, address)?;
+        Self::remove_if_match(&mut self.slave, address)
+    }
+
+    fn contains_link(&self, role: DeviceRole) -> bool {
+        self.get_link(role).is_some()
+    }
+
+    fn slave_devices(&self) -> impl Iterator<Item = &DeviceLink<T>> {
+        self.slave.iter()
+    }
+}
+
+impl<T: Transport> Default for DeviceLinks<T> {
+    fn default() -> Self {
+        Self {
+            host: None,
+            master: None,
+            slave: None,
+        }
+    }
+}
 
 pub struct App<'a, Network, CountDown, StorageAccess, Strip>
 where
@@ -32,6 +92,7 @@ where
     StorageAccess: Storage,
     Strip: SmartLedsWrite<Color = RGB8>,
 {
+    pub role: DeviceRole,
     pub network: Network,
     pub timer: AsyncTimer<CountDown>,
     pub storage: &'a StorageAccess,
@@ -40,20 +101,24 @@ where
     pub events: &'a mut (dyn Stream<Item = HwEvent> + Unpin),
 }
 
-struct ContextInner<'a, StorageAccess>
+struct ContextInner<'a, StorageAccess, Network>
 where
     StorageAccess: Storage,
+    Network: Transport,
 {
     app_config: AppConfig,
     storage: &'a StorageAccess,
 
     refresh_rate: Hertz,
     image: Option<Cycle<StorageAccess::ImagePixels<'a>>>,
+
+    links: DeviceLinks<Network>,
 }
 
-impl<'a, StorageAccess> ContextInner<'a, StorageAccess>
+impl<'a, StorageAccess, Network> ContextInner<'a, StorageAccess, Network>
 where
     StorageAccess: Storage,
+    Network: Transport,
 
     StorageAccess::Error: Debug,
 {
@@ -131,29 +196,38 @@ where
     }
 }
 
-struct Context<'a, StorageAccess>
+struct Context<'a, StorageAccess, Network>
 where
     StorageAccess: Storage,
+    Network: Transport,
 
     StorageAccess::Error: Debug,
 {
-    inner: RefCell<ContextInner<'a, StorageAccess>>,
+    inner: RefCell<ContextInner<'a, StorageAccess, Network>>,
 
+    role: DeviceRole,
     device_id: [u32; 4],
 }
 
-impl<'a, StorageAccess> Context<'a, StorageAccess>
+impl<'a, StorageAccess, Network> Context<'a, StorageAccess, Network>
 where
     StorageAccess: Storage,
+    Network: Transport,
 
     StorageAccess::Error: Debug,
 {
-    fn new(storage: &'a StorageAccess, app_config: AppConfig, device_id: [u32; 4]) -> Self {
+    fn new(
+        storage: &'a StorageAccess,
+        role: DeviceRole,
+        app_config: AppConfig,
+        device_id: [u32; 4],
+    ) -> Self {
         let mut inner = ContextInner {
             app_config,
             storage,
             refresh_rate: IDLE_REFRESH_RATE,
             image: None,
+            links: DeviceLinks::default(),
         };
 
         if !inner.app_config.safe_mode {
@@ -163,35 +237,8 @@ where
         Self {
             inner: RefCell::new(inner),
             device_id,
+            role,
         }
-    }
-
-    async fn run_show_image_task<T, S>(&self, timer: &mut AsyncTimer<T>, strip: &mut S) -> !
-    where
-        T: AsyncCountDown + 'static,
-        S: SmartLedsWrite<Color = RGB8>,
-    {
-        let line = repeat(RGB8::default()).take(MAX_STRIP_LED_LEN);
-        strip.write(line).ok();
-
-        loop {
-            timer.start(self.refresh_rate());
-            self.show_line(strip);
-            timer.wait().await;
-
-            yield_executor().await;
-        }
-    }
-
-    fn show_line<S>(&self, strip: &mut S)
-    where
-        S: SmartLedsWrite<Color = RGB8>,
-    {
-        self.inner.borrow_mut().show_line(strip)
-    }
-
-    fn refresh_rate(&self) -> Hertz {
-        self.inner.borrow().refresh_rate
     }
 
     fn strip_len(&self) -> usize {
@@ -213,6 +260,10 @@ where
         self.inner.borrow_mut().add_image(refresh_rate, bytes)
     }
 
+    fn read_image(&self, index: usize) -> (Hertz, StorageAccess::ImagePixels<'_>) {
+        self.inner.borrow().storage.read_image(index)
+    }
+
     fn clear_images(&self) {
         self.inner.borrow_mut().clear_images()
     }
@@ -220,139 +271,24 @@ where
     fn show_next_image(&self) {
         self.inner.borrow_mut().show_next_image()
     }
-}
 
-impl<'a, StorageAccess> Context<'a, StorageAccess>
-where
-    StorageAccess: Storage,
-
-    StorageAccess::Error: Debug,
-{
-    async fn run_service_events_task<T>(&self, service: &mut Service<T>) -> !
-    where
-        T: Transport + Unpin + 'static,
-        T::Error: Debug,
-    {
-        loop {
-            self.handle_service_event(service).await;
-        }
+    fn links(&self) -> Ref<DeviceLinks<Network>> {
+        Ref::map(self.inner.borrow(), |inner| &inner.links)
     }
 
-    async fn handle_service_event<T>(&self, service: &mut Service<T>)
-    where
-        T: Transport + 'static,
-        T::Error: Debug,
-    {
-        let service_event = service
-            .next_event()
-            .await
-            .expect("unable to get next service event");
-
-        match service_event {
-            ServiceEvent::Connected { .. } => {
-                // TODO
-            }
-            ServiceEvent::Disconnected { .. } => {
-                // TODO
-            }
-            ServiceEvent::Message { address, message } => {
-                let response = self.handle_message(address, message);
-                service
-                    .confirm_message(address)
-                    .expect("unable to confirm message");
-
-                if let Some((to, response)) = response {
-                    service
-                        .send_message(to, response)
-                        .expect("Unable to send response");
-                }
-            }
-        }
+    fn links_mut(&self) -> RefMut<DeviceLinks<Network>> {
+        RefMut::map(self.inner.borrow_mut(), |inner| &mut inner.links)
     }
 
-    fn handle_message<A, I>(&self, address: A, message: Message<I>) -> Option<(A, SimpleMessage)>
-    where
-        I: Iterator<Item = u8> + ExactSizeIterator,
-    {
-        let response = match message {
-            Message::GetInfo => Some(SimpleMessage::Info(FirmwareInfo {
-                strip_len: self.strip_len() as u16,
-                version: CORE_VERSION,
-                images_count: self.images_count() as u16,
-                device_id: self.device_id,
-                // TODO implement composite role logic.
-                role: DeviceRole::Single,
-            })),
-
-            Message::ClearImages => {
-                self.clear_images();
-                Some(SimpleMessage::Ok)
-            }
-
-            Message::AddImage {
-                mut bytes,
-                refresh_rate,
-                strip_len,
-            } => {
-                let response = self.handle_add_image(bytes.by_ref(), refresh_rate, strip_len);
-                // In order to use the reader further, we must read all of the remaining bytes.
-                // Otherwise, the reader will be in an inconsistent state.
-                for _ in bytes {}
-
-                Some(response)
-            }
-
-            Message::ShowImage { index } => {
-                if index > self.images_count() {
-                    Some(Error::ImageNotFound.into())
-                } else {
-                    self.set_image(index);
-                    Some(SimpleMessage::Ok)
-                }
-            }
-            _ => None,
-        };
-
-        response.map(|msg| (address, msg))
-    }
-
-    fn handle_add_image<I>(
-        &self,
-        bytes: &mut I,
-        refresh_rate: Hertz,
-        strip_len: usize,
-    ) -> SimpleMessage
-    where
-        I: Iterator<Item = u8> + ExactSizeIterator,
-    {
-        if bytes.len() % size_of::<RGB8>() != 0 {
-            return Error::ImageLengthMismatch.into();
-        }
-
-        let pixels = RgbIter::new(bytes);
-        let pixels_len = pixels.len();
-
-        if strip_len != self.strip_len() {
-            return Error::StripLengthMismatch.into();
-        }
-
-        let line_len_in_bytes = self.strip_len();
-        if pixels_len % line_len_in_bytes != 0 {
-            return Error::ImageLengthMismatch.into();
-        }
-
-        if self.images_count() >= StorageAccess::MAX_IMAGES_COUNT {
-            return Error::ImageRepositoryFull.into();
-        }
-
-        let count = self.add_image(refresh_rate, pixels);
-        Message::ImageAdded { index: count }
+    fn save_mode(&self) -> bool {
+        self.inner.borrow().app_config.safe_mode
     }
 }
 
-impl<'a, StorageAccess> Context<'a, StorageAccess>
+impl<'a, StorageAccess, Network> Context<'a, StorageAccess, Network>
 where
     StorageAccess: Storage,
+    Network: Transport,
 
     StorageAccess::Error: Debug,
 {
@@ -387,7 +323,8 @@ where
             .load_config()
             .expect("unable to load storage config");
 
-        let context = Context::new(self.storage, app_config, self.device_id);
+        let context =
+            Context::<_, Network>::new(self.storage, self.role, app_config, self.device_id);
         futures::future::join3(
             context.run_service_events_task(&mut Service::new(
                 self.network,

@@ -1,13 +1,11 @@
 #![cfg_attr(not(test), no_std)]
-#![allow(incomplete_features)]
-#![feature(generic_associated_types)]
 
 pub use crate::{
     error::Error,
     message::{Message, SimpleMessage},
     service::{Event as ServiceEvent, Service},
     transport::{Event as TransportEvent, PacketData, PacketKind, PacketWithPayload, Transport},
-    types::{DeviceRole, FirmwareInfo, Hertz},
+    types::{DeviceRole, FirmwareInfo, Handshake, Hertz},
 };
 pub use postcard::Error as PayloadError;
 

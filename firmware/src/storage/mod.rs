@@ -18,6 +18,19 @@ pub const MAX_IMAGES_COUNT: usize = 60;
 
 const BLOCK_SIZE: usize = 512;
 
+macro_rules! retry {
+    ($e:expr) => {{
+        let mut res = Ok(());
+        for _ in 0..10 {
+            res = $e;
+            if res.is_ok() {
+                break;
+            }
+        }
+        res
+    }};
+}
+
 struct StorageImplInner<B> {
     device: B,
     block: HeaderBlock,
@@ -74,8 +87,7 @@ where
     }
 
     fn get_or_init(&mut self, default_config: AppConfig) -> Result<(), B::Error> {
-        self.device
-            .read(&mut self.block.inner, Self::INIT_BLOCK, "Load INIT block")?;
+        self.read_block(Self::INIT_BLOCK, "Load INIT block")?;
 
         if !self.block.inner[0].contents.starts_with(Self::INIT_MSG) {
             self.init()?;
@@ -94,14 +106,14 @@ where
     fn init(&mut self) -> Result<(), B::Error> {
         // Write INIT message to the first block.
         self.block.inner[0].contents[0..Self::INIT_MSG.len()].copy_from_slice(Self::INIT_MSG);
-        self.device.write(&self.block.inner, Self::INIT_BLOCK)?;
+        self.write_blocks(&self.block.inner, Self::INIT_BLOCK)?;
         // Create and write a new header_block block of the images repository.
         self.block.set_header(Header {
             version: Header::VERSION,
             images_count: 0,
             vacant_block: (Self::HEADER_BLOCK.0 + 1) as u16,
         });
-        self.device.write(&self.block.inner, Self::HEADER_BLOCK)?;
+        self.write_blocks(&self.block.inner, Self::HEADER_BLOCK)?;
         Ok(())
     }
 
@@ -157,7 +169,7 @@ where
         self.block.set_header(header);
 
         // Store updated header block.
-        self.device.write(&self.block.inner, Self::HEADER_BLOCK)?;
+        self.write_blocks(&self.block.inner, Self::HEADER_BLOCK)?;
         Ok(images_count as usize)
     }
 
@@ -178,7 +190,21 @@ where
         }];
         postcard::to_slice(&cfg, &mut blocks[0].contents).unwrap();
 
-        self.device.write(&blocks, Self::CONFIG_BLOCK)
+        self.write_blocks(&blocks, Self::CONFIG_BLOCK)
+    }
+
+    fn write_blocks(&self, blocks: &[Block], start_block_idx: BlockIdx) -> Result<(), B::Error> {
+        retry!(self.device.write(blocks, start_block_idx))
+    }
+
+    fn read_block(
+        &mut self,
+        start_block_idx: BlockIdx,
+        reason: &str,
+    ) -> Result<(), <B as BlockDevice>::Error> {
+        retry!(self
+            .device
+            .read(&mut self.block.inner, start_block_idx, reason))
     }
 }
 
@@ -200,19 +226,6 @@ impl HeaderBlock {
     fn set_header(&mut self, header: Header) {
         header.encode_as_le_bytes(self.inner[0].contents[0..].as_mut())
     }
-}
-
-macro_rules! retry {
-    ($e:expr) => {{
-        let mut res = Ok(());
-        for _ in 0..32 {
-            res = $e;
-            if res.is_ok() {
-                break;
-            }
-        }
-        res
-    }};
 }
 
 fn write_bytes<B, I>(
@@ -309,13 +322,12 @@ impl<'a, B: BlockDevice> Iterator for ReadImageIter<'a, B> {
         for color in &mut color_bytes {
             // In this case, we should read the next block from the device.
             if self.current_byte_in_block == 0 {
-                self.device
-                    .read(
-                        &mut self.buf,
-                        self.block_idx,
-                        "Read block with the image content.",
-                    )
-                    .unwrap();
+                retry!(self.device.read(
+                    &mut self.buf,
+                    self.block_idx,
+                    "Read block with the image content.",
+                ))
+                .unwrap();
                 // Move the cursor to the next block.
                 self.block_idx.0 += 1;
             }

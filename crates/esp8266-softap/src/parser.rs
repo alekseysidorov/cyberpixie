@@ -5,6 +5,7 @@ pub enum CommandResponse {
     Connected { link_id: usize },
     Closed { link_id: usize },
     DataAvailable { link_id: usize, size: usize },
+    WifiDisconnect,
 }
 
 fn atoi(digits: &[u8]) -> Option<usize> {
@@ -67,8 +68,15 @@ named!(
 );
 
 named!(
+    wifi_disconnect<CommandResponse>,
+    do_parse!(
+        opt!(crlf) >> tag!("WIFI DISCONNECT") >> opt!(crlf) >> (CommandResponse::WifiDisconnect)
+    )
+);
+
+named!(
     parse<CommandResponse>,
-    alt!(connected | closed | data_available)
+    alt!(connected | closed | data_available | wifi_disconnect)
 );
 
 impl CommandResponse {
