@@ -6,6 +6,7 @@ pub use crate::{
     softap::SoftApConfig,
     tcp_socket::{Data, Event, TcpSocket},
 };
+pub use no_std_net as net;
 
 pub mod adapter;
 pub mod error;
