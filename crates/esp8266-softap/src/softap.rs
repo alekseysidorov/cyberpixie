@@ -137,13 +137,13 @@ impl<'a> JoinApConfig<'a> {
         // Establish TCP connection with the given address.
         adapter
             .send_at_command_fmt(format_args!(
-                "AT+CIPSTART=\"{}\",\"{}\",\"{}\"",
+                "AT+CIPSTART={},\"TCP\",\"{}\",{}",
                 self.link_id,
                 self.address.ip(),
                 self.address.port(),
             ))?
             .map_err(|_| Error::MalformedCommand {
-                cmd: "CWJAP",
+                cmd: "CIPSTART",
                 msg: "Unable to join the selected access point.",
             })?;
 

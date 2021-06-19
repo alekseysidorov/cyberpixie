@@ -2,6 +2,7 @@ use core::fmt::Write;
 
 use embedded_hal::serial;
 use heapless::Vec;
+use stdio_serial::uprintln;
 
 use crate::{
     error::{Error, Result},
@@ -83,6 +84,8 @@ where
         &mut self,
         args: core::fmt::Arguments,
     ) -> Result<RawResponse<'_>, Rx::Error, Tx::Error> {
+        uprintln!("{}", args);
+
         self.write_command_fmt(args)?;
         self.read_until(OkCondition)
     }

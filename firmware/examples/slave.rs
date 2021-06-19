@@ -110,7 +110,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
 
     let link_id = 0;
     let socket = JoinApConfig {
-        ssid: "cyberpixie_3941434633637FFFFFFFF",
+        ssid: "cyberpixie",
         password: "12345678",
         link_id,
         address: SocketAddr::new([192, 168, 4, 1].into(), 333),
