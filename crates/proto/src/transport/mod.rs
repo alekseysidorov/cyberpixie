@@ -1,6 +1,6 @@
 pub use packet::PacketKind;
 
-use core::array::IntoIter;
+use core::{array::IntoIter, fmt::Debug};
 
 use nb_utils::NbResultExt;
 
@@ -9,7 +9,7 @@ mod packet;
 // TODO Handle events like CONNECT, DISCONNECT, CONNECT FAIL.
 
 pub trait Transport {
-    type Error;
+    type Error: Debug;
     type Address: PartialEq + Clone + Copy;
     type Payload: AsRef<[u8]>;
 

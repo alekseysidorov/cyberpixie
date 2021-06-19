@@ -7,7 +7,7 @@ resolver = "2"
 
 [dependencies]
 embedded-hal = "0.2"
-embedded-sdmmc = "0.3"
+embedded-sdmmc = { version = "0.3", git = "https://github.com/alekseysidorov/embedded-sdmmc-rs.git", branch = "increase_delay_count" }
 endian_codec = "0.1"
 heapless = "0.7"
 nb = "1.0"

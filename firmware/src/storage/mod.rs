@@ -21,7 +21,7 @@ const BLOCK_SIZE: usize = 512;
 macro_rules! retry {
     ($e:expr) => {{
         let mut res = Ok(());
-        for _ in 0..10 {
+        for _ in 0..1024 {
             res = $e;
             if res.is_ok() {
                 break;
@@ -61,7 +61,7 @@ where
     pub fn reset(&self, config: AppConfig) -> Result<(), B::Error> {
         let mut inner = self.inner.borrow_mut();
         inner.reset()?;
-        inner.save_config(&&config)
+        inner.save_config(&config)
     }
 }
 
@@ -91,7 +91,7 @@ where
 
         if !self.block.inner[0].contents.starts_with(Self::INIT_MSG) {
             self.init()?;
-            self.save_config(&&default_config)?;
+            self.save_config(&default_config)?;
         } else {
             self.device.read(
                 &mut self.block.inner,
@@ -177,8 +177,9 @@ where
         let mut blocks = [Block {
             contents: unsafe { unitialized_block_content() },
         }];
-        self.device
-            .read(&mut blocks, Self::CONFIG_BLOCK, "read config block")?;
+        retry!(self
+            .device
+            .read(&mut blocks, Self::CONFIG_BLOCK, "read config block"))?;
 
         let config = postcard::from_bytes(&blocks[0].contents).unwrap();
         Ok(config)

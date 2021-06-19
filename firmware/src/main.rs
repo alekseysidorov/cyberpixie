@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-use core::{fmt::Write, iter::repeat, panic::PanicInfo, sync::atomic, time::Duration};
+use core::{iter::repeat, panic::PanicInfo, sync::atomic, time::Duration};
 
 use atomic::Ordering;
 use cyberpixie::{
@@ -14,7 +14,7 @@ use cyberpixie_firmware::{
     transport, NextImageBtn, StorageImpl, BLUE_LED, MAGENTA_LED, RED_LED,
 };
 use embedded_hal::digital::v2::OutputPin;
-use esp8266_softap::{Adapter, SoftApConfig};
+use esp8266_softap::Adapter;
 use gd32vf103xx_hal::{
     pac::{self},
     prelude::*,
@@ -22,7 +22,6 @@ use gd32vf103xx_hal::{
     spi::{Spi, MODE_0},
     timer::Timer,
 };
-use heapless::String;
 use smart_leds::RGB8;
 use transport::TransportImpl;
 use ws2812_spi::Ws2812;
@@ -85,7 +84,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
                 gpiob.pb15.into_alternate_push_pull(),
             ),
             MODE_0,
-            50.mhz(),
+            8.mhz(),
             &mut rcu,
         );
 
@@ -144,32 +143,29 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
     });
     uprintln!("esp32 serial communication port configured.");
 
-    let device_id = cyberpixie_firmware::device_id();
-    let mut ssid: String<64> = String::new();
-    ssid.write_fmt(core::format_args!(
-        "cyberpixie_{:X}{:X}{:X}",
-        device_id[1],
-        device_id[2],
-        device_id[3]
-    ))
-    .unwrap();
-
-    let softap_config = SoftApConfig {
-        ssid: &ssid,
-        ..SOFTAP_CONFIG
-    };
+    // let mut ssid: String<64> = String::new();
+    // ssid.write_fmt(core::format_args!(
+    //     "cyberpixie_{:X}{:X}{:X}",
+    //     device_id[1],
+    //     device_id[2],
+    //     device_id[3]
+    // ))
+    // .unwrap();
 
     strip.write(MAGENTA_LED.iter().copied()).ok();
     let adapter = Adapter::new(esp_rx, esp_tx).unwrap();
-    let stream = softap_config.start(adapter).unwrap();
+    let stream = SOFTAP_CONFIG.start(adapter).unwrap();
 
-    uprintln!("SoftAP has been successfuly configured with ssid {}.", ssid);
+    uprintln!(
+        "SoftAP has been successfuly configured with ssid {}.",
+        SOFTAP_CONFIG.ssid
+    );
     strip.write(BLUE_LED.iter().copied()).ok();
 
     let mut events = NextImageBtn::new(gpioa.pa8.into_pull_down_input());
     let app = App {
         role: DeviceRole::Master,
-        device_id,
+        device_id: cyberpixie_firmware::device_id(),
 
         network: TransportImpl::new(stream),
         timer,

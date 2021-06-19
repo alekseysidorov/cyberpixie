@@ -140,7 +140,10 @@ impl<'a, T: Transport> PayloadReader<'a, T> {
     }
 }
 
-impl<'a, T: Transport> Iterator for PayloadReader<'a, T> {
+impl<'a, T> Iterator for PayloadReader<'a, T>
+where
+    T: Transport,
+{
     type Item = u8;
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -161,16 +164,9 @@ impl<'a, T: Transport> Iterator for PayloadReader<'a, T> {
                 return Some(byte);
             }
 
-            self.transport
-                .confirm_packet(self.address)
-                // To reduce text section size we should avoid Debug traits usage,
-                // we still know the code line where panic occurs.
-                .map_err(drop)
-                .unwrap();
+            self.transport.confirm_packet(self.address).unwrap();
 
-            self.payload = nb::block!(self.transport.poll_for_payload(self.address))
-                .map_err(drop)
-                .unwrap();
+            self.payload = nb::block!(self.transport.poll_for_payload(self.address)).unwrap();
             self.read_pos = 0;
         }
     }
