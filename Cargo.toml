@@ -6,6 +6,7 @@ members = [
     "crates/esp8266-softap", 
     "crates/nb_utils",
     "crates/proto", 
+    "crates/simple-clock",
     "crates/stdio-serial",
     "utils/image_sender",
 ]

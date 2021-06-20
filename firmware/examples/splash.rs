@@ -8,7 +8,10 @@ use core::{
 };
 
 use cyberpixie::time::{Microseconds, Milliseconds};
-use cyberpixie_firmware::{config::SERIAL_PORT_CONFIG, new_async_timer, splash::WanderingLight};
+use cyberpixie_firmware::{
+    config::SERIAL_PORT_CONFIG, new_async_timer, splash::WanderingLight, time::McycleClock,
+};
+use esp8266_softap::clock::ElapsedTimer;
 use gd32vf103xx_hal::{pac, prelude::*, serial::Serial, spi::Spi, timer::Timer};
 use smart_leds::{SmartLedsWrite, RGB8};
 use stdio_serial::uprintln;
@@ -40,7 +43,6 @@ fn main() -> ! {
         };
         stdio_serial::init(usb_tx);
 
-        timer.delay(Duration::from_secs(1)).await;
         uprintln!("Serial port configured.");
 
         let spi = {
@@ -67,6 +69,7 @@ fn main() -> ! {
             .ok();
         uprintln!("Led strip cleaned.");
 
+        let clock = McycleClock::new(&rcu.clocks);
         let splash = WanderingLight::<STRIP_LEN>::default();
         futures::future::join(
             async {
@@ -82,8 +85,12 @@ fn main() -> ! {
             },
             async {
                 loop {
+                    let elapsed = ElapsedTimer::new(&clock);
                     timer2.delay(Duration::from_secs(5)).await;
-                    uprintln!("Five more seconds passed.");
+                    uprintln!(
+                        "Five more seconds passed (elapsed {} us)",
+                        elapsed.elapsed()
+                    );
                 }
             },
         )
