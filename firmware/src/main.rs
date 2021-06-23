@@ -9,6 +9,7 @@ use cyberpixie_firmware::{
     config::{ESP32_SERIAL_PORT_CONFIG, SERIAL_PORT_CONFIG, STRIP_LEDS_COUNT},
     irq, new_async_timer,
     splash::WanderingLight,
+    time::McycleClock,
     NextImageBtn, StorageImpl, TransportImpl, BLUE_LED, MAGENTA_LED, RED_LED,
 };
 use embedded_hal::digital::v2::OutputPin;
@@ -33,6 +34,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
     let mut rcu = dp.RCU.configure().sysclk(108.mhz()).freeze();
     let mut afio = dp.AFIO.constrain(&mut rcu);
 
+    let clock = McycleClock::new(&rcu.clocks);
     let mut timer = new_async_timer(Timer::timer0(dp.TIMER0, 1.mhz(), &mut rcu));
 
     let gpioa = dp.GPIOA.split(&mut rcu);
@@ -89,7 +91,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
         let mut cs = gpiob.pb12.into_push_pull_output();
         cs.set_low().unwrap();
 
-        let mut device = embedded_sdmmc::SdMmcSpi::new(spi, cs);
+        let mut device = embedded_sdmmc::SdMmcSpi::new(spi, cs, clock);
         device.init().unwrap();
         device
     };

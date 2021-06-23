@@ -2,8 +2,8 @@ use cyberpixie::{
     nb_utils::NbResultExt,
     time::{AsyncCountDown, AsyncTimer, CountDown, Hertz},
 };
-use esp8266_softap::clock::SimpleClock;
 use gd32vf103xx_hal::{rcu::Clocks, time as gd32_time};
+use simple_clock::SimpleClock;
 
 pub struct TimerWrapper<T: CountDown<Time = gd32_time::Hertz>>(T);
 
@@ -60,7 +60,7 @@ pub fn new_async_timer<T: CountDown<Time = gd32_time::Hertz>>(
 }
 
 /// Machine mode cycle counter (`mcycle`) as a simple clock provider
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct McycleClock {
     core_frequency: u64,
 }
