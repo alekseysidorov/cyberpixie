@@ -8,7 +8,7 @@ use gd32vf103xx_hal::{
 use crate::network::NetworkConfig;
 
 pub const SERIAL_PORT_CONFIG: Config = Config {
-    baudrate: Bps(115200), // 460800, 921600
+    baudrate: Bps(921600), // 460800, 921600
     parity: Parity::ParityNone,
     stopbits: StopBits::STOP1,
 };

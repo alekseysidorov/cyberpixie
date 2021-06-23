@@ -3,10 +3,11 @@ use core::{
     mem::MaybeUninit,
 };
 
-use cyberpixie::{leds::RGB8, proto::Hertz, AppConfig, Storage, stdio::uprintln};
+use cyberpixie::{leds::RGB8, proto::Hertz, AppConfig, Storage};
 use embedded_sdmmc::{Block, BlockDevice, BlockIdx};
 use endian_codec::{DecodeLE, EncodeLE, PackedSize};
 use serde::{Deserialize, Serialize};
+use stdio_serial::uprintln;
 
 use crate::{
     config::{APP_CONFIG, NETWORK_CONFIG},
@@ -22,19 +23,14 @@ pub const MAX_IMAGES_COUNT: usize = 60;
 
 const BLOCK_SIZE: usize = 512;
 
-macro_rules! retry {
-    ($e:expr) => {{
-        let mut res = Ok(());
-        for i in 0..32 {
-            res = $e;
-            if res.is_ok() {
-                break;
-            }
+pub fn erase_blocks<B: BlockDevice>(dev: &mut B, from: u32, to: u32) -> Result<(), B::Error> {
+    let zero_block = [Block::default()];
+    for i in from..to {
+        dev.write(&zero_block, BlockIdx(i))?;
+        uprintln!("Erased {} block", i);
+    }
 
-            uprintln!("Sdmmc command failed, attempt: {}", i);
-        }
-        res
-    }};
+    Ok(())
 }
 
 struct StorageImplInner<B> {
@@ -201,8 +197,7 @@ where
         blocks: &'d mut [Block],
         index: BlockIdx,
     ) -> Result<T, B::Error> {
-        retry!(self.device.read(blocks, index, "read config block"))?;
-
+        self.device.read(blocks, index, "read config block")?;
         let value = postcard::from_bytes(&blocks[0].contents).unwrap();
         Ok(value)
     }
@@ -221,7 +216,7 @@ where
     }
 
     fn write_blocks(&self, blocks: &[Block], start_block_idx: BlockIdx) -> Result<(), B::Error> {
-        retry!(self.device.write(blocks, start_block_idx))
+        self.device.write(blocks, start_block_idx)
     }
 
     fn read_block(
@@ -229,9 +224,8 @@ where
         start_block_idx: BlockIdx,
         reason: &str,
     ) -> Result<(), <B as BlockDevice>::Error> {
-        retry!(self
-            .device
-            .read(&mut self.block.inner, start_block_idx, reason))
+        self.device
+            .read(&mut self.block.inner, start_block_idx, reason)
     }
 }
 
@@ -276,7 +270,7 @@ where
         c += 1;
         // If the current block is filled just flush it to the block device.
         if i == BLOCK_SIZE {
-            retry!(device.write(&blocks, block_index))?;
+            device.write(&blocks, block_index)?;
             i = 0;
             block_index.0 += 1;
         }
@@ -287,7 +281,7 @@ where
         for j in i..BLOCK_SIZE {
             blocks[0][j] = 0;
         }
-        retry!(device.write(&blocks, block_index))?;
+        device.write(&blocks, block_index)?;
         block_index.0 += 1;
     }
 
@@ -349,12 +343,13 @@ impl<'a, B: BlockDevice> Iterator for ReadImageIter<'a, B> {
         for color in &mut color_bytes {
             // In this case, we should read the next block from the device.
             if self.current_byte_in_block == 0 {
-                retry!(self.device.read(
-                    &mut self.buf,
-                    self.block_idx,
-                    "Read block with the image content.",
-                ))
-                .unwrap();
+                self.device
+                    .read(
+                        &mut self.buf,
+                        self.block_idx,
+                        "Read block with the image content.",
+                    )
+                    .unwrap();
                 // Move the cursor to the next block.
                 self.block_idx.0 += 1;
             }

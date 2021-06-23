@@ -11,7 +11,12 @@ use cyberpixie::{futures::Stream, HwEvent};
 use embedded_hal::digital::v2::InputPin;
 use smart_leds::RGB8;
 
-pub use self::{storage::StorageImpl, time::new_async_timer, transport::TransportImpl, network::NetworkConfig};
+pub use self::{
+    network::NetworkConfig,
+    storage::{erase_blocks, StorageImpl},
+    time::new_async_timer,
+    transport::TransportImpl,
+};
 
 pub mod config;
 pub mod irq;

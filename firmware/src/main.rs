@@ -13,7 +13,7 @@ use cyberpixie::{
 };
 use cyberpixie_firmware::{
     config::{ESP32_SERIAL_PORT_CONFIG, SERIAL_PORT_CONFIG, STRIP_LEDS_COUNT},
-    irq, new_async_timer,
+    erase_blocks, irq, new_async_timer,
     splash::WanderingLight,
     time::McycleClock,
     NetworkConfig, NextImageBtn, StorageImpl, TransportImpl, BLUE_LED, MAGENTA_LED, RED_LED,
@@ -90,25 +90,21 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
                 gpiob.pb15.into_alternate_push_pull(),
             ),
             MODE_0,
-            10.mhz(),
+            50.mhz(),
             &mut rcu,
         );
 
         let mut cs = gpiob.pb12.into_push_pull_output();
         cs.set_low().unwrap();
 
-        let mut device = embedded_sdmmc::SdMmcSpi::new(spi, cs, clock, 10_000);
+        let mut device = embedded_sdmmc::SdMmcSpi::new(spi, cs, clock, 1_000_000);
         device.init().unwrap();
+        erase_blocks(&mut device, 0, 10000).unwrap();
+
         device
     };
     let storage = StorageImpl::open(device).unwrap();
     let cfg = storage.load_config().unwrap();
-    storage
-        .reset(
-            cyberpixie_firmware::config::APP_CONFIG,
-            cyberpixie_firmware::config::NETWORK_CONFIG,
-        )
-        .unwrap();
     uprintln!("Total images count: {}", storage.images_count());
 
     if !cfg.safe_mode {
