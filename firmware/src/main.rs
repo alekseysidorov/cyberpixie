@@ -84,7 +84,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
                 gpiob.pb15.into_alternate_push_pull(),
             ),
             MODE_0,
-            8.mhz(),
+            50.mhz(),
             &mut rcu,
         );
 
@@ -97,9 +97,12 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
     };
     let storage = StorageImpl::open(device).unwrap();
     let cfg = storage.load_config().unwrap();
-    // storage
-    //     .reset(cyberpixie_firmware::config::DEFAULT_APP_CONFIG)
-    //     .unwrap();
+    storage
+        .reset(
+            cyberpixie_firmware::config::APP_CONFIG,
+            cyberpixie_firmware::config::NETWORK_CONFIG,
+        )
+        .unwrap();
     uprintln!("Total images count: {}", storage.images_count());
 
     if !cfg.safe_mode {
@@ -144,13 +147,16 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
     uprintln!("esp32 serial communication port configured.");
 
     strip.write(MAGENTA_LED.iter().copied()).ok();
-    let adapter = Adapter::new(esp_rx, esp_tx).unwrap();
     let (socket, role) = {
         let mut blocks = [Block::new()];
         let net_config = storage.network_config(&mut blocks).unwrap();
-        let role = net_config.device_role();
-        let socket = net_config.establish(adapter).unwrap();
 
+        uprintln!("Network config is {:?}", net_config);
+
+        let role = net_config.device_role();
+        let socket = net_config
+            .establish(Adapter::new(esp_rx, esp_tx).unwrap())
+            .unwrap();
         (socket, role)
     };
 
