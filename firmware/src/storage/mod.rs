@@ -62,10 +62,11 @@ where
         Ok(repository)
     }
 
-    pub fn reset(&self, config: AppConfig) -> Result<(), B::Error> {
+    pub fn reset(&self, app_config: AppConfig, net_config: NetworkConfig) -> Result<(), B::Error> {
         let mut inner = self.inner.borrow_mut();
         inner.reset()?;
-        inner.write_serialized_block(StorageImplInner::<B>::APP_CONFIG_BLOCK, &config)
+        inner.write_serialized_block(StorageImplInner::<B>::APP_CONFIG_BLOCK, &app_config)?;
+        inner.write_serialized_block(StorageImplInner::<B>::NETWORK_CONFIG_BLOCK, &net_config)
     }
 
     pub fn network_config<'de>(
