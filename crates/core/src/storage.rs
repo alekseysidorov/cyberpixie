@@ -8,7 +8,6 @@ use smart_leds::RGB8;
 pub struct AppConfig {
     pub current_image_index: u16,
     pub strip_len: u16,
-    pub receiver_buf_capacity: usize,
     pub safe_mode: bool,
 }
 

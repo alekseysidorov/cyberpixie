@@ -3,7 +3,7 @@ use core::{
     mem::MaybeUninit,
 };
 
-use cyberpixie::{leds::RGB8, proto::Hertz, AppConfig, Storage};
+use cyberpixie::{leds::RGB8, proto::Hertz, AppConfig, Storage, stdio::uprintln};
 use embedded_sdmmc::{Block, BlockDevice, BlockIdx};
 use endian_codec::{DecodeLE, EncodeLE, PackedSize};
 use serde::{Deserialize, Serialize};
@@ -24,7 +24,16 @@ const BLOCK_SIZE: usize = 512;
 
 macro_rules! retry {
     ($e:expr) => {{
-        $e
+        let mut res = Ok(());
+        for i in 0..32 {
+            res = $e;
+            if res.is_ok() {
+                break;
+            }
+
+            uprintln!("Sdmmc command failed, attempt: {}", i);
+        }
+        res
     }};
 }
 
@@ -82,7 +91,7 @@ where
     const INIT_BLOCK: BlockIdx = BlockIdx(0);
     /// The message should be presented in the `INIT_BLOCK` if this repository
     /// is has been initialized.
-    const INIT_MSG: &'static [u8] = b"POI_STORAGE_2";
+    const INIT_MSG: &'static [u8] = b"CYBERPIXIE_STORAGE_0";
     /// This block contains the images repository header.
     const HEADER_BLOCK: BlockIdx = BlockIdx(10);
     /// This block contains the application configuration params.

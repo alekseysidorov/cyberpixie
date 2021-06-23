@@ -3,7 +3,7 @@ FEATURES ?= ""
 
 firmware_cmd = -p cyberpixie-firmware --release --features $(FEATURES)
 target_arch = riscv32imac-unknown-none-elf
-serial_monitor = serial-monitor --enter crlf -b 921600 # -b 460800 
+serial_monitor = serial-monitor --enter crlf -b 115200 # 460800 921600
 stm32flash = stm32flash -b 115200
 
 all: hex
