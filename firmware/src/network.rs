@@ -4,6 +4,7 @@ use cyberpixie::proto::DeviceRole;
 use embedded_hal::serial;
 use esp8266_softap::{softap::JoinApConfig, Adapter, SoftApConfig, TcpSocket};
 use serde::{Deserialize, Serialize};
+use stdio_serial::uprintln;
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NetworkConfig<'a> {
@@ -47,27 +48,35 @@ impl<'a> NetworkConfig<'a> {
                 password,
                 channel,
                 mode,
-            } => SoftApConfig {
-                ssid,
-                password,
-                channel,
-                mode,
+            } => {
+                uprintln!("Creating a new access point with ssid: \"{}\"", ssid);
+
+                SoftApConfig {
+                    ssid,
+                    password,
+                    channel,
+                    mode,
+                }
+                .start(adapter)
             }
-            .start(adapter),
 
             NetworkConfig::JoinAp {
                 ssid,
                 password,
                 address,
-            } => JoinApConfig {
-                ssid,
-                password,
-                link_id: Self::LINK_ID,
-                address: address
-                    .parse()
-                    .expect("The socket address should be written as follows: \"ip_addr:port\""),
+            } => {
+                uprintln!("Joining to the existing network with ssid: \"{}\"", ssid);
+
+                JoinApConfig {
+                    ssid,
+                    password,
+                    link_id: Self::LINK_ID,
+                    address: address.parse().expect(
+                        "The socket address should be written as follows: \"ip_addr:port\"",
+                    ),
+                }
+                .join(adapter)
             }
-            .join(adapter),
         }
     }
 }

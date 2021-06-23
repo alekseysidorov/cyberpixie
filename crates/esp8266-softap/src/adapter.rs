@@ -84,7 +84,7 @@ where
         &mut self,
         args: core::fmt::Arguments,
     ) -> Result<RawResponse<'_>, Rx::Error, Tx::Error> {
-        uprintln!("esp8266 -> {}", args);
+        uprintln!("    esp8266: -> {}", args);
 
         self.write_command_fmt(args)?;
         self.read_until(OkCondition)

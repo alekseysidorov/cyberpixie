@@ -160,7 +160,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
         (socket, role)
     };
 
-    uprintln!("The network is successfully established.",);
+    uprintln!("Network is successfully configured.",);
     strip.write(BLUE_LED.iter().copied()).ok();
 
     let mut events = NextImageBtn::new(gpioa.pa8.into_pull_down_input());

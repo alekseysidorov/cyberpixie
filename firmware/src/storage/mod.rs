@@ -24,14 +24,7 @@ const BLOCK_SIZE: usize = 512;
 
 macro_rules! retry {
     ($e:expr) => {{
-        let mut res = Ok(());
-        for _ in 0..1024 {
-            res = $e;
-            if res.is_ok() {
-                break;
-            }
-        }
-        res
+        $e
     }};
 }
 
