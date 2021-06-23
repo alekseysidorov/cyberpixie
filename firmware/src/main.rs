@@ -4,16 +4,15 @@
 use core::{iter::repeat, panic::PanicInfo, sync::atomic, time::Duration};
 
 use atomic::Ordering;
-use cyberpixie::{
-    leds::SmartLedsWrite, proto::DeviceRole, stdio::uprintln, time::Microseconds, App, Storage,
-};
+use cyberpixie::{leds::SmartLedsWrite, stdio::uprintln, time::Microseconds, App, Storage};
 use cyberpixie_firmware::{
-    config::{ESP32_SERIAL_PORT_CONFIG, SERIAL_PORT_CONFIG, SOFTAP_CONFIG, STRIP_LEDS_COUNT},
+    config::{ESP32_SERIAL_PORT_CONFIG, SERIAL_PORT_CONFIG, STRIP_LEDS_COUNT},
     irq, new_async_timer,
     splash::WanderingLight,
-    transport, NextImageBtn, StorageImpl, BLUE_LED, MAGENTA_LED, RED_LED,
+    NextImageBtn, StorageImpl, TransportImpl, BLUE_LED, MAGENTA_LED, RED_LED,
 };
 use embedded_hal::digital::v2::OutputPin;
+use embedded_sdmmc::Block;
 use esp8266_softap::Adapter;
 use gd32vf103xx_hal::{
     pac::{self},
@@ -23,7 +22,6 @@ use gd32vf103xx_hal::{
     timer::Timer,
 };
 use smart_leds::RGB8;
-use transport::TransportImpl;
 use ws2812_spi::Ws2812;
 
 #[export_name = "TIMER1"]
@@ -143,31 +141,26 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
     });
     uprintln!("esp32 serial communication port configured.");
 
-    // let mut ssid: String<64> = String::new();
-    // ssid.write_fmt(core::format_args!(
-    //     "cyberpixie_{:X}{:X}{:X}",
-    //     device_id[1],
-    //     device_id[2],
-    //     device_id[3]
-    // ))
-    // .unwrap();
-
     strip.write(MAGENTA_LED.iter().copied()).ok();
     let adapter = Adapter::new(esp_rx, esp_tx).unwrap();
-    let stream = SOFTAP_CONFIG.start(adapter).unwrap();
+    let (socket, role) = {
+        let mut blocks = [Block::new()];
+        let net_config = storage.network_config(&mut blocks).unwrap();
+        let role = net_config.device_role();
+        let socket = net_config.establish(adapter).unwrap();
 
-    uprintln!(
-        "SoftAP has been successfuly configured with ssid {}.",
-        SOFTAP_CONFIG.ssid
-    );
+        (socket, role)
+    };
+
+    uprintln!("The network is successfully established.",);
     strip.write(BLUE_LED.iter().copied()).ok();
 
     let mut events = NextImageBtn::new(gpioa.pa8.into_pull_down_input());
     let app = App {
-        role: DeviceRole::Master,
+        role,
         device_id: cyberpixie_firmware::device_id(),
 
-        network: TransportImpl::new(stream),
+        network: TransportImpl::new(socket),
         timer,
         storage: &storage,
         strip,

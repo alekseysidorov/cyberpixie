@@ -11,8 +11,9 @@ embedded-sdmmc = { version = "0.3", git = "https://github.com/alekseysidorov/emb
 endian_codec = "0.1"
 heapless = "0.7"
 nb = "1.0"
-smart-leds = "0.3"
 postcard = "0.7"
+serde = { version = "1", default-features = false, features = ["derive"] }
+smart-leds = "0.3"
 void = { version = "1.0", default-features = false }
 
 gd32vf103xx-hal = "0.4"
@@ -27,3 +28,7 @@ cyberpixie = { path = "../crates/core" }
 
 futures = { version = "0.3", default-features = false }
 direct-executor = "0.3"
+
+[features]
+default = []
+secondary_device = []

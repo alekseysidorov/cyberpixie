@@ -16,9 +16,11 @@ pub use self::{storage::StorageImpl, time::new_async_timer, transport::Transport
 pub mod config;
 pub mod irq;
 pub mod splash;
-pub mod storage;
 pub mod time;
-pub mod transport;
+
+mod network;
+mod storage;
+mod transport;
 
 pub const RED_LED: [RGB8; 1] = [RGB8 { r: 10, g: 0, b: 0 }];
 pub const BLUE_LED: [RGB8; 1] = [RGB8 { r: 0, g: 0, b: 10 }];

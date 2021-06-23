@@ -29,24 +29,24 @@ struct DeviceLink<T: Transport> {
 
 struct DeviceLinks<T: Transport> {
     host: Option<DeviceLink<T>>,
-    master: Option<DeviceLink<T>>,
-    slave: Option<DeviceLink<T>>,
+    main: Option<DeviceLink<T>>,
+    secondary: Option<DeviceLink<T>>,
 }
 
 impl<T: Transport> DeviceLinks<T> {
     fn add_link(&mut self, link: DeviceLink<T>) {
         match link.data.role {
             DeviceRole::Host => self.host.replace(link),
-            DeviceRole::Master => self.master.replace(link),
-            DeviceRole::Slave => self.slave.replace(link),
+            DeviceRole::Main => self.main.replace(link),
+            DeviceRole::Secondary => self.secondary.replace(link),
         };
     }
 
     fn get_link(&self, role: DeviceRole) -> &Option<DeviceLink<T>> {
         match role {
             DeviceRole::Host => &self.host,
-            DeviceRole::Master => &self.master,
-            DeviceRole::Slave => &self.slave,
+            DeviceRole::Main => &self.main,
+            DeviceRole::Secondary => &self.secondary,
         }
     }
 
@@ -62,16 +62,16 @@ impl<T: Transport> DeviceLinks<T> {
 
     fn remove_address(&mut self, address: &T::Address) -> Option<()> {
         Self::remove_if_match(&mut self.host, address)?;
-        Self::remove_if_match(&mut self.master, address)?;
-        Self::remove_if_match(&mut self.slave, address)
+        Self::remove_if_match(&mut self.main, address)?;
+        Self::remove_if_match(&mut self.secondary, address)
     }
 
     fn contains_link(&self, role: DeviceRole) -> bool {
         self.get_link(role).is_some()
     }
 
-    fn slave_devices(&self) -> impl Iterator<Item = &DeviceLink<T>> {
-        self.slave.iter()
+    fn secondary_devices(&self) -> impl Iterator<Item = &DeviceLink<T>> {
+        self.secondary.iter()
     }
 }
 
@@ -79,8 +79,8 @@ impl<T: Transport> Default for DeviceLinks<T> {
     fn default() -> Self {
         Self {
             host: None,
-            master: None,
-            slave: None,
+            main: None,
+            secondary: None,
         }
     }
 }

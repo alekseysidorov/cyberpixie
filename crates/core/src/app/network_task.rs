@@ -199,7 +199,7 @@ where
         service: &mut Service<Network>,
         cmd: SlaveCommand,
     ) -> Result<(), Network::Error> {
-        for link in self.links().slave_devices() {
+        for link in self.links().secondary_devices() {
             let address = link.address;
             match cmd {
                 SlaveCommand::ShowImage { index } => {

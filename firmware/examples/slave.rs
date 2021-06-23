@@ -119,12 +119,12 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
     .unwrap();
 
     strip.write(MAGENTA_LED.iter().copied()).ok();
-    uprintln!("Sending handshake to the master device...");
+    uprintln!("Sending handshake to the main device...");
 
     let handshake = Handshake {
         device_id: device_id(),
         group_id: None,
-        role: DeviceRole::Slave,
+        role: DeviceRole::Secondary,
     };
 
     let mut service = Service::new(TransportImpl::new(socket), ADAPTER_BUF_CAPACITY);

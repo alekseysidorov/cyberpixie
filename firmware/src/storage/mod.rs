@@ -6,8 +6,12 @@ use core::{
 use cyberpixie::{leds::RGB8, proto::Hertz, AppConfig, Storage};
 use embedded_sdmmc::{Block, BlockDevice, BlockIdx};
 use endian_codec::{DecodeLE, EncodeLE, PackedSize};
+use serde::{Deserialize, Serialize};
 
-use crate::config::DEFAULT_APP_CONFIG;
+use crate::{
+    config::{APP_CONFIG, NETWORK_CONFIG},
+    network::NetworkConfig,
+};
 
 use self::types::{Header, ImageDescriptor};
 
@@ -54,14 +58,23 @@ where
         repository
             .inner
             .borrow_mut()
-            .get_or_init(DEFAULT_APP_CONFIG)?;
+            .get_or_init(APP_CONFIG, NETWORK_CONFIG)?;
         Ok(repository)
     }
 
     pub fn reset(&self, config: AppConfig) -> Result<(), B::Error> {
         let mut inner = self.inner.borrow_mut();
         inner.reset()?;
-        inner.save_config(&config)
+        inner.write_serialized_block(StorageImplInner::<B>::APP_CONFIG_BLOCK, &config)
+    }
+
+    pub fn network_config<'de>(
+        &self,
+        blocks: &'de mut [Block],
+    ) -> Result<NetworkConfig<'de>, B::Error> {
+        self.inner
+            .borrow()
+            .read_serialized_block(blocks, StorageImplInner::<B>::NETWORK_CONFIG_BLOCK)
     }
 }
 
@@ -75,23 +88,30 @@ where
     const INIT_BLOCK: BlockIdx = BlockIdx(0);
     /// The message should be presented in the `INIT_BLOCK` if this repository
     /// is has been initialized.
-    const INIT_MSG: &'static [u8] = b"POI_STORAGE";
+    const INIT_MSG: &'static [u8] = b"POI_STORAGE_2";
     /// This block contains the images repository header.
     const HEADER_BLOCK: BlockIdx = BlockIdx(10);
-    /// This block contains the configuration params.
-    const CONFIG_BLOCK: BlockIdx = BlockIdx(1);
+    /// This block contains the application configuration params.
+    const APP_CONFIG_BLOCK: BlockIdx = BlockIdx(1);
+    /// This block contains the network configuration params.
+    const NETWORK_CONFIG_BLOCK: BlockIdx = BlockIdx(2);
 
-    pub fn reset(&mut self) -> Result<&mut Self, B::Error> {
+    fn reset(&mut self) -> Result<&mut Self, B::Error> {
         self.init()?;
         Ok(self)
     }
 
-    fn get_or_init(&mut self, default_config: AppConfig) -> Result<(), B::Error> {
+    fn get_or_init(
+        &mut self,
+        app_config: AppConfig,
+        net_config: NetworkConfig<'_>,
+    ) -> Result<(), B::Error> {
         self.read_block(Self::INIT_BLOCK, "Load INIT block")?;
 
         if !self.block.inner[0].contents.starts_with(Self::INIT_MSG) {
             self.init()?;
-            self.save_config(&default_config)?;
+            self.write_serialized_block(Self::APP_CONFIG_BLOCK, &app_config)?;
+            self.write_serialized_block(Self::NETWORK_CONFIG_BLOCK, &net_config)?;
         } else {
             self.device.read(
                 &mut self.block.inner,
@@ -173,25 +193,28 @@ where
         Ok(images_count as usize)
     }
 
-    fn read_config(&self) -> Result<AppConfig, B::Error> {
-        let mut blocks = [Block {
-            contents: unsafe { unitialized_block_content() },
-        }];
-        retry!(self
-            .device
-            .read(&mut blocks, Self::CONFIG_BLOCK, "read config block"))?;
+    fn read_serialized_block<'d, T: Deserialize<'d>>(
+        &self,
+        blocks: &'d mut [Block],
+        index: BlockIdx,
+    ) -> Result<T, B::Error> {
+        retry!(self.device.read(blocks, index, "read config block"))?;
 
-        let config = postcard::from_bytes(&blocks[0].contents).unwrap();
-        Ok(config)
+        let value = postcard::from_bytes(&blocks[0].contents).unwrap();
+        Ok(value)
     }
 
-    fn save_config(&self, cfg: &AppConfig) -> Result<(), B::Error> {
+    fn write_serialized_block<T: Serialize>(
+        &self,
+        index: BlockIdx,
+        cfg: &T,
+    ) -> Result<(), B::Error> {
         let mut blocks = [Block {
             contents: unsafe { unitialized_block_content() },
         }];
         postcard::to_slice(&cfg, &mut blocks[0].contents).unwrap();
 
-        self.write_blocks(&blocks, Self::CONFIG_BLOCK)
+        self.write_blocks(&blocks, index)
     }
 
     fn write_blocks(&self, blocks: &[Block], start_block_idx: BlockIdx) -> Result<(), B::Error> {
@@ -395,11 +418,19 @@ where
     }
 
     fn load_config(&self) -> Result<AppConfig, Self::Error> {
-        self.inner.borrow().read_config()
+        let mut blocks = [Block {
+            contents: unsafe { unitialized_block_content() },
+        }];
+
+        self.inner
+            .borrow()
+            .read_serialized_block(&mut blocks, StorageImplInner::<B>::APP_CONFIG_BLOCK)
     }
 
     fn save_config(&self, config: &AppConfig) -> Result<(), Self::Error> {
-        self.inner.borrow().save_config(config)
+        self.inner
+            .borrow()
+            .write_serialized_block(StorageImplInner::<B>::APP_CONFIG_BLOCK, config)
     }
 }
 

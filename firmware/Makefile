@@ -1,6 +1,7 @@
 UART ?= /dev/ttyUSB0
+FEATURES ?= ""
 
-firmware_cmd = -p cyberpixie-firmware --release
+firmware_cmd = -p cyberpixie-firmware --release --features $(FEATURES)
 target_arch = riscv32imac-unknown-none-elf
 serial_monitor = serial-monitor --enter crlf -b 921600 # -b 460800 
 stm32flash = stm32flash -b 115200
@@ -19,10 +20,9 @@ splash_bin:
 softap_bin:
 	cargo objcopy --target ${target_arch} $(firmware_cmd) --example softap -- -O binary target/softap.bin
 
-flash: hex
-	$(stm32flash) -w target/firmware.hex -v -g 0x0 $(UART)
-
-run: flash
+run: 
+	cargo objcopy --target ${target_arch} $(firmware_cmd) -- -O ihex target/retransmitter.hex
+	$(stm32flash) -w target/retransmitter.hex -v -g 0x0 $(UART)
 	$(serial_monitor)
 
 run_retransmitter: 
