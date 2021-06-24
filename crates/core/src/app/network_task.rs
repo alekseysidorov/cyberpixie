@@ -14,7 +14,7 @@ use crate::{
 use super::{Context, DeviceLink, CORE_VERSION};
 
 #[derive(Debug)]
-enum SlaveCommand {
+pub enum SecondaryCommand {
     ShowImage { index: usize },
     AddImage { index: usize },
     ClearImages,
@@ -23,7 +23,7 @@ enum SlaveCommand {
 #[derive(Default)]
 struct MessageResponse {
     response: Option<SimpleMessage>,
-    slave_cmd: Option<SlaveCommand>,
+    cmd: Option<SecondaryCommand>,
 }
 
 impl MessageResponse {
@@ -36,8 +36,8 @@ impl MessageResponse {
         self
     }
 
-    fn cmd(&mut self, cmd: SlaveCommand) -> &mut Self {
-        self.slave_cmd = Some(cmd);
+    fn cmd(&mut self, cmd: SecondaryCommand) -> &mut Self {
+        self.cmd = Some(cmd);
         self
     }
 }
@@ -53,6 +53,11 @@ where
     pub async fn run_service_events_task(&self, service: &mut Service<Network>) -> ! {
         loop {
             self.handle_service_event(service).await;
+
+            if let Some(command) = self.command_to_secondary() {
+                self.send_command_to_secondary(service, command)
+                    .expect("Unable to send command to the secondary device");
+            }
         }
     }
 
@@ -75,9 +80,9 @@ where
                     .confirm_message(address)
                     .expect("unable to confirm message");
 
-                if let Some(cmd) = output.slave_cmd {
-                    self.send_command_to_slave(service, cmd)
-                        .expect("unable to send command to slave device");
+                if let Some(cmd) = output.cmd {
+                    self.send_command_to_secondary(service, cmd)
+                        .expect("unable to send command to the secondary device");
                 }
                 if let Some(msg) = output.response {
                     service
@@ -123,7 +128,7 @@ where
             Message::ClearImages => {
                 self.clear_images();
                 response
-                    .cmd(SlaveCommand::ClearImages)
+                    .cmd(SecondaryCommand::ClearImages)
                     .msg(SimpleMessage::Ok);
             }
 
@@ -138,7 +143,7 @@ where
                 assert_eq!(bytes.len(), 0);
 
                 if let Message::ImageAdded { index } = &msg {
-                    response.cmd(SlaveCommand::AddImage { index: *index - 1 });
+                    response.cmd(SecondaryCommand::AddImage { index: *index - 1 });
                 }
                 response.msg(msg);
             }
@@ -151,7 +156,7 @@ where
 
                     response
                         .msg(SimpleMessage::Ok)
-                        .cmd(SlaveCommand::ShowImage { index });
+                        .cmd(SecondaryCommand::ShowImage { index });
                 }
             }
 
@@ -194,23 +199,23 @@ where
         Message::ImageAdded { index: count }
     }
 
-    fn send_command_to_slave(
+    fn send_command_to_secondary(
         &self,
         service: &mut Service<Network>,
-        cmd: SlaveCommand,
+        cmd: SecondaryCommand,
     ) -> Result<(), Network::Error> {
         for link in self.links().secondary_devices() {
             let address = link.address;
             match cmd {
-                SlaveCommand::ShowImage { index } => {
+                SecondaryCommand::ShowImage { index } => {
                     service.show_image(address, index)?.ok();
                 }
 
-                SlaveCommand::ClearImages if !self.save_mode() => {
+                SecondaryCommand::ClearImages if !self.safe_mode() => {
                     service.clear_images(address)?.ok();
                 }
 
-                SlaveCommand::AddImage { index } if !self.save_mode() => {
+                SecondaryCommand::AddImage { index } if !self.safe_mode() => {
                     let strip_len = self.strip_len();
                     let (refresh_rate, pixels) = self.read_image(index);
 

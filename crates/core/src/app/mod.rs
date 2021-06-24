@@ -4,7 +4,6 @@ use core::{
     iter::{repeat, Cycle},
 };
 
-use futures::StreamExt;
 use heapless::Vec;
 use smart_leds::{SmartLedsWrite, RGB8};
 
@@ -15,6 +14,9 @@ use crate::{
     AppConfig, HwEvent, Storage,
 };
 
+use self::network_task::SecondaryCommand;
+
+mod hw_events_task;
 mod image_task;
 mod network_task;
 
@@ -111,6 +113,7 @@ where
 
     refresh_rate: Hertz,
     image: Option<Cycle<StorageAccess::ImagePixels<'a>>>,
+    secondary_command: Option<SecondaryCommand>,
 
     links: DeviceLinks<Network>,
 }
@@ -193,6 +196,11 @@ where
 
         let index = (self.app_config.current_image_index as usize + 1) % (images_count + 1);
         self.set_image(index);
+
+        // Store the command for further sending it to the secondary device, 
+        // if there is an unsent command, it will be discarded.
+        self.secondary_command
+            .replace(SecondaryCommand::ShowImage { index });
     }
 }
 
@@ -227,6 +235,7 @@ where
             storage,
             refresh_rate: IDLE_REFRESH_RATE,
             image: None,
+            secondary_command: None,
             links: DeviceLinks::default(),
         };
 
@@ -268,10 +277,6 @@ where
         self.inner.borrow_mut().clear_images()
     }
 
-    fn show_next_image(&self) {
-        self.inner.borrow_mut().show_next_image()
-    }
-
     fn links(&self) -> Ref<DeviceLinks<Network>> {
         Ref::map(self.inner.borrow(), |inner| &inner.links)
     }
@@ -280,29 +285,12 @@ where
         RefMut::map(self.inner.borrow_mut(), |inner| &mut inner.links)
     }
 
-    fn save_mode(&self) -> bool {
+    fn safe_mode(&self) -> bool {
         self.inner.borrow().app_config.safe_mode
     }
-}
 
-impl<'a, StorageAccess, Network> Context<'a, StorageAccess, Network>
-where
-    StorageAccess: Storage,
-    Network: Transport,
-
-    StorageAccess::Error: Debug,
-{
-    async fn run_hw_events_task(&self, hw_events: &mut (dyn Stream<Item = HwEvent> + Unpin)) -> ! {
-        loop {
-            let hw_event = hw_events.next().await.unwrap();
-            self.handle_hardware_event(hw_event);
-        }
-    }
-
-    fn handle_hardware_event(&self, event: HwEvent) {
-        match event {
-            HwEvent::ShowNextImage => self.show_next_image(),
-        }
+    fn command_to_secondary(&self) -> Option<SecondaryCommand> {
+        self.inner.borrow_mut().secondary_command.take()
     }
 }
 
