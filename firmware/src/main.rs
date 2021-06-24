@@ -1,9 +1,8 @@
 #![no_std]
 #![no_main]
 
-use core::{iter::repeat, panic::PanicInfo, sync::atomic, time::Duration};
+use core::{iter::repeat, panic::PanicInfo, time::Duration};
 
-use atomic::Ordering;
 use cyberpixie::{
     leds::SmartLedsWrite,
     proto::{DeviceRole, Handshake, Service},
@@ -209,7 +208,10 @@ fn panic(info: &PanicInfo) -> ! {
     uprintln!("The firmware panicked!");
     uprintln!("- {}", info);
 
-    loop {
-        atomic::compiler_fence(Ordering::SeqCst);
-    }
+    unsafe { riscv_rt::start_rust() }
+
+    // loop {
+    //     use core::sync::atomic::{self, Ordering};
+    //     atomic::compiler_fence(Ordering::SeqCst);
+    // }
 }

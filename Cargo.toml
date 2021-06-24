@@ -4,7 +4,6 @@ resolver = "2"
 members = [
     "crates/core",
     "crates/esp8266-softap", 
-    "crates/nb_utils",
     "crates/proto", 
     "crates/stdio-serial",
     "utils/image_sender",
