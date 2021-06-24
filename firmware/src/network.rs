@@ -1,10 +1,9 @@
 use core::fmt::Debug;
 
-use cyberpixie::proto::DeviceRole;
+use cyberpixie::{proto::DeviceRole, stdout::uprintln};
 use embedded_hal::serial;
 use esp8266_softap::{softap::JoinApConfig, Adapter, SoftApConfig, TcpSocket};
 use serde::{Deserialize, Serialize};
-use stdio_serial::uprintln;
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NetworkConfig<'a> {

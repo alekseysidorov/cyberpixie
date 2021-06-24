@@ -13,9 +13,8 @@ serde = { version = "1", default-features = false, features = ["derive"] }
 
 nb-utils = { git = "https://github.com/alekseysidorov/nb-utils.git", branch = "main" }
 
-stdio-serial = { path = "../stdio-serial" }
+no-stdout = { path = "../no-stdout" }
 
 [dev-dependencies]
 embedded-hal = "0.2"
 esp8266-softap = { path = "../esp8266-softap" }
-# stdio-serial = { path = "../stdio-serial", features = ["std", "dprint"] }

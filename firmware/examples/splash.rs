@@ -7,14 +7,12 @@ use core::{
     time::Duration,
 };
 
-use cyberpixie::time::{Microseconds, Milliseconds};
+use cyberpixie::{time::{Microseconds, Milliseconds}, stdout::uprintln};
 use cyberpixie_firmware::{
     config::SERIAL_PORT_CONFIG, new_async_timer, splash::WanderingLight, time::McycleClock,
 };
-use esp8266_softap::clock::ElapsedTimer;
 use gd32vf103xx_hal::{pac, prelude::*, serial::Serial, spi::Spi, timer::Timer};
 use smart_leds::{SmartLedsWrite, RGB8};
-use stdio_serial::uprintln;
 use ws2812_spi::Ws2812;
 
 const TICK_DELAY: u32 = 1;

@@ -7,7 +7,7 @@ use atomic::Ordering;
 use cyberpixie::{
     leds::SmartLedsWrite,
     proto::{DeviceRole, Handshake, Message, Service, SimpleMessage},
-    stdio::uprintln,
+    stdout::uprintln,
 };
 use cyberpixie_firmware::{
     config::{ESP32_SERIAL_PORT_CONFIG, SERIAL_PORT_CONFIG, STRIP_LEDS_COUNT},
@@ -46,7 +46,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
         serial.listen(SerialEvent::Rxne);
         serial.split()
     };
-    stdio_serial::init(usb_tx);
+    init_stdout(usb_tx);
 
     timer.delay(Duration::from_secs(2)).await;
     uprintln!();

@@ -2,7 +2,7 @@ use core::fmt::Write;
 
 use embedded_hal::serial;
 use heapless::Vec;
-use stdio_serial::uprintln;
+use no_stdout::{dprint, uprintln};
 
 use crate::{
     error::{Error, Result},
@@ -244,7 +244,7 @@ where
             unsafe {
                 self.buf.push_unchecked(byte);
             }
-            stdio_serial::dprint!("{}", byte as char);
+            dprint!("{}", byte as char);
         }
     }
 }
@@ -265,7 +265,7 @@ where
     }
 
     pub(crate) fn write_byte(&mut self, byte: u8) -> nb::Result<(), Tx::Error> {
-        stdio_serial::dprint!("{}", byte as char);
+        dprint!("{}", byte as char);
         self.tx.write(byte)
     }
 

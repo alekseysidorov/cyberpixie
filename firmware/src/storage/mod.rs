@@ -1,5 +1,5 @@
 use core::{
-    cell::{Ref, RefCell},
+    cell::{Ref, RefCell, RefMut},
     mem::MaybeUninit,
 };
 
@@ -7,7 +7,6 @@ use cyberpixie::{leds::RGB8, proto::Hertz, AppConfig, Storage};
 use embedded_sdmmc::{Block, BlockDevice, BlockIdx};
 use endian_codec::{DecodeLE, EncodeLE, PackedSize};
 use serde::{Deserialize, Serialize};
-use stdio_serial::uprintln;
 
 use crate::{
     config::{APP_CONFIG, NETWORK_CONFIG},
@@ -22,16 +21,6 @@ mod types;
 pub const MAX_IMAGES_COUNT: usize = 60;
 
 const BLOCK_SIZE: usize = 512;
-
-pub fn erase_blocks<B: BlockDevice>(dev: &mut B, from: u32, to: u32) -> Result<(), B::Error> {
-    let zero_block = [Block::default()];
-    for i in from..to {
-        dev.write(&zero_block, BlockIdx(i))?;
-        uprintln!("Erased {} block", i);
-    }
-
-    Ok(())
-}
 
 struct StorageImplInner<B> {
     device: B,
@@ -74,6 +63,10 @@ where
         self.inner
             .borrow()
             .read_serialized_block(blocks, StorageImplInner::<B>::NETWORK_CONFIG_BLOCK)
+    }
+
+    pub fn block_device(&self) -> RefMut<B> {
+        RefMut::map(self.inner.borrow_mut(), |inner| &mut inner.device)
     }
 }
 

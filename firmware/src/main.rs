@@ -6,13 +6,13 @@ use core::{iter::repeat, panic::PanicInfo, time::Duration};
 use cyberpixie::{
     leds::SmartLedsWrite,
     proto::{DeviceRole, Handshake, Service},
-    stdio::uprintln,
+    stdout::uprintln,
     time::Microseconds,
     App, Storage,
 };
 use cyberpixie_firmware::{
     config::{ESP32_SERIAL_PORT_CONFIG, SERIAL_PORT_CONFIG, STRIP_LEDS_COUNT},
-    erase_blocks, irq, new_async_timer,
+    init_stdout, irq, new_async_timer,
     splash::WanderingLight,
     time::McycleClock,
     NetworkConfig, NextImageBtn, StorageImpl, TransportImpl, BLUE_LED, MAGENTA_LED, RED_LED,
@@ -23,7 +23,7 @@ use esp8266_softap::{Adapter, ADAPTER_BUF_CAPACITY};
 use gd32vf103xx_hal::{
     pac::{self},
     prelude::*,
-    serial::{Event as SerialEvent, Serial},
+    serial::Serial,
     spi::{Spi, MODE_0},
     timer::Timer,
 };
@@ -47,11 +47,10 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
         let tx = gpioa.pa9.into_alternate_push_pull();
         let rx = gpioa.pa10.into_floating_input();
 
-        let mut serial = Serial::new(dp.USART0, (tx, rx), SERIAL_PORT_CONFIG, &mut afio, &mut rcu);
-        serial.listen(SerialEvent::Rxne);
+        let serial = Serial::new(dp.USART0, (tx, rx), SERIAL_PORT_CONFIG, &mut afio, &mut rcu);
         serial.split()
     };
-    stdio_serial::init(usb_tx);
+    init_stdout(usb_tx);
 
     timer.delay(Duration::from_secs(2)).await;
     uprintln!();
@@ -98,8 +97,6 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
 
         let mut device = embedded_sdmmc::SdMmcSpi::new(spi, cs, clock, 1_000_000);
         device.init().unwrap();
-        erase_blocks(&mut device, 0, 10000).unwrap();
-
         device
     };
     let storage = StorageImpl::open(device).unwrap();
@@ -143,7 +140,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
 
     let esp_rx = irq::init_interrupts(irq::Usart1 {
         rx: esp_rx,
-        timer: Timer::timer1(dp.TIMER1, 12.khz(), &mut rcu),
+        timer: Timer::timer1(dp.TIMER1, 15.khz(), &mut rcu),
     });
     uprintln!("esp32 serial communication port configured.");
 
@@ -208,10 +205,10 @@ fn panic(info: &PanicInfo) -> ! {
     uprintln!("The firmware panicked!");
     uprintln!("- {}", info);
 
-    unsafe { riscv_rt::start_rust() }
+    // unsafe { riscv_rt::start_rust() }
 
-    // loop {
-    //     use core::sync::atomic::{self, Ordering};
-    //     atomic::compiler_fence(Ordering::SeqCst);
-    // }
+    loop {
+        use core::sync::atomic::{self, Ordering};
+        atomic::compiler_fence(Ordering::SeqCst);
+    }
 }

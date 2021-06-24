@@ -12,9 +12,7 @@ use embedded_hal::digital::v2::InputPin;
 use smart_leds::RGB8;
 
 pub use self::{
-    network::NetworkConfig,
-    storage::{erase_blocks, StorageImpl},
-    time::new_async_timer,
+    network::NetworkConfig, stdout::init_stdout, storage::StorageImpl, time::new_async_timer,
     transport::TransportImpl,
 };
 
@@ -24,6 +22,7 @@ pub mod splash;
 pub mod time;
 
 mod network;
+mod stdout;
 mod storage;
 mod transport;
 
