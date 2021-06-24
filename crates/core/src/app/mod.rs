@@ -5,6 +5,7 @@ use core::{
 };
 
 use heapless::Vec;
+use no_stdout::uprintln;
 use smart_leds::{SmartLedsWrite, RGB8};
 
 use crate::{
@@ -162,7 +163,9 @@ where
         self.app_config.current_image_index = index as u16;
         self.storage
             .save_config(&self.app_config)
-            .expect("unable to update app config")
+            .expect("unable to update app config");
+
+        uprintln!("Showing {} image", index);
     }
 
     fn add_image<I>(&mut self, refresh_rate: Hertz, bytes: I) -> usize
@@ -197,7 +200,7 @@ where
         let index = (self.app_config.current_image_index as usize + 1) % (images_count + 1);
         self.set_image(index);
 
-        // Store the command for further sending it to the secondary device, 
+        // Store the command for further sending it to the secondary device,
         // if there is an unsent command, it will be discarded.
         self.secondary_command
             .replace(SecondaryCommand::ShowImage { index });
