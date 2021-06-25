@@ -93,7 +93,8 @@ impl CommandResponse {
 }
 
 pub struct CifsrResponse {
-    pub ap_ip: IpAddr,
+    pub ap_ip: Option<IpAddr>,
+    pub sta_ip: Option<IpAddr>,
 }
 
 named!(
@@ -112,15 +113,38 @@ named!(
 );
 
 named!(
-    cifsr_response<CifsrResponse>,
+    parse_apip<IpAddr>,
     do_parse!(
         opt!(crlf)
             >> tag!("+CIFSR:APIP,")
             >> char!('"')
-            >> ap_ip: parse_ip4_addr
+            >> ip_addr: parse_ip4_addr
             >> char!('"')
             >> opt!(crlf)
-            >> (CifsrResponse { ap_ip })
+            >> (ip_addr)
+    )
+);
+
+named!(
+    parse_staip<IpAddr>,
+    do_parse!(
+        opt!(crlf)
+            >> tag!("+CIFSR:STAIP,")
+            >> char!('"')
+            >> ip_addr: parse_ip4_addr
+            >> char!('"')
+            >> opt!(crlf)
+            >> (ip_addr)
+    )
+);
+
+named!(
+    cifsr_response<CifsrResponse>,
+    do_parse!(
+        opt!(crlf)
+            >> ap_ip: opt!(parse_apip)
+            >> sta_ip: opt!(parse_staip)
+            >> (CifsrResponse { ap_ip, sta_ip })
     )
 );
 

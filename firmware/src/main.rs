@@ -36,7 +36,7 @@ unsafe fn handle_uart1_interrupt() {
 }
 
 async fn run_main_loop(dp: pac::Peripherals) -> ! {
-    let mut rcu = dp.RCU.configure().sysclk(108.mhz()).freeze();
+    let mut rcu = dp.RCU.configure().sysclk(96.mhz()).freeze();
     let mut afio = dp.AFIO.constrain(&mut rcu);
 
     let clock = McycleClock::new(&rcu.clocks);
@@ -88,7 +88,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
                 gpiob.pb15.into_alternate_push_pull(),
             ),
             MODE_0,
-            50.mhz(),
+            20.mhz(),
             &mut rcu,
         );
 
@@ -145,7 +145,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
     uprintln!("esp32 serial communication port configured.");
 
     strip.write(MAGENTA_LED.iter().copied()).ok();
-    let (mut socket, role) = {
+    let (socket, role) = {
         let mut blocks = [Block::new()];
         let net_config = storage.network_config(&mut blocks).unwrap();
         uprintln!("Network config is {:?}", net_config);
@@ -156,11 +156,12 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
             .unwrap();
         (socket, role)
     };
-    uprintln!("Device IP address is {}", socket.ap_address().unwrap(),);
+    uprintln!("Device IP address is {}", socket.ap_address());
 
     let device_id = cyberpixie_firmware::device_id();
     let mut network = Service::new(TransportImpl::new(socket), ADAPTER_BUF_CAPACITY);
     if role == DeviceRole::Secondary {
+        uprintln!("Exchanging hanshakes with the main device");
         // In order for the main device to know about the existence of the second one,
         // the secondary device has to send a handshake message to the main one.
         network

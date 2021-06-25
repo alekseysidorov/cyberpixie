@@ -7,7 +7,10 @@ use core::{
     time::Duration,
 };
 
-use cyberpixie::{time::{Microseconds, Milliseconds}, stdout::uprintln};
+use cyberpixie::{
+    stdout::uprintln,
+    time::{Microseconds, Milliseconds},
+};
 use cyberpixie_firmware::{
     config::SERIAL_PORT_CONFIG, new_async_timer, splash::WanderingLight, time::McycleClock,
 };

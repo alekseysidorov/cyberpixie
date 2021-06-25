@@ -177,17 +177,22 @@ macro_rules! dprint {
 #[cfg(any(feature = "dprint", doc))]
 macro_rules! dprintln {
     () => {{
-        #[cfg(feature = "dprint")]
-        $crate::uprintln!();
+        $crate::stdout()
+            .write_str(dprintln!(@newline))
+            .ok();
     }};
     ($s:expr) => {{
-        #[cfg(feature = "dprint")]
-        $crate::uprintln!($s);
+        $crate::stdout()
+            .write_str(concat!($s, dprintln!(@newline)))
+            .ok();
     }};
     ($s:expr, $($tt:tt)*) => {{
-        #[cfg(feature = "dprint")]
-        $crate::uprintln!($s, $($tt:tt)*);
+        $crate::stdout()
+            .write_fmt(format_args!(concat!($s, dprintln!(@newline)), $($tt)*))
+            .ok();
     }};
+
+    (@newline) => { "\r\n" };
 }
 #[cfg(not(any(feature = "dprint", doc)))]
 #[macro_export]

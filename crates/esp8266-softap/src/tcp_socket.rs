@@ -6,7 +6,7 @@ use no_std_net::IpAddr;
 
 use crate::{
     adapter::{Adapter, CarretCondition, OkCondition, ReadPart},
-    parser::{CifsrResponse, CommandResponse},
+    parser::CommandResponse,
     Error,
 };
 
@@ -18,6 +18,7 @@ where
     Tx::Error: core::fmt::Debug,
 {
     adapter: Adapter<Rx, Tx>,
+    ip_addr: IpAddr,
 }
 
 impl<Rx, Tx> TcpSocket<Rx, Tx>
@@ -27,9 +28,9 @@ where
     Rx::Error: core::fmt::Debug,
     Tx::Error: core::fmt::Debug,
 {
-    pub fn new(mut adapter: Adapter<Rx, Tx>) -> Self {
+    pub fn new(mut adapter: Adapter<Rx, Tx>, ip_addr: IpAddr) -> Self {
         adapter.reader.buf.clear();
-        Self { adapter }
+        Self { adapter, ip_addr }
     }
 
     pub fn read_bytes(&mut self) -> nb::Result<(), Rx::Error> {
@@ -74,18 +75,8 @@ where
         Ok(())
     }
 
-    pub fn ap_address(&mut self) -> crate::Result<IpAddr, Rx::Error, Tx::Error> {
-        let raw_resp = self
-            .adapter
-            .send_at_command_fmt(format_args!("AT+CIFSR"))?
-            .map_err(|_| Error::MalformedCommand {
-                cmd: "CIFSR",
-                msg: "Incorrect usage of the CIFSR command",
-            })?;
-
-        let resp = CifsrResponse::parse(raw_resp).unwrap().1;
-        self.adapter.clear_reader_buf();
-        Ok(resp.ap_ip)
+    pub fn ap_address(&self) -> IpAddr {
+        self.ip_addr
     }
 }
 

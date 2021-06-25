@@ -21,8 +21,8 @@ softap_bin:
 	cargo objcopy --target ${target_arch} $(firmware_cmd) --example softap -- -O binary target/softap.bin
 
 run: 
-	cargo objcopy --target ${target_arch} $(firmware_cmd) -- -O ihex target/retransmitter.hex
-	$(stm32flash) -w target/retransmitter.hex -v -g 0x0 $(CYBERPIXIE_UART)
+	cargo objcopy --target ${target_arch} $(firmware_cmd) -- -O ihex target/firmware.hex
+	$(stm32flash) -w target/firmware.hex -v -g 0x0 $(CYBERPIXIE_UART)
 	$(serial_monitor)
 
 run_retransmitter: 

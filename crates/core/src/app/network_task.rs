@@ -9,6 +9,7 @@ use crate::{
     },
     storage::RgbIter,
     Storage,
+    stdout::dprintln
 };
 
 use super::{Context, DeviceLink, CORE_VERSION};
@@ -68,7 +69,9 @@ where
             .expect("unable to get next service event");
 
         match service_event {
-            ServiceEvent::Connected { .. } => {}
+            ServiceEvent::Connected { .. } => {
+                dprintln!("New incoming connection");
+            }
 
             ServiceEvent::Disconnected { address } => {
                 self.links_mut().remove_address(&address);

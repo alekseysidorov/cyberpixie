@@ -26,10 +26,10 @@ ws2812-spi = { version = "0.4" }
 simple-clock = { git = "https://github.com/alekseysidorov/simple-clock.git", branch = "main" }
 
 no-stdout = { path = "../crates/no-stdout" }
-# no-stdout = { path = "../crates/no-stdout", features = [ "dprint"] }
 esp8266-softap = { path = "../crates/esp8266-softap" }
 cyberpixie = { path = "../crates/core" }
 
 [features]
 default = []
 secondary_device = []
+dprint = ["esp8266-softap/dprint"]
