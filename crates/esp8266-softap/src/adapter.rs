@@ -76,8 +76,6 @@ where
         &mut self,
         cmd: &str,
     ) -> Result<RawResponse<'_>, Rx::Error, Tx::Error> {
-        dprintln!("    esp8266: -> {}", cmd);
-
         self.write_command(cmd.as_ref())?;
         self.read_until(OkCondition)
     }

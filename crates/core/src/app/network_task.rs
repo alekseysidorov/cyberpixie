@@ -7,9 +7,9 @@ use crate::{
         Error, FirmwareInfo, Handshake, Hertz, Message, Service, ServiceEvent, SimpleMessage,
         Transport,
     },
+    stdout::dprintln,
     storage::RgbIter,
     Storage,
-    stdout::dprintln
 };
 
 use super::{Context, DeviceLink, CORE_VERSION};
