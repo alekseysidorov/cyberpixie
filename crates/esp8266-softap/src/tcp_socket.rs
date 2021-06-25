@@ -2,10 +2,11 @@ use core::{format_args, ops::Deref};
 
 use embedded_hal::serial;
 use heapless::Vec;
+use no_std_net::IpAddr;
 
 use crate::{
     adapter::{Adapter, CarretCondition, OkCondition, ReadPart},
-    parser::CommandResponse,
+    parser::{CifsrResponse, CommandResponse},
     Error,
 };
 
@@ -71,6 +72,20 @@ where
             })?;
         self.adapter.clear_reader_buf();
         Ok(())
+    }
+
+    pub fn ap_address(&mut self) -> crate::Result<IpAddr, Rx::Error, Tx::Error> {
+        let raw_resp = self
+            .adapter
+            .send_at_command_fmt(format_args!("AT+CIFSR"))?
+            .map_err(|_| Error::MalformedCommand {
+                cmd: "CIFSR",
+                msg: "Incorrect usage of the CIFSR command",
+            })?;
+
+        let resp = CifsrResponse::parse(raw_resp).unwrap().1;
+        self.adapter.clear_reader_buf();
+        Ok(resp.ap_ip)
     }
 }
 

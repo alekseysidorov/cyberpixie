@@ -95,7 +95,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
         let mut cs = gpiob.pb12.into_push_pull_output();
         cs.set_low().unwrap();
 
-        let mut device = embedded_sdmmc::SdMmcSpi::new(spi, cs, clock, 10_000);
+        let mut device = embedded_sdmmc::SdMmcSpi::new(spi, cs, clock, 1_000);
         device.init().unwrap();
         device
     };
@@ -140,12 +140,12 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
 
     let esp_rx = irq::init_interrupts(irq::Usart1 {
         rx: esp_rx,
-        timer: Timer::timer1(dp.TIMER1, 15.khz(), &mut rcu),
+        timer: Timer::timer1(dp.TIMER1, 12.khz(), &mut rcu),
     });
     uprintln!("esp32 serial communication port configured.");
 
     strip.write(MAGENTA_LED.iter().copied()).ok();
-    let (socket, role) = {
+    let (mut socket, role) = {
         let mut blocks = [Block::new()];
         let net_config = storage.network_config(&mut blocks).unwrap();
         uprintln!("Network config is {:?}", net_config);
@@ -156,9 +156,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
             .unwrap();
         (socket, role)
     };
-
-    uprintln!("Network is successfully configured.",);
-    strip.write(BLUE_LED.iter().copied()).ok();
+    uprintln!("Device IP address is {}", socket.ap_address().unwrap(),);
 
     let device_id = cyberpixie_firmware::device_id();
     let mut network = Service::new(TransportImpl::new(socket), ADAPTER_BUF_CAPACITY);
@@ -177,6 +175,9 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
             .unwrap()
             .unwrap();
     }
+
+    uprintln!("Network is successfully configured.",);
+    strip.write(BLUE_LED.iter().copied()).ok();
 
     let mut events = NextImageBtn::new(gpioa.pa8.into_pull_down_input());
     let app = App {
@@ -204,8 +205,6 @@ fn panic(info: &PanicInfo) -> ! {
     uprintln!();
     uprintln!("The firmware panicked!");
     uprintln!("- {}", info);
-
-    // unsafe { riscv_rt::start_rust() }
 
     loop {
         use core::sync::atomic::{self, Ordering};

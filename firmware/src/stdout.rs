@@ -36,8 +36,13 @@ impl StdOutImpl {
 }
 
 impl StdOut for StdOutImpl {
-    fn write_byte(&self, byte: u8) -> core::fmt::Result {
-        Self::with_usart0(|mut usart0| nb::block!(usart0.write(byte)).map_err(|_| fmt::Error))
+    fn write_bytes(&self, bytes: &[u8]) -> core::fmt::Result {
+        Self::with_usart0(|mut usart0| {
+            for byte in bytes {
+                nb::block!(usart0.write(*byte)).map_err(|_| fmt::Error)?;
+            }
+            Ok(())
+        })
     }
 
     fn write_str(&self, s: &str) -> core::fmt::Result {

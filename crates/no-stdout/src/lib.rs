@@ -10,7 +10,7 @@ static STATE: AtomicUsize = AtomicUsize::new(UNINITIALIZED);
 static mut STDOUT: &dyn StdOut = &NopOut;
 
 pub trait StdOut: Send + 'static {
-    fn write_byte(&self, byte: u8) -> fmt::Result;
+    fn write_bytes(&self, bytes: &[u8]) -> fmt::Result;
     fn write_str(&self, s: &str) -> fmt::Result;
     fn write_fmt(&self, args: fmt::Arguments) -> fmt::Result;
     fn flush(&self) -> fmt::Result;
@@ -41,7 +41,7 @@ impl StdOut for NopOut {
         Ok(())
     }
 
-    fn write_byte(&self, _byte: u8) -> fmt::Result {
+    fn write_bytes(&self, _bytes: &[u8]) -> fmt::Result {
         Ok(())
     }
 
