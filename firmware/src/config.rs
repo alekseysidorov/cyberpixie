@@ -39,7 +39,7 @@ pub const NETWORK_CONFIG: NetworkConfig<'static> = NetworkConfig::SoftAp {
     ssid: "cyberpixie",
     password: "12345678",
     channel: 5,
-    mode: 4,
+    mode: 0,
 };
 #[cfg(feature = "secondary_device")]
 pub const NETWORK_CONFIG: NetworkConfig<'static> = NetworkConfig::JoinAp {

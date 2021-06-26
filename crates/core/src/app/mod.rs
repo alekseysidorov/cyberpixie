@@ -158,14 +158,17 @@ where
             let (refresh_rate, image) = self.storage.read_image(index - 1);
             self.refresh_rate = refresh_rate;
             self.image.replace(image.cycle());
+
+            uprintln!("Showing {} image", index);
         }
 
-        self.app_config.current_image_index = index as u16;
-        self.storage
-            .save_config(&self.app_config)
-            .expect("unable to update app config");
-
-        uprintln!("Showing {} image", index);
+        let index = index as u16;
+        if self.app_config.current_image_index != index {
+            self.app_config.current_image_index = index;
+            self.storage
+                .save_config(&self.app_config)
+                .expect("unable to update app config");
+        }
     }
 
     fn add_image<I>(&mut self, refresh_rate: Hertz, bytes: I) -> usize
@@ -178,7 +181,7 @@ where
             .storage
             .add_image(bytes, refresh_rate)
             .expect("Unable to save image");
-        self.set_image(new_count as usize);
+        self.set_image(self.app_config.current_image_index as usize);
         new_count
     }
 
