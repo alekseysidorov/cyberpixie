@@ -100,6 +100,15 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
         device
     };
     let storage = StorageImpl::open(device).unwrap();
+
+    #[cfg(feature = "reset_on_start")]
+    storage
+        .reset(
+            cyberpixie_firmware::config::APP_CONFIG,
+            cyberpixie_firmware::config::NETWORK_CONFIG,
+        )
+        .unwrap();
+
     let cfg = storage.load_config().unwrap();
     uprintln!("Total images count: {}", storage.images_count());
 
@@ -207,8 +216,10 @@ fn panic(info: &PanicInfo) -> ! {
     uprintln!("The firmware panicked!");
     uprintln!("- {}", info);
 
-    loop {
-        use core::sync::atomic::{self, Ordering};
-        atomic::compiler_fence(Ordering::SeqCst);
-    }
+    unsafe { riscv_rt::start_rust() }
+
+    // loop {
+    //     use core::sync::atomic::{self, Ordering};
+    //     atomic::compiler_fence(Ordering::SeqCst);
+    // }
 }

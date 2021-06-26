@@ -31,7 +31,7 @@ pub const STRIP_LEDS_COUNT: usize = 48;
 pub const APP_CONFIG: AppConfig = AppConfig {
     current_image_index: 0,
     strip_len: STRIP_LEDS_COUNT as u16,
-    safe_mode: true,
+    safe_mode: false,
 };
 
 #[cfg(not(feature = "secondary_device"))]

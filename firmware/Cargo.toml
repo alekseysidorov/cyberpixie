@@ -32,4 +32,5 @@ cyberpixie = { path = "../crates/core" }
 [features]
 default = []
 secondary_device = []
+reset_on_start = []
 dprint = ["esp8266-softap/dprint"]

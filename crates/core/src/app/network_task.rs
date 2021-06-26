@@ -70,11 +70,12 @@ where
 
         match service_event {
             ServiceEvent::Connected { .. } => {
-                dprintln!("New incoming connection");
+                dprintln!("+");
             }
 
             ServiceEvent::Disconnected { address } => {
                 self.links_mut().remove_address(&address);
+                dprintln!("-");
             }
 
             ServiceEvent::Message { address, message } => {
