@@ -1,16 +1,17 @@
-use core::{fmt::Debug, mem::size_of};
-
-use no_stdout::uprintln;
-use smart_leds::RGB8;
+use core::{fmt::Debug, mem::size_of, task::Poll};
 
 use crate::{
+    futures::{
+        future::{poll_fn, select, Either},
+        pin_mut,
+    },
+    leds::RGB8,
     proto::{
         Error, FirmwareInfo, Handshake, Hertz, Message, Service, ServiceEvent, SimpleMessage,
         Transport,
     },
-    stdout::dprintln,
-    storage::RgbIter,
-    Storage,
+    stdout::{dprintln, uprintln},
+    storage::{RgbIter, Storage},
 };
 
 use super::{Context, DeviceLink, CORE_VERSION};
@@ -54,9 +55,27 @@ where
 {
     pub async fn run_service_events_task(&self, service: &mut Service<Network>) -> ! {
         loop {
-            self.handle_service_event(service).await;
+            let command = {
+                let handle_service_event = self.handle_service_event(service);
+                let handle_command_to_secondary =
+                    poll_fn(|ctx| match self.command_to_secondary() {
+                        Some(command) => Poll::Ready(command),
+                        None => {
+                            ctx.waker().wake_by_ref();
+                            Poll::Pending
+                        }
+                    });
 
-            if let Some(command) = self.command_to_secondary() {
+                pin_mut!(handle_service_event);
+                pin_mut!(handle_command_to_secondary);
+
+                match select(handle_service_event, handle_command_to_secondary).await {
+                    Either::Left(_) => None,
+                    Either::Right((command, _)) => Some(command),
+                }
+            };
+
+            if let Some(command) = command {
                 uprintln!("Sending command to the secondary device");
                 self.send_command_to_secondary(service, command)
                     .expect("Unable to send command to the secondary device");
