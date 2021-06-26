@@ -1,5 +1,6 @@
 use core::{fmt::Debug, mem::size_of};
 
+use no_stdout::uprintln;
 use smart_leds::RGB8;
 
 use crate::{
@@ -56,6 +57,7 @@ where
             self.handle_service_event(service).await;
 
             if let Some(command) = self.command_to_secondary() {
+                uprintln!("Sending command to the secondary device");
                 self.send_command_to_secondary(service, command)
                     .expect("Unable to send command to the secondary device");
             }

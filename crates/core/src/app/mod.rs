@@ -160,6 +160,8 @@ where
             self.image.replace(image.cycle());
 
             uprintln!("Showing {} image", index);
+        } else {
+            uprintln!("Disabling LED strip");
         }
 
         let index = index as u16;
