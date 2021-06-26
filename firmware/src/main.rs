@@ -36,7 +36,7 @@ unsafe fn handle_uart1_interrupt() {
 }
 
 async fn run_main_loop(dp: pac::Peripherals) -> ! {
-    let mut rcu = dp.RCU.configure().sysclk(96.mhz()).freeze();
+    let mut rcu = dp.RCU.configure().sysclk(72.mhz()).freeze();
     let mut afio = dp.AFIO.constrain(&mut rcu);
 
     let clock = McycleClock::new(&rcu.clocks);
@@ -88,7 +88,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
                 gpiob.pb15.into_alternate_push_pull(),
             ),
             MODE_0,
-            20.mhz(),
+            10.mhz(),
             &mut rcu,
         );
 
