@@ -5,13 +5,11 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1"
-cyberpixie-proto = { path = "../../crates/proto" }
 env_logger = "0.8"
 image = "0.23"
 log = "0.4"
 nb = "1.0"
 structopt = "0.3"
 
-# TODO
-futures = "0.3"
-tokio = "1.6"
+cyberpixie-std-transport = { path = "../../crates/std-transport" }
+cyberpixie-proto = { path = "../../crates/proto" }

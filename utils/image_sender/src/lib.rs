@@ -1,10 +1,8 @@
-pub use self::tcp_transport::{connect_to, create_service, TcpTransport};
+pub use cyberpixie_std_transport::{connect_to, create_service, TcpTransport};
 
 use std::{fmt::Display, path::Path};
 
 use image::io::Reader;
-
-mod tcp_transport;
 
 pub fn convert_image_to_raw(path: impl AsRef<Path>) -> anyhow::Result<(usize, Vec<u8>)> {
     let image = Reader::open(path)?.decode()?.to_rgb8();

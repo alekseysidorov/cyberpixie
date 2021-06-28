@@ -9,8 +9,6 @@ use cyberpixie_proto::{
     TransportEvent,
 };
 
-use crate::display_err;
-
 const TIMEOUT: Duration = Duration::from_secs(15);
 const HOST_DEVICE_ID: [u32; 4] = [0; 4];
 
@@ -40,7 +38,7 @@ pub fn create_service(addr: SocketAddr) -> anyhow::Result<Service<TcpTransport>>
                 role: DeviceRole::Host,
             },
         )?
-        .map_err(display_err)?;
+        .map_err(|err| anyhow::format_err!("{}", err))?;
     log::trace!("Connected with device: {:?}", response);
     Ok(service)
 }
