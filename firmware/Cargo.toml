@@ -25,7 +25,7 @@ ws2812-spi = { version = "0.4" }
 
 simple-clock = { git = "https://github.com/alekseysidorov/simple-clock.git", branch = "main" }
 
-no-stdout = { path = "../crates/no-stdout" }
+no-stdout = { git = "https://github.com/alekseysidorov/no-stdout.git", branch = "main" }
 esp8266-softap = { path = "../crates/esp8266-softap" }
 cyberpixie = { path = "../crates/core" }
 

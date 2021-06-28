@@ -52,6 +52,9 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
     };
     init_stdout(usb_tx);
 
+    let mut esp_en = gpioa.pa4.into_push_pull_output();
+    esp_en.set_low().ok();
+
     timer.delay(Duration::from_secs(2)).await;
     uprintln!();
     uprintln!("Welcome to Cyberpixie serial console!");
@@ -88,14 +91,14 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
                 gpiob.pb15.into_alternate_push_pull(),
             ),
             MODE_0,
-            32.mhz(),
+            50.mhz(),
             &mut rcu,
         );
 
         let mut cs = gpiob.pb12.into_push_pull_output();
         cs.set_low().unwrap();
 
-        let mut device = embedded_sdmmc::SdMmcSpi::new(spi, cs, clock, 1_000);
+        let mut device = embedded_sdmmc::SdMmcSpi::new(spi, cs, clock, 1_00_000);
         device.init().unwrap();
         device
     };
@@ -125,12 +128,9 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
 
     strip.write(RED_LED.iter().copied()).ok();
     uprintln!("Enabling esp32 serial device");
-    let mut esp_en = gpioa.pa4.into_push_pull_output();
-    esp_en.set_low().ok();
-    timer.delay(Duration::from_secs(2)).await;
 
     esp_en.set_high().ok();
-    timer.delay(Duration::from_secs(2)).await;
+    timer.delay(Duration::from_secs(3)).await;
     uprintln!("esp32 device has been enabled");
 
     let (esp_tx, esp_rx) = {

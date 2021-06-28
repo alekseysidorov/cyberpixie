@@ -5,7 +5,6 @@ members = [
     "crates/core",
     "crates/esp8266-softap", 
     "crates/proto", 
-    "crates/no-stdout",
     "utils/image_sender",
 ]
 exclude = ["firmware"]
