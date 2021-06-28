@@ -1,4 +1,4 @@
-QT += quick
+QT += quick widgets
 
 CONFIG += c++11
 
@@ -21,3 +21,32 @@ QML_DESIGNER_IMPORT_PATH =
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
+
+# Additional target to build binding code with the Cyberpixie Rust part.
+RUST_BINDING_FILES += \
+    rust/Cargo.toml \
+    rust/build.rs \
+    rust/src/device_handle.rs \
+    rust/src/lib.rs
+
+debug {
+    CARGO_BUILD_TYPE = debug
+    CARGO_EXTRA_ARGS =
+} else {
+    CARGO_BUILD_TYPE = release
+    CARGO_EXTRA_ARGS = --release
+}
+
+RUST_BINDING_LIB = $$PWD/rust/target/$$CARGO_BUILD_TYPE/libcyberpixie_qml.a
+
+rust_binding.target = $$RUST_BINDING_LIB
+rust_binding.commands = cd $$PWD/rust && cargo build $$CARGO_EXTRA_ARGS && cd ..
+rust_bindings.depends = $$RUST_BINDING_FILES
+
+QMAKE_EXTRA_TARGETS += rust_binding
+PRE_TARGETDEPS += $$RUST_BINDING_LIB
+
+linux: LIBS += -ldl
+LIBS += $$RUST_BINDING_LIB
+
+OTHER_FILES += $$RUST_BINDING_FILES

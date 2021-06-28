@@ -1,0 +1,11 @@
+[package]
+name = "cyberpixie-qml"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+qmetaobject = "0.2.2"
+cstr = "0.2"
+
+[lib]
+crate-type = ["staticlib", "rlib"]

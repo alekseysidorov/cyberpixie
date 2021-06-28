@@ -8,4 +8,4 @@ members = [
     "crates/std-transport",
     "utils/image_sender",
 ]
-exclude = ["firmware"]
+exclude = ["firmware", "application"]

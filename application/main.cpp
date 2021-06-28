@@ -1,9 +1,12 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 
+extern "C" void register_cyberpixie_qml_types();
 
 int main(int argc, char *argv[])
 {
+    register_cyberpixie_qml_types();
+
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 #endif
