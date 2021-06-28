@@ -29,22 +29,40 @@ RUST_BINDING_FILES += \
     rust/src/device_handle.rs \
     rust/src/lib.rs
 
-debug {
-    CARGO_BUILD_TYPE = debug
-    CARGO_EXTRA_ARGS =
+ios {
+#    debug {
+#        CARGO_BUILD_PATH = aarch64-apple-ios/debug
+#    } else {
+#        CARGO_BUILD_PATH = aarch64-apple-ios/release
+#        CARGO_EXTRA_ARGS += --release
+#    }
+    CARGO_BUILD_PATH = aarch64-apple-ios/release
+    CARGO_EXTRA_ARGS +=--target aarch64-apple-ios --release
+
+    RUST_BINDING_LIB = $$PWD/rust/target/$$CARGO_BUILD_PATH/libcyberpixie_qml.a
+    message("-----")
+    message("build_path: " $$CARGO_BUILD_PATH)
+    message("extra_args: " $$CARGO_EXTRA_ARGS)
+    message("lib: " $$RUST_BINDING_LIB)
+    system(cd $$PWD/rust && /Users/aleksey/.cargo/bin/cargo build $$CARGO_EXTRA_ARGS && cd ..)
 } else {
-    CARGO_BUILD_TYPE = release
-    CARGO_EXTRA_ARGS = --release
+    debug {
+        CARGO_BUILD_TYPE = debug
+        CARGO_EXTRA_ARGS =
+    } else {
+        CARGO_BUILD_TYPE = release
+        CARGO_EXTRA_ARGS = --release
+    }
+
+    RUST_BINDING_LIB = $$PWD/rust/target/$$CARGO_BUILD_TYPE/libcyberpixie_qml.a
+
+    rust_binding.target = $$RUST_BINDING_LIB
+    rust_binding.commands = cd $$PWD/rust && cargo build $$CARGO_EXTRA_ARGS && cd ..
+    rust_bindings.depends = $$RUST_BINDING_FILES
+
+    QMAKE_EXTRA_TARGETS += rust_binding
+    PRE_TARGETDEPS += $$RUST_BINDING_LIB
 }
-
-RUST_BINDING_LIB = $$PWD/rust/target/$$CARGO_BUILD_TYPE/libcyberpixie_qml.a
-
-rust_binding.target = $$RUST_BINDING_LIB
-rust_binding.commands = cd $$PWD/rust && cargo build $$CARGO_EXTRA_ARGS && cd ..
-rust_bindings.depends = $$RUST_BINDING_FILES
-
-QMAKE_EXTRA_TARGETS += rust_binding
-PRE_TARGETDEPS += $$RUST_BINDING_LIB
 
 linux: LIBS += -ldl
 LIBS += $$RUST_BINDING_LIB

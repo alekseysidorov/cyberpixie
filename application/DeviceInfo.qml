@@ -31,6 +31,10 @@ Page {
 
         Button {
             text: qsTr("Connect")
+
+            onClicked: {
+                console.log(cyberpixie.compute_greetings("Hello, "))
+            }
         }
     }
 }

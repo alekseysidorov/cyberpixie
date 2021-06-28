@@ -32,4 +32,8 @@ ApplicationWindow {
             text: qsTr("Upload image")
         }
     }
+
+    DeviceHandle {
+        id: cyberpixie
+    }
 }
