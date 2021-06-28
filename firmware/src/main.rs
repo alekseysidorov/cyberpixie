@@ -216,10 +216,10 @@ fn panic(info: &PanicInfo) -> ! {
     uprintln!("The firmware panicked!");
     uprintln!("- {}", info);
 
-    unsafe { riscv_rt::start_rust() }
+    // unsafe { riscv_rt::start_rust() }
 
-    // loop {
-    //     use core::sync::atomic::{self, Ordering};
-    //     atomic::compiler_fence(Ordering::SeqCst);
-    // }
+    loop {
+        use core::sync::atomic::{self, Ordering};
+        atomic::compiler_fence(Ordering::SeqCst);
+    }
 }
