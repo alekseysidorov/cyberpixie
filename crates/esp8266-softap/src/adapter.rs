@@ -2,6 +2,7 @@ use core::fmt::Write;
 
 use embedded_hal::serial;
 use heapless::Vec;
+use no_stdout::dprintln;
 
 use crate::{
     error::{Error, Result},
@@ -62,7 +63,7 @@ where
         self.reset_cmd().ok();
         // Workaround to catch the framing errors.
         for _ in 0..100 {
-            self.send_at_command_str(b"ATE1").ok();
+            self.send_at_command_str("ATE1").ok();
         }
         self.reader.buf.clear();
 
@@ -73,7 +74,7 @@ where
     // FIXME: Get rid of the necessity of the manual `clear_reader_buf` invocations.
     pub fn send_at_command_str(
         &mut self,
-        cmd: impl AsRef<[u8]>,
+        cmd: &str,
     ) -> Result<RawResponse<'_>, Rx::Error, Tx::Error> {
         self.write_command(cmd.as_ref())?;
         self.read_until(OkCondition)
@@ -83,12 +84,14 @@ where
         &mut self,
         args: core::fmt::Arguments,
     ) -> Result<RawResponse<'_>, Rx::Error, Tx::Error> {
+        dprintln!("    esp8266: -> {}", args);
+
         self.write_command_fmt(args)?;
         self.read_until(OkCondition)
     }
 
     fn disable_echo(&mut self) -> Result<(), Rx::Error, Tx::Error> {
-        self.send_at_command_str(b"ATE0").map(drop)
+        self.send_at_command_str("ATE0").map(drop)
     }
 
     pub(crate) fn write_command(&mut self, cmd: &[u8]) -> Result<(), Rx::Error, Tx::Error> {
@@ -210,6 +213,8 @@ impl<'a> Condition<'a> for OkCondition {
     }
 
     fn output(self, buf: &'a [u8]) -> Self::Output {
+        dprintln!("    esp8266: -< {:?}", core::str::from_utf8(buf));
+
         if buf.ends_with(Self::OK) {
             Ok(&buf[0..buf.len() - Self::OK.len()])
         } else {
@@ -241,7 +246,6 @@ where
             unsafe {
                 self.buf.push_unchecked(byte);
             }
-            stdio_serial::dprint!("{}", byte as char);
         }
     }
 }
@@ -262,7 +266,6 @@ where
     }
 
     pub(crate) fn write_byte(&mut self, byte: u8) -> nb::Result<(), Tx::Error> {
-        stdio_serial::dprint!("{}", byte as char);
         self.tx.write(byte)
     }
 

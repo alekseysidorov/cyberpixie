@@ -11,14 +11,20 @@ use cyberpixie::{futures::Stream, HwEvent};
 use embedded_hal::digital::v2::InputPin;
 use smart_leds::RGB8;
 
-pub use self::{storage::StorageImpl, time::new_async_timer, transport::TransportImpl};
+pub use self::{
+    network::NetworkConfig, stdout::init_stdout, storage::StorageImpl, time::new_async_timer,
+    transport::TransportImpl,
+};
 
 pub mod config;
 pub mod irq;
 pub mod splash;
-pub mod storage;
 pub mod time;
-pub mod transport;
+
+mod network;
+mod stdout;
+mod storage;
+mod transport;
 
 pub const RED_LED: [RGB8; 1] = [RGB8 { r: 10, g: 0, b: 0 }];
 pub const BLUE_LED: [RGB8; 1] = [RGB8 { r: 0, g: 0, b: 10 }];

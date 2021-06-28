@@ -4,8 +4,8 @@ use core::{
     iter::{repeat, Cycle},
 };
 
-use futures::StreamExt;
 use heapless::Vec;
+use no_stdout::uprintln;
 use smart_leds::{SmartLedsWrite, RGB8};
 
 use crate::{
@@ -15,6 +15,9 @@ use crate::{
     AppConfig, HwEvent, Storage,
 };
 
+use self::network_task::SecondaryCommand;
+
+mod hw_events_task;
 mod image_task;
 mod network_task;
 
@@ -29,24 +32,24 @@ struct DeviceLink<T: Transport> {
 
 struct DeviceLinks<T: Transport> {
     host: Option<DeviceLink<T>>,
-    master: Option<DeviceLink<T>>,
-    slave: Option<DeviceLink<T>>,
+    main: Option<DeviceLink<T>>,
+    secondary: Option<DeviceLink<T>>,
 }
 
 impl<T: Transport> DeviceLinks<T> {
     fn add_link(&mut self, link: DeviceLink<T>) {
         match link.data.role {
             DeviceRole::Host => self.host.replace(link),
-            DeviceRole::Master => self.master.replace(link),
-            DeviceRole::Slave => self.slave.replace(link),
+            DeviceRole::Main => self.main.replace(link),
+            DeviceRole::Secondary => self.secondary.replace(link),
         };
     }
 
     fn get_link(&self, role: DeviceRole) -> &Option<DeviceLink<T>> {
         match role {
             DeviceRole::Host => &self.host,
-            DeviceRole::Master => &self.master,
-            DeviceRole::Slave => &self.slave,
+            DeviceRole::Main => &self.main,
+            DeviceRole::Secondary => &self.secondary,
         }
     }
 
@@ -62,16 +65,16 @@ impl<T: Transport> DeviceLinks<T> {
 
     fn remove_address(&mut self, address: &T::Address) -> Option<()> {
         Self::remove_if_match(&mut self.host, address)?;
-        Self::remove_if_match(&mut self.master, address)?;
-        Self::remove_if_match(&mut self.slave, address)
+        Self::remove_if_match(&mut self.main, address)?;
+        Self::remove_if_match(&mut self.secondary, address)
     }
 
     fn contains_link(&self, role: DeviceRole) -> bool {
         self.get_link(role).is_some()
     }
 
-    fn slave_devices(&self) -> impl Iterator<Item = &DeviceLink<T>> {
-        self.slave.iter()
+    fn secondary_devices(&self) -> impl Iterator<Item = &DeviceLink<T>> {
+        self.secondary.iter()
     }
 }
 
@@ -79,8 +82,8 @@ impl<T: Transport> Default for DeviceLinks<T> {
     fn default() -> Self {
         Self {
             host: None,
-            master: None,
-            slave: None,
+            main: None,
+            secondary: None,
         }
     }
 }
@@ -93,7 +96,7 @@ where
     Strip: SmartLedsWrite<Color = RGB8>,
 {
     pub role: DeviceRole,
-    pub network: Network,
+    pub network: Service<Network>,
     pub timer: AsyncTimer<CountDown>,
     pub storage: &'a StorageAccess,
     pub strip: Strip,
@@ -111,6 +114,7 @@ where
 
     refresh_rate: Hertz,
     image: Option<Cycle<StorageAccess::ImagePixels<'a>>>,
+    secondary_command: Option<SecondaryCommand>,
 
     links: DeviceLinks<Network>,
 }
@@ -154,12 +158,19 @@ where
             let (refresh_rate, image) = self.storage.read_image(index - 1);
             self.refresh_rate = refresh_rate;
             self.image.replace(image.cycle());
+
+            uprintln!("Showing {} image", index);
+        } else {
+            uprintln!("Disabling LED strip");
         }
 
-        self.app_config.current_image_index = index as u16;
-        self.storage
-            .save_config(&self.app_config)
-            .expect("unable to update app config")
+        let index = index as u16;
+        if self.app_config.current_image_index != index {
+            self.app_config.current_image_index = index;
+            self.storage
+                .save_config(&self.app_config)
+                .expect("unable to update app config");
+        }
     }
 
     fn add_image<I>(&mut self, refresh_rate: Hertz, bytes: I) -> usize
@@ -172,7 +183,7 @@ where
             .storage
             .add_image(bytes, refresh_rate)
             .expect("Unable to save image");
-        self.set_image(new_count as usize);
+        self.set_image(self.app_config.current_image_index as usize);
         new_count
     }
 
@@ -193,6 +204,11 @@ where
 
         let index = (self.app_config.current_image_index as usize + 1) % (images_count + 1);
         self.set_image(index);
+
+        // Store the command for further sending it to the secondary device,
+        // if there is an unsent command, it will be discarded.
+        self.secondary_command
+            .replace(SecondaryCommand::ShowImage { index });
     }
 }
 
@@ -227,6 +243,7 @@ where
             storage,
             refresh_rate: IDLE_REFRESH_RATE,
             image: None,
+            secondary_command: None,
             links: DeviceLinks::default(),
         };
 
@@ -268,10 +285,6 @@ where
         self.inner.borrow_mut().clear_images()
     }
 
-    fn show_next_image(&self) {
-        self.inner.borrow_mut().show_next_image()
-    }
-
     fn links(&self) -> Ref<DeviceLinks<Network>> {
         Ref::map(self.inner.borrow(), |inner| &inner.links)
     }
@@ -280,29 +293,12 @@ where
         RefMut::map(self.inner.borrow_mut(), |inner| &mut inner.links)
     }
 
-    fn save_mode(&self) -> bool {
+    fn safe_mode(&self) -> bool {
         self.inner.borrow().app_config.safe_mode
     }
-}
 
-impl<'a, StorageAccess, Network> Context<'a, StorageAccess, Network>
-where
-    StorageAccess: Storage,
-    Network: Transport,
-
-    StorageAccess::Error: Debug,
-{
-    async fn run_hw_events_task(&self, hw_events: &mut (dyn Stream<Item = HwEvent> + Unpin)) -> ! {
-        loop {
-            let hw_event = hw_events.next().await.unwrap();
-            self.handle_hardware_event(hw_event);
-        }
-    }
-
-    fn handle_hardware_event(&self, event: HwEvent) {
-        match event {
-            HwEvent::ShowNextImage => self.show_next_image(),
-        }
+    fn command_to_secondary(&self) -> Option<SecondaryCommand> {
+        self.inner.borrow_mut().secondary_command.take()
     }
 }
 
@@ -326,10 +322,7 @@ where
         let context =
             Context::<_, Network>::new(self.storage, self.role, app_config, self.device_id);
         futures::future::join3(
-            context.run_service_events_task(&mut Service::new(
-                self.network,
-                app_config.receiver_buf_capacity,
-            )),
+            context.run_service_events_task(&mut self.network),
             context.run_show_image_task(&mut self.timer, &mut self.strip),
             context.run_hw_events_task(self.events),
         )

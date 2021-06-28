@@ -2,6 +2,7 @@ use core::{format_args, ops::Deref};
 
 use embedded_hal::serial;
 use heapless::Vec;
+use no_std_net::IpAddr;
 
 use crate::{
     adapter::{Adapter, CarretCondition, OkCondition, ReadPart},
@@ -17,6 +18,7 @@ where
     Tx::Error: core::fmt::Debug,
 {
     adapter: Adapter<Rx, Tx>,
+    ip_addr: IpAddr,
 }
 
 impl<Rx, Tx> TcpSocket<Rx, Tx>
@@ -26,9 +28,9 @@ where
     Rx::Error: core::fmt::Debug,
     Tx::Error: core::fmt::Debug,
 {
-    pub fn new(mut adapter: Adapter<Rx, Tx>) -> Self {
+    pub fn new(mut adapter: Adapter<Rx, Tx>, ip_addr: IpAddr) -> Self {
         adapter.reader.buf.clear();
-        Self { adapter }
+        Self { adapter, ip_addr }
     }
 
     pub fn read_bytes(&mut self) -> nb::Result<(), Rx::Error> {
@@ -71,6 +73,10 @@ where
             })?;
         self.adapter.clear_reader_buf();
         Ok(())
+    }
+
+    pub fn ap_address(&self) -> IpAddr {
+        self.ip_addr
     }
 }
 

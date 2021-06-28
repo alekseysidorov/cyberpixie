@@ -7,15 +7,14 @@ use atomic::Ordering;
 use cyberpixie::{
     leds::SmartLedsWrite,
     proto::{DeviceRole, Handshake, Message, Service, SimpleMessage},
-    stdio::{uprint, uprintln},
-    time::{AsyncCountDown, AsyncTimer},
+    stdout::uprintln,
 };
 use cyberpixie_firmware::{
     config::{ESP32_SERIAL_PORT_CONFIG, SERIAL_PORT_CONFIG, STRIP_LEDS_COUNT},
     device_id, irq, new_async_timer, transport, BLUE_LED, MAGENTA_LED, RED_LED,
 };
 use embedded_hal::digital::v2::OutputPin;
-use esp8266_softap::{Adapter, TcpStream, ADAPTER_BUF_CAPACITY};
+use esp8266_softap::{net::SocketAddr, softap::JoinApConfig, Adapter, ADAPTER_BUF_CAPACITY};
 use gd32vf103xx_hal::{
     pac::{self},
     prelude::*,
@@ -30,38 +29,6 @@ use ws2812_spi::Ws2812;
 #[export_name = "TIMER1"]
 unsafe fn handle_uart1_interrupt() {
     irq::handle_usart1_update()
-}
-
-async fn invoke_cmd_response<Rx, Tx>(
-    timer: &mut AsyncTimer<impl AsyncCountDown>,
-    adapter: &mut Adapter<Rx, Tx>,
-    cmd: &str,
-) where
-    Rx: embedded_hal::serial::Read<u8> + 'static,
-    Tx: embedded_hal::serial::Write<u8> + 'static,
-    Rx::Error: core::fmt::Debug,
-    Tx::Error: core::fmt::Debug,
-{
-    uprintln!();
-    uprintln!("-> cmd: {}", cmd);
-
-    let resp = adapter.send_at_command_str(cmd).unwrap();
-    let bytes = match resp {
-        Ok(bytes) => {
-            uprintln!("Ok: ");
-            bytes
-        }
-        Err(bytes) => {
-            uprintln!("Err: ");
-            bytes
-        }
-    };
-
-    for byte in bytes {
-        uprint!("{}", *byte as char);
-    }
-    uprintln!("---");
-    timer.delay(Duration::from_millis(200)).await;
 }
 
 async fn run_main_loop(dp: pac::Peripherals) -> ! {
@@ -79,7 +46,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
         serial.listen(SerialEvent::Rxne);
         serial.split()
     };
-    stdio_serial::init(usb_tx);
+    init_stdout(usb_tx);
 
     timer.delay(Duration::from_secs(2)).await;
     uprintln!();
@@ -138,43 +105,32 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
     });
     uprintln!("esp32 serial communication port configured.");
 
-    let mut adapter = Adapter::new(esp_rx, esp_tx).unwrap();
+    let adapter = Adapter::new(esp_rx, esp_tx).unwrap();
     uprintln!("Adapter created");
 
-    invoke_cmd_response(&mut timer, &mut adapter, "AT+GMR").await;
-    invoke_cmd_response(&mut timer, &mut adapter, "AT+CWMODE=1").await;
-    invoke_cmd_response(&mut timer, &mut adapter, "AT+CIPMUX=1").await;
-    invoke_cmd_response(
-        &mut timer,
-        &mut adapter,
-        "AT+CWJAP=\"cyberpixie_3941434633637FFFFFFFF\",\"12345678\"",
-    )
-    .await;
-    invoke_cmd_response(
-        &mut timer,
-        &mut adapter,
-        "AT+CIPSTART=0,\"TCP\",\"192.168.4.1\",333",
-    )
-    .await;
-    invoke_cmd_response(&mut timer, &mut adapter, "AT+CIPSTATUS").await;
+    let link_id = 0;
+    let socket = JoinApConfig {
+        ssid: "cyberpixie",
+        password: "12345678",
+        link_id,
+        address: SocketAddr::new([192, 168, 4, 1].into(), 333),
+    }
+    .join(adapter)
+    .unwrap();
 
     strip.write(MAGENTA_LED.iter().copied()).ok();
-    uprintln!("Sending handshake to the master device...");
-    timer.delay(Duration::from_millis(200)).await;
-
-    let network = TransportImpl::new(TcpStream::from_raw(adapter));
-    let mut service = Service::new(network, ADAPTER_BUF_CAPACITY);
+    uprintln!("Sending handshake to the main device...");
 
     let handshake = Handshake {
         device_id: device_id(),
         group_id: None,
-        role: DeviceRole::Slave,
+        role: DeviceRole::Secondary,
     };
-    let resp = service.handshake(0, handshake).unwrap();
+
+    let mut service = Service::new(TransportImpl::new(socket), ADAPTER_BUF_CAPACITY);
+    let resp = service.handshake(link_id, handshake).unwrap();
 
     uprintln!("Got handshake: {:?}", resp);
-    timer.delay(Duration::from_millis(200)).await;
-
     strip.write(BLUE_LED.iter().copied()).ok();
 
     let mut image_index = 0;

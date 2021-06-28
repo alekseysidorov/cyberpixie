@@ -1,30 +1,33 @@
 #![no_std]
 #![no_main]
 
-use core::{fmt::Write, iter::repeat, panic::PanicInfo, sync::atomic, time::Duration};
+use core::{iter::repeat, panic::PanicInfo, time::Duration};
 
-use atomic::Ordering;
 use cyberpixie::{
-    leds::SmartLedsWrite, proto::DeviceRole, stdio::uprintln, time::Microseconds, App, Storage,
+    leds::SmartLedsWrite,
+    proto::{DeviceRole, Handshake, Service},
+    stdout::uprintln,
+    time::Microseconds,
+    App, Storage,
 };
 use cyberpixie_firmware::{
-    config::{ESP32_SERIAL_PORT_CONFIG, SERIAL_PORT_CONFIG, SOFTAP_CONFIG, STRIP_LEDS_COUNT},
-    irq, new_async_timer,
+    config::{ESP32_SERIAL_PORT_CONFIG, SERIAL_PORT_CONFIG, STRIP_LEDS_COUNT},
+    init_stdout, irq, new_async_timer,
     splash::WanderingLight,
-    transport, NextImageBtn, StorageImpl, BLUE_LED, MAGENTA_LED, RED_LED,
+    time::McycleClock,
+    NetworkConfig, NextImageBtn, StorageImpl, TransportImpl, BLUE_LED, MAGENTA_LED, RED_LED,
 };
 use embedded_hal::digital::v2::OutputPin;
-use esp8266_softap::{Adapter, SoftApConfig};
+use embedded_sdmmc::Block;
+use esp8266_softap::{Adapter, ADAPTER_BUF_CAPACITY};
 use gd32vf103xx_hal::{
     pac::{self},
     prelude::*,
-    serial::{Event as SerialEvent, Serial},
+    serial::Serial,
     spi::{Spi, MODE_0},
     timer::Timer,
 };
-use heapless::String;
 use smart_leds::RGB8;
-use transport::TransportImpl;
 use ws2812_spi::Ws2812;
 
 #[export_name = "TIMER1"]
@@ -36,18 +39,21 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
     let mut rcu = dp.RCU.configure().sysclk(108.mhz()).freeze();
     let mut afio = dp.AFIO.constrain(&mut rcu);
 
-    let mut timer = new_async_timer(Timer::timer0(dp.TIMER0, 1.mhz(), &mut rcu));
+    let clock = McycleClock::new(&rcu.clocks);
+    let mut timer = new_async_timer(Timer::timer0(dp.TIMER0, 1.khz(), &mut rcu));
 
     let gpioa = dp.GPIOA.split(&mut rcu);
     let (usb_tx, mut _usb_rx) = {
         let tx = gpioa.pa9.into_alternate_push_pull();
         let rx = gpioa.pa10.into_floating_input();
 
-        let mut serial = Serial::new(dp.USART0, (tx, rx), SERIAL_PORT_CONFIG, &mut afio, &mut rcu);
-        serial.listen(SerialEvent::Rxne);
+        let serial = Serial::new(dp.USART0, (tx, rx), SERIAL_PORT_CONFIG, &mut afio, &mut rcu);
         serial.split()
     };
-    stdio_serial::init(usb_tx);
+    init_stdout(usb_tx);
+
+    let mut esp_en = gpioa.pa4.into_push_pull_output();
+    esp_en.set_low().ok();
 
     timer.delay(Duration::from_secs(2)).await;
     uprintln!();
@@ -92,15 +98,21 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
         let mut cs = gpiob.pb12.into_push_pull_output();
         cs.set_low().unwrap();
 
-        let mut device = embedded_sdmmc::SdMmcSpi::new(spi, cs);
+        let mut device = embedded_sdmmc::SdMmcSpi::new(spi, cs, clock, 1_00_000);
         device.init().unwrap();
         device
     };
     let storage = StorageImpl::open(device).unwrap();
+
+    #[cfg(feature = "reset_on_start")]
+    storage
+        .reset(
+            cyberpixie_firmware::config::APP_CONFIG,
+            cyberpixie_firmware::config::NETWORK_CONFIG,
+        )
+        .unwrap();
+
     let cfg = storage.load_config().unwrap();
-    // storage
-    //     .reset(cyberpixie_firmware::config::DEFAULT_APP_CONFIG)
-    //     .unwrap();
     uprintln!("Total images count: {}", storage.images_count());
 
     if !cfg.safe_mode {
@@ -116,12 +128,9 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
 
     strip.write(RED_LED.iter().copied()).ok();
     uprintln!("Enabling esp32 serial device");
-    let mut esp_en = gpioa.pa4.into_push_pull_output();
-    esp_en.set_low().ok();
-    timer.delay(Duration::from_secs(2)).await;
 
     esp_en.set_high().ok();
-    timer.delay(Duration::from_secs(2)).await;
+    timer.delay(Duration::from_secs(3)).await;
     uprintln!("esp32 device has been enabled");
 
     let (esp_tx, esp_rx) = {
@@ -140,38 +149,52 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
 
     let esp_rx = irq::init_interrupts(irq::Usart1 {
         rx: esp_rx,
-        timer: Timer::timer1(dp.TIMER1, 15.khz(), &mut rcu),
+        timer: Timer::timer1(dp.TIMER1, 12.khz(), &mut rcu),
     });
     uprintln!("esp32 serial communication port configured.");
 
-    let device_id = cyberpixie_firmware::device_id();
-    let mut ssid: String<64> = String::new();
-    ssid.write_fmt(core::format_args!(
-        "cyberpixie_{:X}{:X}{:X}",
-        device_id[1],
-        device_id[2],
-        device_id[3]
-    ))
-    .unwrap();
-
-    let softap_config = SoftApConfig {
-        ssid: &ssid,
-        ..SOFTAP_CONFIG
-    };
-
     strip.write(MAGENTA_LED.iter().copied()).ok();
-    let adapter = Adapter::new(esp_rx, esp_tx).unwrap();
-    let stream = softap_config.start(adapter).unwrap();
+    let (socket, role) = {
+        let mut blocks = [Block::new()];
+        let net_config = storage.network_config(&mut blocks).unwrap();
+        uprintln!("Network config is {:?}", net_config);
 
-    uprintln!("SoftAP has been successfuly configured with ssid {}.", ssid);
+        let role = net_config.device_role();
+        let socket = net_config
+            .establish(Adapter::new(esp_rx, esp_tx).unwrap())
+            .unwrap();
+        (socket, role)
+    };
+    uprintln!("Device IP address is {}", socket.ap_address());
+
+    let device_id = cyberpixie_firmware::device_id();
+    let mut network = Service::new(TransportImpl::new(socket), ADAPTER_BUF_CAPACITY);
+    if role == DeviceRole::Secondary {
+        uprintln!("Exchanging hanshakes with the main device");
+        // In order for the main device to know about the existence of the second one,
+        // the secondary device has to send a handshake message to the main one.
+        network
+            .handshake(
+                NetworkConfig::LINK_ID,
+                Handshake {
+                    device_id,
+                    role,
+                    group_id: None,
+                },
+            )
+            .unwrap()
+            .unwrap();
+    }
+
+    uprintln!("Network is successfully configured.",);
     strip.write(BLUE_LED.iter().copied()).ok();
 
     let mut events = NextImageBtn::new(gpioa.pa8.into_pull_down_input());
     let app = App {
-        role: DeviceRole::Master,
+        role,
         device_id,
 
-        network: TransportImpl::new(stream),
+        network,
         timer,
         storage: &storage,
         strip,
@@ -193,7 +216,10 @@ fn panic(info: &PanicInfo) -> ! {
     uprintln!("The firmware panicked!");
     uprintln!("- {}", info);
 
+    // unsafe { riscv_rt::start_rust() }
+
     loop {
+        use core::sync::atomic::{self, Ordering};
         atomic::compiler_fence(Ordering::SeqCst);
     }
 }

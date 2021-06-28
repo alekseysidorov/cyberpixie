@@ -11,11 +11,10 @@ nb = "1.0"
 postcard = { version = "0.7", default-features = false }
 serde = { version = "1", default-features = false, features = ["derive"] }
 
-nb-utils = { path = "../nb_utils" }
+nb-utils = { git = "https://github.com/alekseysidorov/nb-utils.git", branch = "main" }
 
-stdio-serial = { path = "../stdio-serial" }
+no-stdout = { git = "https://github.com/alekseysidorov/no-stdout.git", branch = "main" }
 
 [dev-dependencies]
 embedded-hal = "0.2"
 esp8266-softap = { path = "../esp8266-softap" }
-# stdio-serial = { path = "../stdio-serial", features = ["std", "dprint"] }

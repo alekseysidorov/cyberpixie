@@ -206,10 +206,10 @@ impl<const N: usize> ColorTransition<N> {
             }
         }
 
-        let line = [self.from; N];
         self.from.r = next_step(self.from.r, self.to.r);
         self.from.g = next_step(self.from.g, self.to.g);
         self.from.b = next_step(self.from.b, self.to.b);
+        let line = [self.from; N];
 
         Some((N as u32 * self.ticks, line))
     }

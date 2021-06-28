@@ -22,7 +22,7 @@ fn postcard_messages() -> postcard::Result<()> {
 
     for message in &messages {
         let bytes = postcard::to_slice(&message, &mut buf)?;
-        let message_2 = postcard::from_bytes(&bytes)?;
+        let message_2 = postcard::from_bytes(bytes)?;
         assert_eq!(message, &message_2);
     }
 

@@ -12,8 +12,8 @@ serde = { version = "1", default-features = false, features = ["derive"] }
 smart-leds = "0.3"
 void = { version = "1.0", default-features = false }
 
-stdio-serial = { path = "../stdio-serial" }
+no-stdout = { git = "https://github.com/alekseysidorov/no-stdout.git", branch = "main" }
 cyberpixie-proto = { path = "../proto" }
-nb-utils = { path = "../nb_utils" }
+nb-utils = { git = "https://github.com/alekseysidorov/nb-utils.git", branch = "main" }
 
 [dev-dependencies]
