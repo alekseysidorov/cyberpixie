@@ -4,6 +4,10 @@ import QtQuick.Controls 2.5
 import cyberpixie 1.0
 
 ApplicationWindow {
+    id: app
+
+    readonly property bool deviceConnected: cyberpixie.stripLen > 0
+
     width: 640
     height: 480
     visible: true
@@ -35,5 +39,9 @@ ApplicationWindow {
 
     DeviceHandle {
         id: cyberpixie
+
+        onError: {
+            console.log("An error occurred: " + message)
+        }
     }
 }

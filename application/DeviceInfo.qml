@@ -14,14 +14,39 @@ Page {
 
     ColumnLayout {
         anchors {
-            horizontalCenter: parent.horizontalCenter
-            top: parent.top
-            bottom: parent.bottom
+            fill: parent
             margins: 10
         }
 
         Label {
-            text: "No information"
+            anchors.horizontalCenter: parent.horizontalCenter
+            visible: !app.deviceConnected
+            text: "No information about the device"
+        }
+
+        Label {
+            anchors.horizontalCenter: parent.horizontalCenter
+            visible: app.deviceConnected
+            text: qsTr("Strip length: %1", cyberpixie.stripLen)
+        }
+
+        Label {
+            anchors.horizontalCenter: parent.horizontalCenter
+            visible: app.deviceConnected
+            text: qsTr("Images count: %1", cyberpixie.imagesCount)
+        }
+
+        RowLayout {
+            anchors.horizontalCenter: parent.horizontalCenter
+            visible: app.deviceConnected
+
+            Button {
+                text: qsTr("Prev")
+            }
+
+            Button {
+                text: qsTr("Next")
+            }
         }
 
         Item {
@@ -30,10 +55,11 @@ Page {
         }
 
         Button {
+            anchors.horizontalCenter: parent.horizontalCenter
             text: qsTr("Connect")
 
             onClicked: {
-                console.log(cyberpixie.compute_greetings("Hello, "))
+                cyberpixie.deviceInfo()
             }
         }
     }

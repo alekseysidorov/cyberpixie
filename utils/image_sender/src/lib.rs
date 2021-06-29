@@ -1,4 +1,4 @@
-pub use cyberpixie_std_transport::{connect_to, create_service, TcpTransport};
+pub use cyberpixie_std_transport::{connect_to, create_service, TcpTransport, display_err};
 
 use std::{fmt::Display, path::Path};
 
@@ -16,8 +16,4 @@ pub fn convert_image_to_raw(path: impl AsRef<Path>) -> anyhow::Result<(usize, Ve
     }
 
     Ok((width, raw))
-}
-
-pub fn display_err(err: impl Display) -> anyhow::Error {
-    anyhow::format_err!("{}", err)
 }

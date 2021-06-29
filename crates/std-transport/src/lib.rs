@@ -1,4 +1,5 @@
 use std::{
+    fmt::Display,
     io::{ErrorKind, Read, Write},
     net::{SocketAddr, TcpStream},
     time::Duration,
@@ -11,6 +12,10 @@ use cyberpixie_proto::{
 
 const TIMEOUT: Duration = Duration::from_secs(15);
 const HOST_DEVICE_ID: [u32; 4] = [0; 4];
+
+pub fn display_err(err: impl Display) -> anyhow::Error {
+    anyhow::format_err!("{}", err)
+}
 
 pub fn connect_to(addr: &SocketAddr) -> anyhow::Result<TcpStream> {
     log::debug!("Connecting to the {}", addr);
@@ -38,7 +43,7 @@ pub fn create_service(addr: SocketAddr) -> anyhow::Result<Service<TcpTransport>>
                 role: DeviceRole::Host,
             },
         )?
-        .map_err(|err| anyhow::format_err!("{}", err))?;
+        .map_err(display_err)?;
     log::trace!("Connected with device: {:?}", response);
     Ok(service)
 }
