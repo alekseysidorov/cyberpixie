@@ -1,6 +1,6 @@
-pub use cyberpixie_std_transport::{connect_to, create_service, TcpTransport, display_err};
+pub use cyberpixie_std_transport::{connect_to, create_service, display_err, TcpTransport};
 
-use std::{fmt::Display, path::Path};
+use std::path::Path;
 
 use image::io::Reader;
 

@@ -19,34 +19,31 @@ Page {
         }
 
         Label {
-            anchors.horizontalCenter: parent.horizontalCenter
+            Layout.alignment: Qt.AlignHCenter
+
             visible: !app.deviceConnected
             text: "No information about the device"
         }
 
         Label {
-            anchors.horizontalCenter: parent.horizontalCenter
+            Layout.alignment: Qt.AlignHCenter
+
             visible: app.deviceConnected
-            text: qsTr("Strip length: %1", cyberpixie.stripLen)
+            text: qsTr("Strip length: %1").arg(cyberpixie.stripLen)
         }
 
         Label {
-            anchors.horizontalCenter: parent.horizontalCenter
+            Layout.alignment: Qt.AlignHCenter
+
             visible: app.deviceConnected
-            text: qsTr("Images count: %1", cyberpixie.imagesCount)
+            text: qsTr("Images count: %1").arg(cyberpixie.imagesCount)
         }
 
-        RowLayout {
-            anchors.horizontalCenter: parent.horizontalCenter
+        Label {
+            Layout.alignment: Qt.AlignHCenter
+
             visible: app.deviceConnected
-
-            Button {
-                text: qsTr("Prev")
-            }
-
-            Button {
-                text: qsTr("Next")
-            }
+            text: qsTr("Current image: %1").arg(cyberpixie.currentImage)
         }
 
         Item {
@@ -54,8 +51,29 @@ Page {
             Layout.fillHeight: true
         }
 
+        RowLayout {
+            visible: app.deviceConnected
+
+            Layout.alignment: Qt.AlignHCenter
+
+            Button {
+                text: qsTr("Prev image")
+
+                onClicked: cyberpixie.prevImage()
+            }
+
+            Button {
+                text: qsTr("Next image")
+
+                onClicked: cyberpixie.nextImage()
+            }
+        }
+
         Button {
-            anchors.horizontalCenter: parent.horizontalCenter
+            visible: !app.deviceConnected
+
+            Layout.alignment: Qt.AlignHCenter
+
             text: qsTr("Connect")
 
             onClicked: {

@@ -1,6 +1,6 @@
 use std::{
     fmt::Display,
-    io::{ErrorKind, Read, Write},
+    io::{Read, Write},
     net::{SocketAddr, TcpStream},
     time::Duration,
 };
@@ -57,9 +57,6 @@ pub struct TcpTransport {
 impl TcpTransport {
     pub fn new(address: SocketAddr, stream: TcpStream) -> Self {
         // TODO rewrite on tokio.
-        stream
-            .set_read_timeout(Some(Duration::from_millis(10)))
-            .ok();
         Self {
             address,
             stream,
@@ -72,7 +69,6 @@ impl TcpTransport {
 
         let bytes_read = match self.stream.read(&mut msg_buf) {
             Ok(bytes_read) if bytes_read > 0 => Ok(bytes_read),
-            Err(err) if err.kind() == ErrorKind::WouldBlock => Err(nb::Error::WouldBlock),
             Err(err) => Err(nb::Error::Other(anyhow::Error::from(err))),
             _ => Err(nb::Error::WouldBlock),
         }?;

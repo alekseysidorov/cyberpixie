@@ -40,6 +40,16 @@ ApplicationWindow {
     DeviceHandle {
         id: cyberpixie
 
+        function nextImage() {
+            let next = (cyberpixie.currentImage + 1) % (cyberpixie.imagesCount + 1)
+            cyberpixie.setImage(next)
+        }
+
+        function prevImage() {
+            let prev = (cyberpixie.currentImage + cyberpixie.imagesCount) % (cyberpixie.imagesCount + 1)
+            cyberpixie.setImage(prev)
+        }
+
         onError: {
             console.log("An error occurred: " + message)
         }
