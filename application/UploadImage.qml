@@ -5,9 +5,6 @@ import QtQuick.Dialogs 1.2
 import Qt.labs.platform 1.1
 
 Page {
-    width: 400
-    height: 800
-
     header: Label {
         text: qsTr("Upload image")
         font.pixelSize: Qt.application.font.pixelSize * 2
@@ -20,17 +17,38 @@ Page {
             margins: 10
         }
 
-        Image {
-            id: image
+        //        Rectangle {
+        //            Layout.alignment: Qt.AlignHCenter
+        //            Layout.fillHeight: true
+        //            width: parent.width
 
+        //            color: "#4f4f4f"
+        //            border.color: "black"
+        //            border.width: 1
+
+
+        //        }
+
+        Rectangle {
             Layout.alignment: Qt.AlignHCenter
             Layout.fillHeight: true
+            Layout.fillWidth: true
 
-            width: parent.width
-            source: openImage.file
+            border.color: "black"
+            color: "#555"
 
-            fillMode: Image.PreserveAspectFit
-            smooth: true
+            Image {
+                id: image
+
+                anchors {
+                    fill: parent
+                    margins: 6
+                }
+
+                source: openImage.file
+                fillMode: Image.PreserveAspectFit
+                smooth: true
+            }
         }
 
         FileDialog {
@@ -82,3 +100,9 @@ Page {
         }
     }
 }
+
+/*##^##
+Designer {
+    D{i:0;autoSize:true;height:480;width:640}
+}
+##^##*/

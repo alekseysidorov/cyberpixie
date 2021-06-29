@@ -8,8 +8,8 @@ ApplicationWindow {
 
     readonly property bool deviceConnected: cyberpixie.stripLen > 0
 
-    width: 640
-    height: 480
+    width: 400
+    height: 800
     visible: true
     title: qsTr("Tabs")
 
@@ -23,6 +23,18 @@ ApplicationWindow {
         }
 
         UploadImage {
+        }
+    }
+
+    Balloon {
+        id: balloon
+
+        anchors {
+            left: parent.left
+            right: parent.right
+            top: parent.top
+            margins: 15
+            topMargin: 60
         }
     }
 
@@ -52,7 +64,11 @@ ApplicationWindow {
         }
 
         onError: {
-            console.log("An error occurred: " + message)
+            balloon.show("An error occurred", message)
+        }
+
+        onImageUploaded: {
+            balloon.show("Image uploaded", "")
         }
     }
 }

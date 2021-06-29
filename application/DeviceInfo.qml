@@ -3,10 +3,7 @@ import QtQuick.Controls 2.5
 import QtQuick.Layouts 1.12
 
 Page {
-    width: 600
-    height: 400
-
-    header: Label {
+   header: Label {
         text: qsTr("Device information page")
         font.pixelSize: Qt.application.font.pixelSize * 2
         padding: 10

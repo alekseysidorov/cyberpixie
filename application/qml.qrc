@@ -4,5 +4,6 @@
         <file>DeviceInfo.qml</file>
         <file>UploadImage.qml</file>
         <file>qtquickcontrols2.conf</file>
+        <file>Balloon.qml</file>
     </qresource>
 </RCC>
