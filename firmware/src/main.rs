@@ -98,7 +98,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
         let mut cs = gpiob.pb12.into_push_pull_output();
         cs.set_low().unwrap();
 
-        let mut device = embedded_sdmmc::SdMmcSpi::new(spi, cs, clock, 1_00_000);
+        let mut device = embedded_sdmmc::SdMmcSpi::new(spi, cs, clock, 100_000);
         device.init().unwrap();
         device
     };

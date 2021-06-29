@@ -62,7 +62,6 @@ where
                     PacketKind::Confirmed => PacketData::Confirmed,
                 };
 
-                assert_eq!(reader.len(), 0);
                 TransportEvent::Packet {
                     address: link_id,
                     data: packet,
