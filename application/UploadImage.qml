@@ -5,8 +5,8 @@ import QtQuick.Dialogs 1.2
 import Qt.labs.platform 1.1
 
 Page {
-    width: 600
-    height: 400
+    width: 400
+    height: 800
 
     header: Label {
         text: qsTr("Upload image")
@@ -36,45 +36,48 @@ Page {
         FileDialog {
             id: openImage
 
-            property bool selected: false
-
             folder: StandardPaths.writableLocation(StandardPaths.ImagesLocation)
             nameFilters: ["Images (*.png *jpg *jpeg)"]
             file: ""
         }
 
-        RowLayout {
+        Label {
+            text: "Image refresh rate (hz):"
+
+            Layout.alignment: Qt.AlignHCenter
+        }
+
+        TextField {
+            id: rateInput
+
             Layout.alignment: Qt.AlignHCenter
 
-            Button {
-                visible: app.deviceConnected && !openImage.selected
+            placeholderText: "hz"
+            validator: IntValidator { bottom: 10; top: 50; }
+            text: "10"
+        }
 
+        RowLayout {
+            Layout.alignment: Qt.AlignHCenter
+            spacing: 10
+
+            Button {
                 text: qsTr("Select image")
 
                 onClicked: {
                     openImage.open()
-                    openImage.selected = true
                 }
             }
 
             Button {
-                visible: app.deviceConnected && openImage.selected
+                enabled: app.deviceConnected
 
                 text: qsTr("Upload")
 
                 onClicked: {
-                    cyberpixie.uploadImage(openImage.file.toString(), 25 * 48);
-                    openImage.selected = false
-                    openImage.file = ""
+                    cyberpixie.uploadImage(openImage.file.toString(), rateInput.text * cyberpixie.stripLen);
                 }
-            }
 
-            Button {
-                visible: app.deviceConnected
-
-                text: qsTr("Clear images")
-
-                onClicked: cyberpixie.clearImages()
             }
         }
     }

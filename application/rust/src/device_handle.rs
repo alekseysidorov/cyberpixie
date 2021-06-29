@@ -1,5 +1,6 @@
 use std::{
     net::SocketAddr,
+    ops::DerefMut,
     path::{Path, PathBuf},
 };
 
@@ -25,6 +26,7 @@ pub struct DeviceHandle {
     stripLen: qt_property!(usize; NOTIFY stripLenChanged),
     imagesCount: qt_property!(usize; NOTIFY imagesCountChanged),
     currentImage: qt_property!(usize; NOTIFY currentImageChanged),
+    busy: qt_property!(bool; NOTIFY busyChanged),
 
     // Signals part.
     imageUploaded: qt_signal!(index: usize),
@@ -33,6 +35,7 @@ pub struct DeviceHandle {
     stripLenChanged: qt_signal!(),
     imagesCountChanged: qt_signal!(),
     currentImageChanged: qt_signal!(),
+    busyChanged: qt_signal!(),
 
     // Qt methods
     deviceInfo: qt_method!(fn(&mut self)),
@@ -45,8 +48,8 @@ pub struct DeviceHandle {
 impl DeviceHandle {
     fn deviceInfo(&mut self) {
         self.invoke(
-            |s| s.inner.device_info(),
-            |s, value| {
+            move |inner| inner.device_info(),
+            move |s, value| {
                 s.stripLen = value.strip_len as usize;
                 s.imagesCount = value.images_count as usize;
 
@@ -58,8 +61,8 @@ impl DeviceHandle {
 
     fn setImage(&mut self, index: usize) {
         self.invoke(
-            |s| s.inner.show_image(index),
-            |s, _| {
+            move |inner| inner.show_image(index),
+            move |s, _| {
                 s.currentImage = index;
 
                 s.currentImageChanged();
@@ -73,15 +76,15 @@ impl DeviceHandle {
         let image_path = image_url
             .strip_prefix("file://")
             .unwrap_or_else(|| image_url.as_str());
+
         let path = PathBuf::from(image_path);
-        
+        let nwidth = self.stripLen as u32;
         self.invoke(
-            |s| {
+            move |inner| {
                 let refresh_rate = Hertz::from(refresh_rate as u32);
-                let nwidth = s.stripLen as u32;
-                s.inner.upload_image(&path, nwidth, refresh_rate)
+                inner.upload_image(&path, nwidth, refresh_rate)
             },
-            |s, index| {
+            move |s, index| {
                 s.imagesCount += 1;
 
                 s.imageUploaded(index);
@@ -92,8 +95,8 @@ impl DeviceHandle {
 
     fn clearImages(&mut self) {
         self.invoke(
-            |s| s.inner.clear(),
-            |s, _| {
+            move |inner| inner.clear(),
+            move |s, _| {
                 s.currentImage = 0;
                 s.imagesCount = 0;
 
@@ -105,19 +108,40 @@ impl DeviceHandle {
 
     fn invoke<F, R, T>(&mut self, method: F, then: T)
     where
-        F: Fn(&Self) -> anyhow::Result<R>,
-        T: Fn(&mut Self, R),
+        F: FnOnce(DeviceHandleInner) -> anyhow::Result<R> + Send + 'static,
+        T: FnOnce(&mut Self, R) + Send + 'static + Copy,
+        R: Send + 'static,
     {
-        match method(self) {
-            Ok(value) => then(self, value),
-            Err(err) => {
-                let err_str = err.to_string();
-                self.error(err_str.into());
-            }
-        }
+        self.busy = true;
+        self.busyChanged();
+
+        let qptr = QPointer::from(&*self);
+
+        let set_value = qmetaobject::queued_callback(move |value: anyhow::Result<R>| {
+            qptr.as_pinned().map(move |this| {
+                let mut ref_mut = this.borrow_mut();
+                match value {
+                    Ok(value) => then(ref_mut.deref_mut(), value),
+                    Err(err) => {
+                        let err_str = err.to_string();
+                        ref_mut.deref_mut().error(err_str.into());
+                    }
+                }
+
+                ref_mut.busy = false;
+                ref_mut.busyChanged();
+            });
+        });
+
+        let inner = self.inner.clone();
+        std::thread::spawn(move || {
+            let value = method(inner);
+            set_value(value);
+        });
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 struct DeviceHandleInner {
     address: SocketAddr,
 }
@@ -132,7 +156,7 @@ impl Default for DeviceHandleInner {
 
 impl DeviceHandleInner {
     fn upload_image(
-        &self,
+        self,
         image_path: &Path,
         nwidth: u32,
         refresh_rate: Hertz,
@@ -153,30 +177,30 @@ impl DeviceHandleInner {
         self.add_image(nwidth as usize, refresh_rate, &raw)
     }
 
-    fn cyberpixie_service(&self) -> anyhow::Result<Service<TcpTransport>> {
+    fn cyberpixie_service(self) -> anyhow::Result<Service<TcpTransport>> {
         cyberpixie_std_transport::create_service(self.address)
     }
 
-    fn device_info(&self) -> anyhow::Result<FirmwareInfo> {
+    fn device_info(self) -> anyhow::Result<FirmwareInfo> {
         self.cyberpixie_service()?
             .request_firmware_info(self.address)?
             .map_err(display_err)
     }
 
-    fn show_image(&self, index: usize) -> anyhow::Result<()> {
+    fn show_image(self, index: usize) -> anyhow::Result<()> {
         self.cyberpixie_service()?
             .show_image(self.address, index)?
             .map_err(display_err)
     }
 
-    fn clear(&self) -> anyhow::Result<()> {
+    fn clear(self) -> anyhow::Result<()> {
         self.cyberpixie_service()?
             .clear_images(self.address)?
             .map_err(display_err)
     }
 
     fn add_image(
-        &self,
+        self,
         strip_len: usize,
         refresh_rate: Hertz,
         bytes: &[u8],

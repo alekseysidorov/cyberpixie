@@ -17,6 +17,7 @@ ApplicationWindow {
         id: swipeView
         anchors.fill: parent
         currentIndex: tabBar.currentIndex
+        enabled: !cyberpixie.busy
 
         DeviceInfo {
         }

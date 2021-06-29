@@ -46,6 +46,16 @@ Page {
             text: qsTr("Current image: %1").arg(cyberpixie.currentImage)
         }
 
+        Button {
+            Layout.alignment: Qt.AlignHCenter
+
+            visible: app.deviceConnected
+
+            text: qsTr("Clear all images")
+
+            onClicked: cyberpixie.clearImages()
+        }
+
         Item {
             width: 1
             Layout.fillHeight: true
