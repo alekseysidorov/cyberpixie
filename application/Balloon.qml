@@ -38,12 +38,12 @@ Rectangle {
     }
 
     ColumnLayout {
+        anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.leftMargin: 6
-        anchors.rightMargin: 6
+        anchors.margins: 12
 
-        spacing: 6
+        spacing: 12
 
         Label {
             id: title
@@ -52,8 +52,7 @@ Rectangle {
 
             color: "white"
             horizontalAlignment: Text.AlignHCenter
-            font.pointSize: 14
-            renderType: Text.NativeRendering
+            font.pointSize: 16
             font.bold: true
             elide: Text.ElideRight
         }
@@ -66,8 +65,7 @@ Rectangle {
             color: "white"
             horizontalAlignment: Text.AlignHCenter
             text: "Message body fdvfdvvfdvfds sdcsd dscsd sdcdddsd asdsasdsadsdas asdas fvfdvdff"
-            font.pointSize: 12
-            renderType: Text.NativeRendering
+            font.pointSize: 14
             wrapMode: Text.WordWrap
         }
     }

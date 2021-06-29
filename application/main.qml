@@ -34,7 +34,7 @@ ApplicationWindow {
             right: parent.right
             top: parent.top
             margins: 15
-            topMargin: 60
+            topMargin: 100
         }
     }
 

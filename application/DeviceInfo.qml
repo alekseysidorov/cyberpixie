@@ -19,7 +19,7 @@ Page {
             Layout.alignment: Qt.AlignHCenter
 
             visible: !app.deviceConnected
-            text: "No information about the device"
+            text: "There is no information about the device"
         }
 
         Label {
@@ -47,7 +47,6 @@ Page {
             Layout.alignment: Qt.AlignHCenter
 
             visible: app.deviceConnected
-
             text: qsTr("Clear all images")
 
             onClicked: cyberpixie.clearImages()
