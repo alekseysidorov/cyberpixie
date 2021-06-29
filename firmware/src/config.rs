@@ -1,14 +1,12 @@
 use cyberpixie::AppConfig;
-use esp8266_softap::SoftApConfig;
-use gd32vf103xx_hal::{
-    serial::{Config, Parity, StopBits},
-    time::Bps,
-};
+use gd32vf103xx_hal::{serial::{Config, Parity, StopBits}, time::{Bps, Hertz}};
 
 use crate::network::NetworkConfig;
 
+pub const SD_MMC_SPI_FREQUENCY: Hertz = Hertz(20_000_000); 
+
 pub const SERIAL_PORT_CONFIG: Config = Config {
-    baudrate: Bps(921600), // 460800, 921600
+    baudrate: Bps(115200), // 460800, 921600
     parity: Parity::ParityNone,
     stopbits: StopBits::STOP1,
 };
@@ -17,13 +15,6 @@ pub const ESP32_SERIAL_PORT_CONFIG: Config = Config {
     baudrate: Bps(115200),
     parity: Parity::ParityNone,
     stopbits: StopBits::STOP1,
-};
-
-pub const SOFTAP_CONFIG: SoftApConfig = SoftApConfig {
-    ssid: "cyberpixie",
-    password: "12345678",
-    channel: 5,
-    mode: 4,
 };
 
 pub const STRIP_LEDS_COUNT: usize = 48;

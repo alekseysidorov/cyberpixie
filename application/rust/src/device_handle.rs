@@ -118,7 +118,7 @@ impl DeviceHandle {
         let qptr = QPointer::from(&*self);
 
         let set_value = qmetaobject::queued_callback(move |value: anyhow::Result<R>| {
-            qptr.as_pinned().map(move |this| {
+            if let Some(this) = qptr.as_pinned() {
                 let mut ref_mut = this.borrow_mut();
                 match value {
                     Ok(value) => then(ref_mut.deref_mut(), value),
@@ -130,10 +130,10 @@ impl DeviceHandle {
 
                 ref_mut.busy = false;
                 ref_mut.busyChanged();
-            });
+            }
         });
 
-        let inner = self.inner.clone();
+        let inner = self.inner;
         std::thread::spawn(move || {
             let value = method(inner);
             set_value(value);
@@ -205,6 +205,8 @@ impl DeviceHandleInner {
         refresh_rate: Hertz,
         bytes: &[u8],
     ) -> anyhow::Result<usize> {
+        assert!(bytes.len() % 3 == 0, "Bytes amount to read must be a multiple of 3.");
+
         self.cyberpixie_service()?
             .add_image(self.address, refresh_rate, strip_len, bytes.iter().copied())?
             .map_err(display_err)

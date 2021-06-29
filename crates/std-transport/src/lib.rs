@@ -33,7 +33,7 @@ pub fn create_service(addr: SocketAddr) -> anyhow::Result<Service<TcpTransport>>
     let stream = connect_to(&addr)?;
     let transport = TcpTransport::new(addr, stream);
 
-    let mut service = Service::new(transport, 512);
+    let mut service = Service::new(transport, 640);
     let response = service
         .handshake(
             addr,
@@ -101,26 +101,29 @@ impl Transport for TcpTransport {
                     .read_exact(&mut payload)
                     .map_err(|e| nb::Error::Other(Self::Error::from(e)))?;
 
+                log::trace!("Received packet with payload len {}:", payload.len());
                 TransportEvent::Packet {
                     address: self.address,
                     data: PacketData::Payload(payload),
                 }
             }
-            PacketKind::Confirmed => TransportEvent::Packet {
-                address: self.address,
-                data: PacketData::Confirmed,
-            },
+            PacketKind::Confirmed => {
+                log::trace!("Received packet confirmation");
+                TransportEvent::Packet {
+                    address: self.address,
+                    data: PacketData::Confirmed,
+                }
+            }
         };
 
-        log::trace!("Received packet {:?}", packet);
         self.next_msg.clear();
         Ok(packet)
     }
 
     fn confirm_packet(&mut self, _from: Self::Address) -> Result<(), Self::Error> {
-        let packet = PacketKind::Confirmed.to_bytes();
+        log::trace!("Send packet confirmation");
 
-        log::trace!("Confirm packet: {:?}", packet);
+        let packet = PacketKind::Confirmed.to_bytes();
         self.stream.write_all(packet.as_ref()).map_err(From::from)
     }
 
@@ -129,10 +132,10 @@ impl Transport for TcpTransport {
         payload: P,
         _to: Self::Address,
     ) -> Result<(), Self::Error> {
+        log::trace!("Send packet, payload len is {}:", payload.len());
+
         let mut packet: Vec<u8> = Vec::new();
         packet.extend(PacketWithPayload::new(payload));
-
-        log::trace!("Send packet: {:?}", packet);
         self.stream.write_all(packet.as_ref()).map_err(From::from)
     }
 }

@@ -11,7 +11,9 @@ use cyberpixie::{
     App, Storage,
 };
 use cyberpixie_firmware::{
-    config::{ESP32_SERIAL_PORT_CONFIG, SERIAL_PORT_CONFIG, STRIP_LEDS_COUNT},
+    config::{
+        ESP32_SERIAL_PORT_CONFIG, SD_MMC_SPI_FREQUENCY, SERIAL_PORT_CONFIG, STRIP_LEDS_COUNT,
+    },
     init_stdout, irq, new_async_timer,
     splash::WanderingLight,
     time::McycleClock,
@@ -91,14 +93,14 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
                 gpiob.pb15.into_alternate_push_pull(),
             ),
             MODE_0,
-            50.mhz(),
+            SD_MMC_SPI_FREQUENCY,
             &mut rcu,
         );
 
         let mut cs = gpiob.pb12.into_push_pull_output();
         cs.set_low().unwrap();
 
-        let mut device = embedded_sdmmc::SdMmcSpi::new(spi, cs, clock, 100_000);
+        let mut device = embedded_sdmmc::SdMmcSpi::new(spi, cs, clock, 1_000_000);
         device.init().unwrap();
         device
     };
@@ -130,7 +132,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
     uprintln!("Enabling esp32 serial device");
 
     esp_en.set_high().ok();
-    timer.delay(Duration::from_secs(3)).await;
+    timer.delay(Duration::from_secs(5)).await;
     uprintln!("esp32 device has been enabled");
 
     let (esp_tx, esp_rx) = {
@@ -149,7 +151,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
 
     let esp_rx = irq::init_interrupts(irq::Usart1 {
         rx: esp_rx,
-        timer: Timer::timer1(dp.TIMER1, 12.khz(), &mut rcu),
+        timer: Timer::timer1(dp.TIMER1, 20.khz(), &mut rcu),
     });
     uprintln!("esp32 serial communication port configured.");
 
