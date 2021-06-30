@@ -45,12 +45,18 @@ impl<T: Transport> DeviceLinks<T> {
         };
     }
 
+    #[allow(dead_code)]
     fn get_link(&self, role: DeviceRole) -> &Option<DeviceLink<T>> {
         match role {
             DeviceRole::Host => &self.host,
             DeviceRole::Main => &self.main,
             DeviceRole::Secondary => &self.secondary,
         }
+    }
+
+    #[allow(dead_code)]
+    fn contains_link(&self, role: DeviceRole) -> bool {
+        self.get_link(role).is_some()
     }
 
     fn remove_if_match(link: &mut Option<DeviceLink<T>>, address: &T::Address) -> Option<()> {
@@ -67,10 +73,6 @@ impl<T: Transport> DeviceLinks<T> {
         Self::remove_if_match(&mut self.host, address)?;
         Self::remove_if_match(&mut self.main, address)?;
         Self::remove_if_match(&mut self.secondary, address)
-    }
-
-    fn contains_link(&self, role: DeviceRole) -> bool {
-        self.get_link(role).is_some()
     }
 
     fn secondary_devices(&self) -> impl Iterator<Item = &DeviceLink<T>> {
