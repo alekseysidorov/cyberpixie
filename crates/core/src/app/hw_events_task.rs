@@ -1,7 +1,5 @@
 use core::fmt::Debug;
 
-use embedded_hal::watchdog::Watchdog;
-
 use crate::{
     futures::{Stream, StreamExt},
     proto::Transport,
@@ -19,14 +17,11 @@ where
 {
     pub async fn run_hw_events_task(
         &self,
-        watchdog: &mut dyn Watchdog,
         hw_events: &mut (dyn Stream<Item = HwEvent> + Unpin),
     ) -> ! {
         loop {
             let hw_event = hw_events.next().await.unwrap();
             self.handle_hardware_event(hw_event);
-
-            watchdog.feed();
         }
     }
 

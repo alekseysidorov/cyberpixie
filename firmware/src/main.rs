@@ -13,7 +13,7 @@ use cyberpixie::{
 use cyberpixie_firmware::{
     config::{
         ESP32_SERIAL_PORT_CONFIG, SD_MMC_SPI_FREQUENCY, SD_MMC_SPI_TIMEOUT, SERIAL_PORT_CONFIG,
-        SOCKET_TIMEOUT, STRIP_LEDS_COUNT, WATCHDOG_DEADLINE,
+        SOCKET_TIMEOUT, STRIP_LEDS_COUNT, TIMER_TICK_FREQUENCY,
     },
     init_stdout, irq, new_async_timer,
     splash::WanderingLight,
@@ -31,6 +31,7 @@ use gd32vf103xx_hal::{
     timer::Timer,
     watchdog::FreeWatchdog,
 };
+use riscv::interrupt;
 use smart_leds::RGB8;
 use ws2812_spi::Ws2812;
 
@@ -45,7 +46,6 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
 
     let clock = McycleClock::new(&rcu.clocks);
     let mut timer = new_async_timer(Timer::timer0(dp.TIMER0, 1.khz(), &mut rcu));
-    let mut dog = FreeWatchdog::new(dp.FWDGT);
 
     let gpioa = dp.GPIOA.split(&mut rcu);
     let (usb_tx, mut _usb_rx) = {
@@ -154,7 +154,8 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
 
     let esp_rx = irq::init_interrupts(irq::Usart1 {
         rx: esp_rx,
-        timer: Timer::timer1(dp.TIMER1, 20.khz(), &mut rcu),
+        timer: Timer::timer1(dp.TIMER1, TIMER_TICK_FREQUENCY, &mut rcu),
+        watchdog: FreeWatchdog::new(dp.FWDGT),
     });
     uprintln!("esp32 serial communication port configured.");
 
@@ -194,7 +195,6 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
     uprintln!("Network is successfully configured.",);
     strip.write(BLUE_LED.iter().copied()).ok();
 
-    dog.start(WATCHDOG_DEADLINE);
     let mut events = NextImageBtn::new(gpioa.pa8.into_pull_down_input());
     let app = App {
         role,
@@ -205,7 +205,6 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
         storage: &storage,
         strip,
         events: &mut events,
-        watchdog: &mut dog,
     };
     app.run().await
 }
@@ -222,6 +221,10 @@ fn panic(info: &PanicInfo) -> ! {
     uprintln!();
     uprintln!("The firmware panicked!");
     uprintln!("- {}", info);
+
+    unsafe {
+        interrupt::disable();
+    }
 
     // unsafe { riscv_rt::start_rust() }
 
