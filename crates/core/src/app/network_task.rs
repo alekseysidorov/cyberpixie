@@ -124,21 +124,19 @@ where
         let mut response = MessageResponse::empty();
         match message {
             Message::HandshakeRequest(handshake) => {
+                uprintln!("Established connection with the {:?}", handshake);
+
                 let mut links = self.links_mut();
-                if !links.contains_link(handshake.role) {
-                    uprintln!("Established connection with the {:?}", handshake);
+                links.add_link(DeviceLink {
+                    address,
+                    data: handshake,
+                });
 
-                    links.add_link(DeviceLink {
-                        address,
-                        data: handshake,
-                    });
-
-                    response.msg(SimpleMessage::HandshakeResponse(Handshake {
-                        device_id: self.device_id,
-                        group_id: Some(1), // TODO
-                        role: self.role,
-                    }));
-                }
+                response.msg(SimpleMessage::HandshakeResponse(Handshake {
+                    device_id: self.device_id,
+                    group_id: Some(1), // TODO
+                    role: self.role,
+                }));
             }
 
             Message::GetInfo => {
@@ -231,8 +229,6 @@ where
         cmd: SecondaryCommand,
     ) -> Result<(), Network::Error> {
         for link in self.links().secondary_devices() {
-            uprintln!("Sending command to the secondary device: {:?}", cmd);
-
             let address = link.address;
             match cmd {
                 SecondaryCommand::ShowImage { index } => {
@@ -254,8 +250,6 @@ where
 
                 _ => {}
             }
-
-            uprintln!("Command sending finished");
         }
 
         Ok(())
