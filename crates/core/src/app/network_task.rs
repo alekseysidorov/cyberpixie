@@ -124,8 +124,6 @@ where
         let mut response = MessageResponse::empty();
         match message {
             Message::HandshakeRequest(handshake) => {
-                uprintln!("Established connection with the {:?}", handshake);
-
                 let mut links = self.links_mut();
                 links.add_link(DeviceLink {
                     address,
