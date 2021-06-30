@@ -17,18 +17,6 @@ Page {
             margins: 10
         }
 
-        //        Rectangle {
-        //            Layout.alignment: Qt.AlignHCenter
-        //            Layout.fillHeight: true
-        //            width: parent.width
-
-        //            color: "#4f4f4f"
-        //            border.color: "black"
-        //            border.width: 1
-
-
-        //        }
-
         Rectangle {
             Layout.alignment: Qt.AlignHCenter
             Layout.fillHeight: true
@@ -72,7 +60,7 @@ Page {
 
             placeholderText: "hz"
             validator: IntValidator { bottom: 10; top: 50; }
-            text: "10"
+            text: "25"
         }
 
         RowLayout {

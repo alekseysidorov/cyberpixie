@@ -319,8 +319,7 @@ where
             .load_config()
             .expect("unable to load storage config");
 
-        let context =
-            Context::<_, Network>::new(self.storage, self.role, app_config, self.device_id);
+        let context = Context::new(self.storage, self.role, app_config, self.device_id);
         futures::future::join3(
             context.run_service_events_task(&mut self.network),
             context.run_show_image_task(&mut self.timer, &mut self.strip),

@@ -14,7 +14,7 @@ use crate::{
     storage::{RgbIter, Storage},
 };
 
-use super::{Context, DeviceLink, ResultExt, CORE_VERSION};
+use super::{Context, DeviceLink, CORE_VERSION};
 
 #[derive(Debug)]
 pub enum SecondaryCommand {
@@ -76,9 +76,8 @@ where
             };
 
             if let Some(command) = command {
-                uprintln!("Sending command to the secondary device");
                 self.send_command_to_secondary(service, command)
-                    .recover("Unable to send command to the secondary device");
+                    .expect("Unable to send command to the secondary device");
             }
         }
     }
@@ -103,16 +102,16 @@ where
                 let output = self.handle_message(address, message);
                 service
                     .confirm_message(address)
-                    .recover("unable to confirm message");
+                    .expect("unable to confirm message");
 
                 if let Some(cmd) = output.cmd {
                     self.send_command_to_secondary(service, cmd)
-                        .recover("unable to send command to the secondary device");
+                        .expect("unable to send command to the secondary device");
                 }
                 if let Some(msg) = output.response {
                     service
                         .send_message(address, msg)
-                        .recover("Unable to send response");
+                        .expect("Unable to send response");
                 }
             }
         }

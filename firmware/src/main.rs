@@ -231,8 +231,6 @@ fn panic(info: &PanicInfo) -> ! {
         interrupt::disable();
     }
 
-    // unsafe { riscv_rt::start_rust() }
-
     loop {
         use core::sync::atomic::{self, Ordering};
         atomic::compiler_fence(Ordering::SeqCst);
