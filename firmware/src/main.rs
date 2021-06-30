@@ -44,9 +44,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
     let mut rcu = dp.RCU.configure().sysclk(108.mhz()).freeze();
     let mut afio = dp.AFIO.constrain(&mut rcu);
 
-    let clock = McycleClock::new(&rcu.clocks);
-    let mut timer = new_async_timer(Timer::timer0(dp.TIMER0, 1.khz(), &mut rcu));
-
+    // Stdout initialization step.
     let gpioa = dp.GPIOA.split(&mut rcu);
     let (usb_tx, mut _usb_rx) = {
         let tx = gpioa.pa9.into_alternate_push_pull();
@@ -57,13 +55,12 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
     };
     init_stdout(usb_tx);
 
-    let mut esp_en = gpioa.pa4.into_push_pull_output();
-    esp_en.set_low().ok();
-
+    let mut timer = new_async_timer(Timer::timer0(dp.TIMER0, 1.khz(), &mut rcu));
     timer.delay(Duration::from_secs(2)).await;
     uprintln!();
     uprintln!("Welcome to Cyberpixie serial console!");
 
+    // WS2812 LED strip initialization step.
     let spi = {
         let pins = (
             gpioa.pa5.into_alternate_push_pull(),
@@ -86,6 +83,41 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
         .ok();
     uprintln!("Ws2812 strip configured.");
 
+    // Resetting esp8266 module.
+    strip.write(RED_LED.iter().copied()).ok();
+    uprintln!("Enabling esp8266 serial device");
+
+    let mut esp_en = gpioa.pa4.into_push_pull_output();
+    esp_en.set_low().ok();
+    timer.delay(Duration::from_secs(1)).await;
+    esp_en.set_high().ok();
+    timer.delay(Duration::from_secs(1)).await;
+    uprintln!("esp8266 device has been enabled");
+
+    // Initializing a UART communication with the esp8266 module.
+    let (esp_tx, esp_rx) = {
+        let tx = gpioa.pa2.into_alternate_push_pull();
+        let rx = gpioa.pa3.into_floating_input();
+
+        let serial = Serial::new(
+            dp.USART1,
+            (tx, rx),
+            ESP32_SERIAL_PORT_CONFIG,
+            &mut afio,
+            &mut rcu,
+        );
+        serial.split()
+    };
+
+    let esp_rx = irq::init_interrupts(irq::Usart1 {
+        rx: esp_rx,
+        timer: Timer::timer1(dp.TIMER1, TIMER_TICK_FREQUENCY, &mut rcu),
+        watchdog: FreeWatchdog::new(dp.FWDGT),
+    });
+    uprintln!("esp32 serial communication port configured.");
+
+    // Initializing SD card storage.
+    let clock = McycleClock::new(&rcu.clocks);
     let device = {
         let gpiob = dp.GPIOB.split(&mut rcu);
         let spi = Spi::spi1(
@@ -131,34 +163,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
         uprintln!("Splash has been showed.");
     }
 
-    strip.write(RED_LED.iter().copied()).ok();
-    uprintln!("Enabling esp32 serial device");
-
-    esp_en.set_high().ok();
-    timer.delay(Duration::from_secs(5)).await;
-    uprintln!("esp32 device has been enabled");
-
-    let (esp_tx, esp_rx) = {
-        let tx = gpioa.pa2.into_alternate_push_pull();
-        let rx = gpioa.pa3.into_floating_input();
-
-        let serial = Serial::new(
-            dp.USART1,
-            (tx, rx),
-            ESP32_SERIAL_PORT_CONFIG,
-            &mut afio,
-            &mut rcu,
-        );
-        serial.split()
-    };
-
-    let esp_rx = irq::init_interrupts(irq::Usart1 {
-        rx: esp_rx,
-        timer: Timer::timer1(dp.TIMER1, TIMER_TICK_FREQUENCY, &mut rcu),
-        watchdog: FreeWatchdog::new(dp.FWDGT),
-    });
-    uprintln!("esp32 serial communication port configured.");
-
+    // Network initialization step.
     strip.write(MAGENTA_LED.iter().copied()).ok();
     let (socket, role) = {
         let mut blocks = [Block::new()];
