@@ -205,7 +205,10 @@ impl DeviceHandleInner {
         refresh_rate: Hertz,
         bytes: &[u8],
     ) -> anyhow::Result<usize> {
-        assert!(bytes.len() % 3 == 0, "Bytes amount to read must be a multiple of 3.");
+        assert!(
+            bytes.len() % 3 == 0,
+            "Bytes amount to read must be a multiple of 3."
+        );
 
         self.cyberpixie_service()?
             .add_image(self.address, refresh_rate, strip_len, bytes.iter().copied())?
