@@ -12,7 +12,8 @@ use cyberpixie::{
 };
 use cyberpixie_firmware::{
     config::{
-        ESP32_SERIAL_PORT_CONFIG, SD_MMC_SPI_FREQUENCY, SERIAL_PORT_CONFIG, STRIP_LEDS_COUNT,
+        ESP32_SERIAL_PORT_CONFIG, SD_MMC_SPI_FREQUENCY, SD_MMC_SPI_TIMEOUT, SERIAL_PORT_CONFIG,
+        SOCKET_TIMEOUT, STRIP_LEDS_COUNT, WATCHDOG_DEADLINE,
     },
     init_stdout, irq, new_async_timer,
     splash::WanderingLight,
@@ -28,6 +29,7 @@ use gd32vf103xx_hal::{
     serial::Serial,
     spi::{Spi, MODE_0},
     timer::Timer,
+    watchdog::FreeWatchdog,
 };
 use smart_leds::RGB8;
 use ws2812_spi::Ws2812;
@@ -43,6 +45,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
 
     let clock = McycleClock::new(&rcu.clocks);
     let mut timer = new_async_timer(Timer::timer0(dp.TIMER0, 1.khz(), &mut rcu));
+    let mut dog = FreeWatchdog::new(dp.FWDGT);
 
     let gpioa = dp.GPIOA.split(&mut rcu);
     let (usb_tx, mut _usb_rx) = {
@@ -100,7 +103,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
         let mut cs = gpiob.pb12.into_push_pull_output();
         cs.set_low().unwrap();
 
-        let mut device = embedded_sdmmc::SdMmcSpi::new(spi, cs, clock, 1_000_000);
+        let mut device = embedded_sdmmc::SdMmcSpi::new(spi, cs, clock, SD_MMC_SPI_TIMEOUT);
         device.init().unwrap();
         device
     };
@@ -163,14 +166,14 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
 
         let role = net_config.device_role();
         let socket = net_config
-            .establish(Adapter::new(esp_rx, esp_tx).unwrap())
+            .establish(Adapter::new(esp_rx, esp_tx, clock, SOCKET_TIMEOUT).unwrap())
             .unwrap();
         (socket, role)
     };
     uprintln!("Device IP address is {}", socket.ap_address());
 
     let device_id = cyberpixie_firmware::device_id();
-    let mut network = Service::new(TransportImpl::new(socket), ADAPTER_BUF_CAPACITY);
+    let mut network = Service::new(TransportImpl::new(socket, clock), ADAPTER_BUF_CAPACITY);
     if role == DeviceRole::Secondary {
         uprintln!("Exchanging hanshakes with the main device");
         // In order for the main device to know about the existence of the second one,
@@ -191,6 +194,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
     uprintln!("Network is successfully configured.",);
     strip.write(BLUE_LED.iter().copied()).ok();
 
+    dog.start(WATCHDOG_DEADLINE);
     let mut events = NextImageBtn::new(gpioa.pa8.into_pull_down_input());
     let app = App {
         role,
@@ -201,6 +205,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
         storage: &storage,
         strip,
         events: &mut events,
+        watchdog: &mut dog,
     };
     app.run().await
 }

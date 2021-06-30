@@ -3,7 +3,7 @@ use cyberpixie::{
     time::{AsyncCountDown, AsyncTimer, CountDown, Hertz},
 };
 use gd32vf103xx_hal::{rcu::Clocks, time as gd32_time};
-use simple_clock::SimpleClock;
+use esp8266_softap::clock::SimpleClock;
 
 pub struct TimerWrapper<T: CountDown<Time = gd32_time::Hertz>>(T);
 

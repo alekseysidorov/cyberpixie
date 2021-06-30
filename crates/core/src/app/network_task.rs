@@ -14,7 +14,7 @@ use crate::{
     storage::{RgbIter, Storage},
 };
 
-use super::{Context, DeviceLink, CORE_VERSION};
+use super::{Context, DeviceLink, ResultExt, CORE_VERSION};
 
 #[derive(Debug)]
 pub enum SecondaryCommand {
@@ -78,7 +78,7 @@ where
             if let Some(command) = command {
                 uprintln!("Sending command to the secondary device");
                 self.send_command_to_secondary(service, command)
-                    .expect("Unable to send command to the secondary device");
+                    .recover("Unable to send command to the secondary device");
             }
         }
     }
@@ -103,16 +103,16 @@ where
                 let output = self.handle_message(address, message);
                 service
                     .confirm_message(address)
-                    .expect("unable to confirm message");
+                    .recover("unable to confirm message");
 
                 if let Some(cmd) = output.cmd {
                     self.send_command_to_secondary(service, cmd)
-                        .expect("unable to send command to the secondary device");
+                        .recover("unable to send command to the secondary device");
                 }
                 if let Some(msg) = output.response {
                     service
                         .send_message(address, msg)
-                        .expect("Unable to send response");
+                        .recover("Unable to send response");
                 }
             }
         }
@@ -127,6 +127,8 @@ where
             Message::HandshakeRequest(handshake) => {
                 let mut links = self.links_mut();
                 if !links.contains_link(handshake.role) {
+                    uprintln!("Established connection with the {:?}", handshake);
+
                     links.add_link(DeviceLink {
                         address,
                         data: handshake,
@@ -230,6 +232,8 @@ where
         cmd: SecondaryCommand,
     ) -> Result<(), Network::Error> {
         for link in self.links().secondary_devices() {
+            uprintln!("Sending command to the secondary device: {:?}", cmd);
+
             let address = link.address;
             match cmd {
                 SecondaryCommand::ShowImage { index } => {
@@ -251,6 +255,8 @@ where
 
                 _ => {}
             }
+
+            uprintln!("Command sending finished");
         }
 
         Ok(())

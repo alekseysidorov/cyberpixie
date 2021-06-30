@@ -23,18 +23,20 @@ pub trait Transport {
         to: Self::Address,
     ) -> Result<(), Self::Error>;
 
-    fn poll_for_confirmation(&mut self, from: Self::Address) -> nb::Result<(), Self::Error> {
-        self.poll_next_event()
+    fn wait_for_confirmation(&mut self, from: Self::Address) -> Result<(), Self::Error> {
+        nb::block!(self
+            .poll_next_event()
             .filter(|event| event.address() == &from)
             .filter_map(Event::packet)
-            .filter_map(PacketData::confirmed)
+            .filter_map(PacketData::confirmed))
     }
 
-    fn poll_for_payload(&mut self, from: Self::Address) -> nb::Result<Self::Payload, Self::Error> {
-        self.poll_next_event()
+    fn wait_for_payload(&mut self, from: Self::Address) -> Result<Self::Payload, Self::Error> {
+        nb::block!(self
+            .poll_next_event()
             .filter(|event| event.address() == &from)
             .filter_map(Event::packet)
-            .filter_map(PacketData::payload)
+            .filter_map(PacketData::payload))
     }
 }
 

@@ -8,6 +8,7 @@ pub use crate::{
     types::{DeviceRole, FirmwareInfo, Handshake, Hertz},
 };
 pub use postcard::Error as PayloadError;
+pub use simple_clock as clock;
 
 pub mod error;
 

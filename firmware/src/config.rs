@@ -1,15 +1,15 @@
 use cyberpixie::AppConfig;
-use gd32vf103xx_hal::{
-    serial::{Config, Parity, StopBits},
-    time::{Bps, Hertz},
-};
+use gd32vf103xx_hal::{serial::{Config, Parity, StopBits}, time::{Bps, Hertz, MilliSeconds}};
 
 use crate::network::NetworkConfig;
 
-pub const SD_MMC_SPI_FREQUENCY: Hertz = Hertz(20_000_000);
+pub const SD_MMC_SPI_FREQUENCY: Hertz = Hertz(50_000_000);
+pub const SD_MMC_SPI_TIMEOUT: u64 = 100_000;
+pub const SOCKET_TIMEOUT: u64 = 60_000_000;
+pub const WATCHDOG_DEADLINE: MilliSeconds = MilliSeconds(120_000);
 
 pub const SERIAL_PORT_CONFIG: Config = Config {
-    baudrate: Bps(115200), // 460800, 921600
+    baudrate: Bps(921600), // 460800, 921600
     parity: Parity::ParityNone,
     stopbits: StopBits::STOP1,
 };

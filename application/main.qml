@@ -6,7 +6,7 @@ import cyberpixie 1.0
 ApplicationWindow {
     id: app
 
-    readonly property bool deviceConnected: cyberpixie.stripLen > 0
+    property bool deviceConnected
 
     width: 400
     height: 800
@@ -65,10 +65,17 @@ ApplicationWindow {
 
         onError: {
             balloon.show("An error occurred", message)
+            app.deviceConnected = false
         }
 
         onImageUploaded: {
             balloon.show("Image uploaded", "")
+        }
+
+        onStripLenChanged: {
+            if (stripLen > 0) {
+                app.deviceConnected = true
+            }
         }
     }
 }

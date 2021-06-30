@@ -3,6 +3,7 @@ use core::{format_args, ops::Deref};
 use embedded_hal::serial;
 use heapless::Vec;
 use no_std_net::IpAddr;
+use simple_clock::SimpleClock;
 
 use crate::{
     adapter::{Adapter, CarretCondition, OkCondition, ReadPart},
@@ -10,27 +11,39 @@ use crate::{
     Error,
 };
 
-pub struct TcpSocket<Rx, Tx>
+pub struct TcpSocket<Rx, Tx, C>
 where
     Rx: serial::Read<u8> + 'static,
     Tx: serial::Write<u8> + 'static,
+    C: SimpleClock,
+
     Rx::Error: core::fmt::Debug,
     Tx::Error: core::fmt::Debug,
 {
-    adapter: Adapter<Rx, Tx>,
+    adapter: Adapter<Rx, Tx, C>,
     ip_addr: IpAddr,
 }
 
-impl<Rx, Tx> TcpSocket<Rx, Tx>
+impl<Rx, Tx, C> TcpSocket<Rx, Tx, C>
 where
     Rx: serial::Read<u8> + 'static,
     Tx: serial::Write<u8> + 'static,
+    C: SimpleClock,
+
     Rx::Error: core::fmt::Debug,
     Tx::Error: core::fmt::Debug,
 {
-    pub fn new(mut adapter: Adapter<Rx, Tx>, ip_addr: IpAddr) -> Self {
+    pub fn new(mut adapter: Adapter<Rx, Tx, C>, ip_addr: IpAddr) -> Self {
         adapter.reader.buf.clear();
         Self { adapter, ip_addr }
+    }
+
+    pub fn clock(&self) -> &C {
+        &self.adapter.clock
+    }
+
+    pub fn socket_timeout(&self) -> u64 {
+        self.adapter.socket_timeout
     }
 
     pub fn read_bytes(&mut self) -> nb::Result<(), Rx::Error> {

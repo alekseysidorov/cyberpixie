@@ -4,6 +4,7 @@ use core::{
     iter::{repeat, Cycle},
 };
 
+use embedded_hal::watchdog::Watchdog;
 use heapless::Vec;
 use no_stdout::uprintln;
 use smart_leds::{SmartLedsWrite, RGB8};
@@ -102,6 +103,7 @@ where
     pub strip: Strip,
     pub device_id: [u32; 4],
     pub events: &'a mut (dyn Stream<Item = HwEvent> + Unpin),
+    pub watchdog: &'a mut dyn Watchdog,
 }
 
 struct ContextInner<'a, StorageAccess, Network>
@@ -324,9 +326,21 @@ where
         futures::future::join3(
             context.run_service_events_task(&mut self.network),
             context.run_show_image_task(&mut self.timer, &mut self.strip),
-            context.run_hw_events_task(self.events),
+            context.run_hw_events_task(self.watchdog, self.events),
         )
         .await
         .0
+    }
+}
+
+pub(crate) trait ResultExt {
+    fn recover(self, msg: &str);
+}
+
+impl<E: Debug> ResultExt for Result<(), E> {
+    fn recover(self, msg: &str) {
+        if let Err(error) = self {
+            uprintln!("An error occurred: \"{}\" {:?}", msg, error)
+        }
     }
 }
