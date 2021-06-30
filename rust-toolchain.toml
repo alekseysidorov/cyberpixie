@@ -1,5 +1,2 @@
 [toolchain]
-channel = "nightly-2021-06-09"
-components = [ "rustfmt", "rustc-dev", "clippy", "llvm-tools-preview", "miri" ]
-targets = [ "riscv32imac-unknown-none-elf"]
-profile = "minimal"
+channel = "nightly"

@@ -1,11 +1,12 @@
 use core::{
     cell::{Ref, RefCell, RefMut},
-    mem::MaybeUninit,
+    mem::{size_of, MaybeUninit},
 };
 
 use cyberpixie::{leds::RGB8, proto::Hertz, AppConfig, Storage};
 use embedded_sdmmc::{Block, BlockDevice, BlockIdx};
 use endian_codec::{DecodeLE, EncodeLE, PackedSize};
+use no_stdout::uprintln;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -80,7 +81,7 @@ where
     const INIT_BLOCK: BlockIdx = BlockIdx(0);
     /// The message should be presented in the `INIT_BLOCK` if this repository
     /// is has been initialized.
-    const INIT_MSG: &'static [u8] = b"CYBERPIXIE_STORAGE_0";
+    const INIT_MSG: &'static [u8] = b"CYBERPIXIE_STORAGE_1";
     /// This block contains the images repository header.
     const HEADER_BLOCK: BlockIdx = BlockIdx(10);
     /// This block contains the application configuration params.
@@ -150,7 +151,6 @@ where
         assert!(self.count() < MAX_IMAGES_COUNT);
 
         let mut header = self.block.header();
-
         // Sequentially write image bytes into the appropriate blocks.
         let (image_len, vacant_block) = {
             let bytes = data
@@ -164,15 +164,24 @@ where
             )?
         };
 
+        assert_eq!(
+            image_len % size_of::<RGB8>(),
+            0,
+            "Bytes amount to read must be a multiple of {}.",
+            size_of::<RGB8>()
+        );
+
         // Create a new image descriptor and add it to the header block.
         let descriptor = ImageDescriptor {
             block_number: header.vacant_block,
-            image_len: image_len as u16,
+            image_len: image_len as u32,
             refresh_rate: refresh_rate.0,
         };
         let descriptor_pos =
             Header::PACKED_LEN + header.images_count as usize * ImageDescriptor::PACKED_LEN;
         descriptor.encode_as_le_bytes(self.block.inner[0][descriptor_pos..].as_mut());
+
+        uprintln!("Saved image: {:?}", descriptor);
 
         // Refresh header values.
         header.vacant_block = vacant_block.0 as u16;
@@ -303,9 +312,11 @@ impl<'a, B: BlockDevice> Clone for ReadImageIter<'a, B> {
 
 impl<'a, B: BlockDevice> ReadImageIter<'a, B> {
     fn new(device: Ref<'a, B>, block_idx: BlockIdx, bytes_to_read: usize) -> Self {
-        assert!(
-            bytes_to_read % 3 == 0,
-            "Bytes amount to read must be a multiple of 3."
+        assert_eq!(
+            bytes_to_read % size_of::<RGB8>(),
+            0,
+            "Bytes amount to read must be a multiple of {}.",
+            size_of::<RGB8>()
         );
 
         Self {

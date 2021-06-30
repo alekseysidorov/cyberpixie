@@ -10,7 +10,7 @@ pub struct Header {
 #[derive(Debug, PartialEq, Eq, PackedSize, EncodeLE, DecodeLE)]
 pub struct ImageDescriptor {
     pub block_number: u16,
-    pub image_len: u16,
+    pub image_len: u32,
     pub refresh_rate: u32,
 }
 

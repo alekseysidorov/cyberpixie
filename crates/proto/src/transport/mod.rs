@@ -120,6 +120,10 @@ impl<P: Iterator<Item = u8> + ExactSizeIterator> PacketWithPayload<P> {
         }
     }
 
+    pub fn payload_len(&self) -> usize {
+        self.payload.len()
+    }
+
     fn total_len(&self) -> usize {
         self.header.len() + self.payload.len()
     }
