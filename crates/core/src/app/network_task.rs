@@ -94,8 +94,11 @@ where
             }
 
             ServiceEvent::Disconnected { address } => {
-                self.links_mut().remove_address(&address);                
-                dprintln!("- {:?}", self.links().address_data(&address).map(|x| x.role));
+                self.links_mut().remove_address(&address);
+                dprintln!(
+                    "- {:?}",
+                    self.links().address_data(&address).map(|x| x.role)
+                );
             }
 
             ServiceEvent::Message { address, message } => {
@@ -124,11 +127,14 @@ where
         let mut response = MessageResponse::empty();
         match message {
             Message::HandshakeRequest(handshake) => {
-                let mut links = self.links_mut();
-                links.add_link(DeviceLink {
-                    address,
-                    data: handshake,
-                });
+                if !self.links().contains_link(handshake.role) {
+                    let mut links = self.links_mut();
+                    links.add_link(DeviceLink {
+                        address,
+                        data: handshake,
+                    });
+                }
+                dprintln!("{:?}", handshake);
 
                 response.msg(SimpleMessage::HandshakeResponse(Handshake {
                     device_id: self.device_id,
@@ -226,6 +232,7 @@ where
         service: &mut Service<Network>,
         cmd: SecondaryCommand,
     ) -> Result<(), Network::Error> {
+        dprintln!("{:?}", self.links().secondary.as_ref().map(|x| x.data));
         for link in self.links().secondary_devices() {
             let address = link.address;
             match cmd {

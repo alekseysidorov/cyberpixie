@@ -60,8 +60,13 @@ impl<T: Transport> DeviceLinks<T> {
     }
 
     #[allow(dead_code)]
-    fn link_data<'a>(link: &'a Option<DeviceLink<T>>, address: &T::Address) -> Option<&'a Handshake> {
-        link.as_ref().filter(|x| &x.address == address).map(|x| &x.data)
+    fn link_data<'a>(
+        link: &'a Option<DeviceLink<T>>,
+        address: &T::Address,
+    ) -> Option<&'a Handshake> {
+        link.as_ref()
+            .filter(|x| &x.address == address)
+            .map(|x| &x.data)
     }
 
     #[allow(dead_code)]

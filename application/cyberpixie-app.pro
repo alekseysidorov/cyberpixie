@@ -44,14 +44,19 @@ ios {
     message("build_path: " $$CARGO_BUILD_PATH)
     message("extra_args: " $$CARGO_EXTRA_ARGS)
     message("lib: " $$RUST_BINDING_LIB)
-    system(cd $$PWD/rust && /Users/aleksey/.cargo/bin/cargo build $$CARGO_EXTRA_ARGS && cd ..)
+    system(cd $$PWD/rust && cargo build $$CARGO_EXTRA_ARGS && cd ..)
 } else {
-    debug {
-        CARGO_BUILD_TYPE = debug
-        CARGO_EXTRA_ARGS =
+    android {
+        CARGO_BUILD_TYPE = armv7-linux-androideabi/release
+        CARGO_EXTRA_ARGS = --release --target armv7-linux-androideabi
     } else {
-        CARGO_BUILD_TYPE = release
-        CARGO_EXTRA_ARGS = --release
+        debug {
+            CARGO_BUILD_TYPE = debug
+            CARGO_EXTRA_ARGS =
+        } else {
+            CARGO_BUILD_TYPE = release
+            CARGO_EXTRA_ARGS = --release
+        }
     }
 
     RUST_BINDING_LIB = $$PWD/rust/target/$$CARGO_BUILD_TYPE/libcyberpixie_qml.a
