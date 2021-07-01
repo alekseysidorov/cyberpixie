@@ -205,7 +205,7 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
         role,
         device_id,
 
-        network,
+        network: &mut network,
         timer,
         storage: &storage,
         strip,

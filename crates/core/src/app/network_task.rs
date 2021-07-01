@@ -10,7 +10,7 @@ use crate::{
         Error, FirmwareInfo, Handshake, Hertz, Message, Service, ServiceEvent, SimpleMessage,
         Transport,
     },
-    stdout::{dprintln, uprintln},
+    stdout::dprintln,
     storage::{RgbIter, Storage},
 };
 
@@ -95,7 +95,7 @@ where
 
             ServiceEvent::Disconnected { address } => {
                 self.links_mut().remove_address(&address);
-                dprintln!("-");
+                dprintln!("- {}", self.links().contains_link(&address));
             }
 
             ServiceEvent::Message { address, message } => {

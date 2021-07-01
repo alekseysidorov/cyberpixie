@@ -2,7 +2,7 @@ use core::fmt::Write;
 
 use embedded_hal::serial;
 use heapless::Vec;
-use no_stdout::dprintln;
+use no_stdout::{dprint, dprintln};
 use simple_clock::{Deadline, SimpleClock};
 
 use crate::{
@@ -231,8 +231,6 @@ impl<'a> Condition<'a> for OkCondition {
     }
 
     fn output(self, buf: &'a [u8]) -> Self::Output {
-        dprintln!("    esp8266: -< {:?}", core::str::from_utf8(buf));
-
         if buf.ends_with(Self::OK) {
             Ok(&buf[0..buf.len() - Self::OK.len()])
         } else {
@@ -259,6 +257,7 @@ where
             }
 
             let byte = self.rx.read()?;
+            dprint!("{}", byte as char);
             // Safety: we have already checked if this buffer is full,
             // a couple of lines above.
             unsafe {

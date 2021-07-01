@@ -98,7 +98,7 @@ where
     Strip: SmartLedsWrite<Color = RGB8>,
 {
     pub role: DeviceRole,
-    pub network: Service<Network>,
+    pub network: &'a mut Service<Network>,
     pub timer: AsyncTimer<CountDown>,
     pub storage: &'a StorageAccess,
     pub strip: Strip,
@@ -323,7 +323,7 @@ where
 
         let context = Context::new(self.storage, self.role, app_config, self.device_id);
         futures::future::join3(
-            context.run_service_events_task(&mut self.network),
+            context.run_service_events_task(self.network),
             context.run_show_image_task(&mut self.timer, &mut self.strip),
             context.run_hw_events_task(self.events),
         )
