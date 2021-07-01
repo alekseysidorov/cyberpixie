@@ -94,8 +94,8 @@ where
             }
 
             ServiceEvent::Disconnected { address } => {
-                self.links_mut().remove_address(&address);
-                dprintln!("- {}", self.links().contains_link(&address));
+                self.links_mut().remove_address(&address);                
+                dprintln!("- {:?}", self.links().address_data(&address).map(|x| x.role));
             }
 
             ServiceEvent::Message { address, message } => {

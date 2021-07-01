@@ -59,6 +59,18 @@ impl<T: Transport> DeviceLinks<T> {
         self.get_link(role).is_some()
     }
 
+    #[allow(dead_code)]
+    fn link_data<'a>(link: &'a Option<DeviceLink<T>>, address: &T::Address) -> Option<&'a Handshake> {
+        link.as_ref().filter(|x| &x.address == address).map(|x| &x.data)
+    }
+
+    #[allow(dead_code)]
+    fn address_data<'a>(&'a self, address: &T::Address) -> Option<&'a Handshake> {
+        Self::link_data(&self.host, address)?;
+        Self::link_data(&self.main, address)?;
+        Self::link_data(&self.secondary, address)
+    }
+
     fn remove_if_match(link: &mut Option<DeviceLink<T>>, address: &T::Address) -> Option<()> {
         let matched = link.as_ref().filter(|x| &x.address == address).is_some();
         if matched {
