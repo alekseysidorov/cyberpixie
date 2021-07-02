@@ -234,6 +234,7 @@ where
     ) -> Result<(), Network::Error> {
         dprintln!("{:?}", self.links().secondary.as_ref().map(|x| x.data));
         for link in self.links().secondary_devices() {
+            dprintln!("Sending to {:?}", link.data);
             let address = link.address;
             match cmd {
                 SecondaryCommand::ShowImage { index } => {
