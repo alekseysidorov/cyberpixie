@@ -242,7 +242,7 @@ where
                 return Err(nb::Error::WouldBlock);
             }
 
-            let byte = self.rx.read().map_err(|_| Error::ReadBuffer)?;
+            let byte = self.rx.read().map_err(|x| x.map(|_| Error::ReadBuffer))?;
             dprint!("{}", byte as char);
             // Safety: we have already checked if this buffer is full,
             // a couple of lines above.

@@ -168,12 +168,12 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
     let (session, address, role) = {
         let mut blocks = [Block::new()];
         let net_config = storage.network_config(&mut blocks).unwrap();
+
         uprintln!("Network config is {:?}", net_config);
+        let adapter = Adapter::new(esp_rx, esp_tx, clock, SOCKET_TIMEOUT).unwrap();
 
         let role = net_config.device_role();
-        let (session, address) = net_config
-            .establish(Adapter::new(esp_rx, esp_tx, clock, SOCKET_TIMEOUT).unwrap())
-            .unwrap();
+        let (session, address) = net_config.establish(adapter).unwrap();
         (session, address, role)
     };
     uprintln!("Device IP address is {}", address);
