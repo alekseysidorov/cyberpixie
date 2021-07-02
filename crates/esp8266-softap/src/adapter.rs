@@ -2,7 +2,6 @@ use core::fmt::Write;
 
 use embedded_hal::serial;
 use heapless::Vec;
-use no_stdout::dprint;
 use simple_clock::{Deadline, SimpleClock};
 
 use crate::{
@@ -243,7 +242,6 @@ where
             }
 
             let byte = self.rx.read().map_err(|x| x.map(|_| Error::ReadBuffer))?;
-            dprint!("{}", byte as char);
             // Safety: we have already checked if this buffer is full,
             // a couple of lines above.
             unsafe {
