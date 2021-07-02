@@ -10,7 +10,7 @@ use cyberpixie_proto::{
     TransportEvent,
 };
 
-const TIMEOUT: Duration = Duration::from_secs(15);
+const TIMEOUT: Duration = Duration::from_secs(120);
 const HOST_DEVICE_ID: [u32; 4] = [0; 4];
 
 pub fn display_err(err: impl Display) -> anyhow::Error {

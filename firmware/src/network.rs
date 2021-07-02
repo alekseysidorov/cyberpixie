@@ -2,7 +2,7 @@ use core::fmt::Debug;
 
 use cyberpixie::{proto::DeviceRole, stdout::uprintln};
 use embedded_hal::serial;
-use esp8266_softap::{softap::JoinApConfig, Adapter, SoftApConfig, TcpSocket};
+use esp8266_softap::{clock::SimpleClock, softap::JoinApConfig, Adapter, SoftApConfig, TcpSocket};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -30,13 +30,14 @@ impl<'a> NetworkConfig<'a> {
         }
     }
 
-    pub fn establish<Rx, Tx>(
+    pub fn establish<Rx, Tx, C>(
         self,
-        adapter: Adapter<Rx, Tx>,
-    ) -> esp8266_softap::Result<TcpSocket<Rx, Tx>, Rx::Error, Tx::Error>
+        adapter: Adapter<Rx, Tx, C>,
+    ) -> esp8266_softap::Result<TcpSocket<Rx, Tx, C>, Rx::Error, Tx::Error>
     where
         Rx: serial::Read<u8> + 'static,
         Tx: serial::Write<u8> + 'static,
+        C: SimpleClock,
 
         Rx::Error: Debug,
         Tx::Error: Debug,

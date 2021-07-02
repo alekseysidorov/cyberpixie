@@ -8,6 +8,7 @@ pub enum Error<R, W> {
         cmd: &'static str,
         msg: &'static str,
     },
+    Timeout,
 }
 
 pub type Result<T, R, W> = core::result::Result<T, Error<R, W>>;

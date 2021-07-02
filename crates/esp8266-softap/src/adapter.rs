@@ -2,7 +2,8 @@ use core::fmt::Write;
 
 use embedded_hal::serial;
 use heapless::Vec;
-use no_stdout::dprintln;
+use no_stdout::{dprint, dprintln};
+use simple_clock::{Deadline, SimpleClock};
 
 use crate::{
     error::{Error, Result},
@@ -14,26 +15,38 @@ pub type RawResponse<'a> = core::result::Result<&'a [u8], &'a [u8]>;
 const NEWLINE: &[u8] = b"\r\n";
 
 #[derive(Debug)]
-pub struct Adapter<Rx, Tx>
+pub struct Adapter<Rx, Tx, C>
 where
     Rx: serial::Read<u8> + 'static,
     Tx: serial::Write<u8> + 'static,
+    C: SimpleClock,
+
     Rx::Error: core::fmt::Debug,
     Tx::Error: core::fmt::Debug,
 {
     pub(crate) reader: ReadPart<Rx>,
     pub(crate) writer: WritePart<Tx>,
+    pub(crate) clock: C,
+    pub(crate) socket_timeout: u64,
+
     cmd_read_finished: bool,
 }
 
-impl<Rx, Tx> Adapter<Rx, Tx>
+impl<Rx, Tx, C> Adapter<Rx, Tx, C>
 where
     Rx: serial::Read<u8> + 'static,
     Tx: serial::Write<u8> + 'static,
+    C: SimpleClock,
+
     Rx::Error: core::fmt::Debug,
     Tx::Error: core::fmt::Debug,
 {
-    pub fn new(rx: Rx, tx: Tx) -> Result<Self, Rx::Error, Tx::Error> {
+    pub fn new(
+        rx: Rx,
+        tx: Tx,
+        clock: C,
+        socket_timeout: u64,
+    ) -> Result<Self, Rx::Error, Tx::Error> {
         let mut adapter = Self {
             reader: ReadPart {
                 buf: Vec::default(),
@@ -41,6 +54,8 @@ where
             },
             writer: WritePart { tx },
             cmd_read_finished: false,
+            clock,
+            socket_timeout,
         };
         adapter.init()?;
         Ok(adapter)
@@ -116,17 +131,18 @@ where
         }
     }
 
-    pub(crate) fn read_until<'a, C>(
+    pub(crate) fn read_until<'a, T>(
         &'a mut self,
-        condition: C,
-    ) -> Result<C::Output, Rx::Error, Tx::Error>
+        condition: T,
+    ) -> Result<T::Output, Rx::Error, Tx::Error>
     where
-        C: Condition<'a>,
+        T: Condition<'a>,
     {
         if self.cmd_read_finished {
             self.clear_reader_buf();
         }
 
+        let deadline = Deadline::new(&self.clock, self.socket_timeout);
         loop {
             match self.reader.read_bytes() {
                 Ok(_) => {
@@ -145,6 +161,8 @@ where
                 self.cmd_read_finished = true;
                 break;
             }
+
+            deadline.reached().map_err(|_| Error::Timeout)?;
         }
 
         Ok(condition.output(&self.reader.buf))
@@ -213,8 +231,6 @@ impl<'a> Condition<'a> for OkCondition {
     }
 
     fn output(self, buf: &'a [u8]) -> Self::Output {
-        dprintln!("    esp8266: -< {:?}", core::str::from_utf8(buf));
-
         if buf.ends_with(Self::OK) {
             Ok(&buf[0..buf.len() - Self::OK.len()])
         } else {
@@ -241,6 +257,7 @@ where
             }
 
             let byte = self.rx.read()?;
+            dprint!("{}", byte as char);
             // Safety: we have already checked if this buffer is full,
             // a couple of lines above.
             unsafe {

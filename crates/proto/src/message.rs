@@ -127,7 +127,7 @@ impl<'a, T: Transport> PayloadReader<'a, T> {
         bytes_remaining: usize,
     ) -> Result<Self, T::Error> {
         transport.confirm_packet(address)?;
-        let payload = nb::block!(transport.poll_for_payload(address))?;
+        let payload = transport.wait_for_payload(address)?;
 
         Ok(Self {
             address,
@@ -165,8 +165,7 @@ where
             }
 
             self.transport.confirm_packet(self.address).unwrap();
-
-            self.payload = nb::block!(self.transport.poll_for_payload(self.address)).unwrap();
+            self.payload = self.transport.wait_for_payload(self.address).unwrap();
             self.read_pos = 0;
         }
     }

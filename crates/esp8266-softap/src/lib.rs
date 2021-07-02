@@ -7,6 +7,7 @@ pub use crate::{
     tcp_socket::{Data, Event, TcpSocket},
 };
 pub use no_std_net as net;
+pub use simple_clock as clock;
 
 pub mod adapter;
 pub mod error;

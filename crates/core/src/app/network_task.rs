@@ -10,7 +10,7 @@ use crate::{
         Error, FirmwareInfo, Handshake, Hertz, Message, Service, ServiceEvent, SimpleMessage,
         Transport,
     },
-    stdout::{dprintln, uprintln},
+    stdout::dprintln,
     storage::{RgbIter, Storage},
 };
 
@@ -76,7 +76,6 @@ where
             };
 
             if let Some(command) = command {
-                uprintln!("Sending command to the secondary device");
                 self.send_command_to_secondary(service, command)
                     .expect("Unable to send command to the secondary device");
             }
@@ -96,7 +95,10 @@ where
 
             ServiceEvent::Disconnected { address } => {
                 self.links_mut().remove_address(&address);
-                dprintln!("-");
+                dprintln!(
+                    "- {:?}",
+                    self.links().address_data(&address).map(|x| x.role)
+                );
             }
 
             ServiceEvent::Message { address, message } => {
@@ -125,19 +127,20 @@ where
         let mut response = MessageResponse::empty();
         match message {
             Message::HandshakeRequest(handshake) => {
-                let mut links = self.links_mut();
-                if !links.contains_link(handshake.role) {
+                if !self.links().contains_link(handshake.role) {
+                    let mut links = self.links_mut();
                     links.add_link(DeviceLink {
                         address,
                         data: handshake,
                     });
-
-                    response.msg(SimpleMessage::HandshakeResponse(Handshake {
-                        device_id: self.device_id,
-                        group_id: Some(1), // TODO
-                        role: self.role,
-                    }));
                 }
+                dprintln!("{:?}", handshake);
+
+                response.msg(SimpleMessage::HandshakeResponse(Handshake {
+                    device_id: self.device_id,
+                    group_id: Some(1), // TODO
+                    role: self.role,
+                }));
             }
 
             Message::GetInfo => {
@@ -229,7 +232,9 @@ where
         service: &mut Service<Network>,
         cmd: SecondaryCommand,
     ) -> Result<(), Network::Error> {
+        dprintln!("{:?}", self.links().secondary.as_ref().map(|x| x.data));
         for link in self.links().secondary_devices() {
+            dprintln!("Sending to {:?}", link.data);
             let address = link.address;
             match cmd {
                 SecondaryCommand::ShowImage { index } => {

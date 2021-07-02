@@ -93,14 +93,14 @@ impl<T: Transport> Service<T> {
     {
         let (header, payload) = message.into_header_payload();
         self.send_message_header(address, &header)?;
-        nb::block!(self.poll_for_confirmation(address))?;
+        self.wait_for_confirmation(address)?;
 
         if let Some(mut payload) = payload {
             let payload_len = self.receiver_buf_capacity - PacketKind::PACKED_LEN;
             while payload.len() != 0 {
                 self.transport
                     .send_packet(payload.by_ref().take(payload_len), address)?;
-                nb::block!(self.poll_for_confirmation(address))?;
+                self.wait_for_confirmation(address)?;
             }
         }
 
@@ -189,8 +189,8 @@ impl<T: Transport> Service<T> {
         self.transport.send_packet(buf.iter().copied(), address)
     }
 
-    fn poll_for_confirmation(&mut self, address: T::Address) -> nb::Result<(), T::Error> {
-        self.transport.poll_for_confirmation(address)
+    fn wait_for_confirmation(&mut self, address: T::Address) -> Result<(), T::Error> {
+        self.transport.wait_for_confirmation(address)
     }
 }
 

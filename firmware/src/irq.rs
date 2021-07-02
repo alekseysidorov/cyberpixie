@@ -1,12 +1,18 @@
-use embedded_hal::serial::Read;
+use embedded_hal::{
+    serial::Read,
+    watchdog::{Watchdog, WatchdogEnable},
+};
 use gd32vf103xx_hal::{
     eclic::{EclicExt, Level, LevelPriorityBits, Priority, TriggerType},
     pac::{Interrupt, ECLIC, TIMER1, USART1},
     serial::Rx,
     timer::Timer,
+    watchdog::FreeWatchdog,
 };
 
 use heapless::mpmc::MpMcQueue;
+
+use crate::config::WATCHDOG_DEADLINE;
 
 // Usart Interrupt context
 
@@ -17,6 +23,7 @@ pub struct Usart1 {
     // Quick and dirty buffered serial port implementation.
     // FIXME Rewrite it on the USART1 interrupts.
     pub timer: Timer<TIMER1>,
+    pub watchdog: FreeWatchdog,
 }
 
 static UART_QUEUE: MpMcQueue<Result<u8, UartError>, 128> = MpMcQueue::new();
@@ -44,6 +51,7 @@ pub fn init_interrupts(mut usart1: Usart1) -> BufferedRx {
 
         // Create USART1 interrupt context.
         usart1.timer.listen(gd32vf103xx_hal::timer::Event::Update);
+        usart1.watchdog.start(WATCHDOG_DEADLINE);
         USART1_IRQ_CONTEXT.replace(usart1);
 
         // IRQ
@@ -76,6 +84,7 @@ pub fn handle_usart1_update() {
             .as_mut()
             .expect("the context should be initialized before getting");
         context.timer.clear_update_interrupt_flag();
+        context.watchdog.feed();
 
         loop {
             let res = match context.rx.read() {

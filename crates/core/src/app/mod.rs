@@ -45,12 +45,35 @@ impl<T: Transport> DeviceLinks<T> {
         };
     }
 
+    #[allow(dead_code)]
     fn get_link(&self, role: DeviceRole) -> &Option<DeviceLink<T>> {
         match role {
             DeviceRole::Host => &self.host,
             DeviceRole::Main => &self.main,
             DeviceRole::Secondary => &self.secondary,
         }
+    }
+
+    #[allow(dead_code)]
+    fn contains_link(&self, role: DeviceRole) -> bool {
+        self.get_link(role).is_some()
+    }
+
+    #[allow(dead_code)]
+    fn link_data<'a>(
+        link: &'a Option<DeviceLink<T>>,
+        address: &T::Address,
+    ) -> Option<&'a Handshake> {
+        link.as_ref()
+            .filter(|x| &x.address == address)
+            .map(|x| &x.data)
+    }
+
+    #[allow(dead_code)]
+    fn address_data<'a>(&'a self, address: &T::Address) -> Option<&'a Handshake> {
+        Self::link_data(&self.host, address)?;
+        Self::link_data(&self.main, address)?;
+        Self::link_data(&self.secondary, address)
     }
 
     fn remove_if_match(link: &mut Option<DeviceLink<T>>, address: &T::Address) -> Option<()> {
@@ -67,10 +90,6 @@ impl<T: Transport> DeviceLinks<T> {
         Self::remove_if_match(&mut self.host, address)?;
         Self::remove_if_match(&mut self.main, address)?;
         Self::remove_if_match(&mut self.secondary, address)
-    }
-
-    fn contains_link(&self, role: DeviceRole) -> bool {
-        self.get_link(role).is_some()
     }
 
     fn secondary_devices(&self) -> impl Iterator<Item = &DeviceLink<T>> {
@@ -96,7 +115,7 @@ where
     Strip: SmartLedsWrite<Color = RGB8>,
 {
     pub role: DeviceRole,
-    pub network: Service<Network>,
+    pub network: &'a mut Service<Network>,
     pub timer: AsyncTimer<CountDown>,
     pub storage: &'a StorageAccess,
     pub strip: Strip,
@@ -319,14 +338,25 @@ where
             .load_config()
             .expect("unable to load storage config");
 
-        let context =
-            Context::<_, Network>::new(self.storage, self.role, app_config, self.device_id);
+        let context = Context::new(self.storage, self.role, app_config, self.device_id);
         futures::future::join3(
-            context.run_service_events_task(&mut self.network),
+            context.run_service_events_task(self.network),
             context.run_show_image_task(&mut self.timer, &mut self.strip),
             context.run_hw_events_task(self.events),
         )
         .await
         .0
+    }
+}
+
+pub(crate) trait ResultExt {
+    fn recover(self, msg: &str);
+}
+
+impl<E: Debug> ResultExt for Result<(), E> {
+    fn recover(self, msg: &str) {
+        if let Err(error) = self {
+            uprintln!("An error occurred: \"{}\" {:?}", msg, error)
+        }
     }
 }

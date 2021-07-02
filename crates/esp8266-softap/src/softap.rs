@@ -2,6 +2,7 @@ use core::{fmt::Debug, format_args};
 
 use embedded_hal::serial;
 use no_std_net::{IpAddr, SocketAddr};
+use simple_clock::SimpleClock;
 
 use crate::{adapter::Adapter, parser::CifsrResponse, Error, TcpSocket};
 
@@ -14,13 +15,15 @@ pub struct SoftApConfig<'a> {
 }
 
 impl<'a> SoftApConfig<'a> {
-    pub fn start<Rx, Tx>(
+    pub fn start<Rx, Tx, C>(
         self,
-        mut adapter: Adapter<Rx, Tx>,
-    ) -> crate::Result<TcpSocket<Rx, Tx>, Rx::Error, Tx::Error>
+        mut adapter: Adapter<Rx, Tx, C>,
+    ) -> crate::Result<TcpSocket<Rx, Tx, C>, Rx::Error, Tx::Error>
     where
         Rx: serial::Read<u8> + 'static,
         Tx: serial::Write<u8> + 'static,
+        C: SimpleClock,
+
         Rx::Error: core::fmt::Debug,
         Tx::Error: core::fmt::Debug,
     {
@@ -28,13 +31,14 @@ impl<'a> SoftApConfig<'a> {
         Ok(TcpSocket::new(adapter, address))
     }
 
-    fn init<Rx, Tx>(
+    fn init<Rx, Tx, C>(
         &self,
-        adapter: &mut Adapter<Rx, Tx>,
+        adapter: &mut Adapter<Rx, Tx, C>,
     ) -> crate::Result<IpAddr, Rx::Error, Tx::Error>
     where
         Rx: serial::Read<u8> + 'static,
         Tx: serial::Write<u8> + 'static,
+        C: SimpleClock,
 
         Rx::Error: core::fmt::Debug,
         Tx::Error: core::fmt::Debug,
@@ -97,13 +101,15 @@ pub struct JoinApConfig<'a> {
 }
 
 impl<'a> JoinApConfig<'a> {
-    pub fn join<Rx, Tx>(
+    pub fn join<Rx, Tx, C>(
         self,
-        mut adapter: Adapter<Rx, Tx>,
-    ) -> crate::Result<TcpSocket<Rx, Tx>, Rx::Error, Tx::Error>
+        mut adapter: Adapter<Rx, Tx, C>,
+    ) -> crate::Result<TcpSocket<Rx, Tx, C>, Rx::Error, Tx::Error>
     where
         Rx: serial::Read<u8> + 'static,
         Tx: serial::Write<u8> + 'static,
+        C: SimpleClock,
+
         Rx::Error: core::fmt::Debug,
         Tx::Error: core::fmt::Debug,
     {
@@ -111,13 +117,14 @@ impl<'a> JoinApConfig<'a> {
         Ok(TcpSocket::new(adapter, address))
     }
 
-    fn init<Rx, Tx>(
+    fn init<Rx, Tx, C>(
         &self,
-        adapter: &mut Adapter<Rx, Tx>,
+        adapter: &mut Adapter<Rx, Tx, C>,
     ) -> crate::Result<IpAddr, Rx::Error, Tx::Error>
     where
         Rx: serial::Read<u8> + 'static,
         Tx: serial::Write<u8> + 'static,
+        C: SimpleClock,
 
         Rx::Error: core::fmt::Debug,
         Tx::Error: core::fmt::Debug,
