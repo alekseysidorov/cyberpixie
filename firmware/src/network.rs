@@ -38,9 +38,6 @@ impl<'a> NetworkConfig<'a> {
         Rx: serial::Read<u8> + 'static,
         Tx: serial::Write<u8> + 'static,
         C: SimpleClock,
-
-        Rx::Error: Debug,
-        Tx::Error: Debug,
     {
         match self {
             NetworkConfig::SoftAp {

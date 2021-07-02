@@ -39,9 +39,6 @@ where
     Rx: Read<u8> + 'static,
     Tx: Write<u8> + 'static,
     C: SimpleClock,
-
-    Rx::Error: Debug,
-    Tx::Error: Debug,
 {
     socket: TcpSocket<Rx, Tx, C>,
     clock: C,
@@ -52,9 +49,6 @@ where
     Rx: Read<u8> + 'static,
     Tx: Write<u8> + 'static,
     C: SimpleClock,
-
-    Rx::Error: Debug,
-    Tx::Error: Debug,
 {
     pub fn new(socket: TcpSocket<Rx, Tx, C>, clock: C) -> Self {
         Self { socket, clock }
@@ -96,9 +90,6 @@ where
     Rx: Read<u8> + 'static,
     Tx: Write<u8> + 'static,
     C: SimpleClock,
-
-    Rx::Error: Debug,
-    Tx::Error: Debug,
 {
     type Error = SocketError<Rx::Error, Tx::Error>;
     type Address = usize;

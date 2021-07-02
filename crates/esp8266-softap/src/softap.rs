@@ -4,7 +4,7 @@ use embedded_hal::serial;
 use no_std_net::{IpAddr, SocketAddr};
 use simple_clock::SimpleClock;
 
-use crate::{adapter::Adapter, parser::CifsrResponse, Error, TcpSocket};
+use crate::{adapter::Adapter, parser::CifsrResponse, TcpSocket};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct SoftApConfig<'a> {
@@ -18,38 +18,26 @@ impl<'a> SoftApConfig<'a> {
     pub fn start<Rx, Tx, C>(
         self,
         mut adapter: Adapter<Rx, Tx, C>,
-    ) -> crate::Result<TcpSocket<Rx, Tx, C>, Rx::Error, Tx::Error>
+    ) -> crate::Result<TcpSocket<Rx, Tx, C>>
     where
         Rx: serial::Read<u8> + 'static,
         Tx: serial::Write<u8> + 'static,
         C: SimpleClock,
-
-        Rx::Error: core::fmt::Debug,
-        Tx::Error: core::fmt::Debug,
     {
         let address = self.init(&mut adapter)?;
         Ok(TcpSocket::new(adapter, address))
     }
 
-    fn init<Rx, Tx, C>(
-        &self,
-        adapter: &mut Adapter<Rx, Tx, C>,
-    ) -> crate::Result<IpAddr, Rx::Error, Tx::Error>
+    fn init<Rx, Tx, C>(&self, adapter: &mut Adapter<Rx, Tx, C>) -> crate::Result<IpAddr>
     where
         Rx: serial::Read<u8> + 'static,
         Tx: serial::Write<u8> + 'static,
         C: SimpleClock,
-
-        Rx::Error: core::fmt::Debug,
-        Tx::Error: core::fmt::Debug,
     {
         // Enable SoftAP+Station mode.
         adapter
             .send_at_command_str("AT+CWMODE=3")?
-            .map_err(|_| Error::MalformedCommand {
-                cmd: "CWMODE",
-                msg: "Unable to set Wifi mode",
-            })?;
+            .expect("Malformed command");
 
         // Start SoftAP.
         adapter
@@ -57,34 +45,22 @@ impl<'a> SoftApConfig<'a> {
                 "AT+CWSAP=\"{}\",\"{}\",{},{}",
                 self.ssid, self.password, self.channel, self.mode,
             ))?
-            .map_err(|_| Error::MalformedCommand {
-                cmd: "CWSAP",
-                msg: "Incorrect soft AP configuration",
-            })?;
+            .expect("Malformed command");
 
         // Enable multiple connections.
         adapter
             .send_at_command_str("AT+CIPMUX=1")?
-            .map_err(|_| Error::MalformedCommand {
-                cmd: "CIPMUX",
-                msg: "Unable to enable multiple connections",
-            })?;
+            .expect("Malformed command");
 
         // Setup a TCP server.
         adapter
             .send_at_command_str("AT+CIPSERVER=1,333")?
-            .map_err(|_| Error::MalformedCommand {
-                cmd: "CIPSERVER",
-                msg: "Unable to setup a TCP server",
-            })?;
+            .expect("Malformed command");
 
         // Get assigned SoftAP address.
         let raw_resp = adapter
             .send_at_command_fmt(format_args!("AT+CIFSR"))?
-            .map_err(|_| Error::MalformedCommand {
-                cmd: "CIFSR",
-                msg: "Incorrect usage of the CIFSR command",
-            })?;
+            .expect("Malformed command");
         let ap_addr = CifsrResponse::parse(raw_resp).unwrap().1.ap_ip.unwrap();
 
         adapter.clear_reader_buf();
@@ -104,38 +80,26 @@ impl<'a> JoinApConfig<'a> {
     pub fn join<Rx, Tx, C>(
         self,
         mut adapter: Adapter<Rx, Tx, C>,
-    ) -> crate::Result<TcpSocket<Rx, Tx, C>, Rx::Error, Tx::Error>
+    ) -> crate::Result<TcpSocket<Rx, Tx, C>>
     where
         Rx: serial::Read<u8> + 'static,
         Tx: serial::Write<u8> + 'static,
         C: SimpleClock,
-
-        Rx::Error: core::fmt::Debug,
-        Tx::Error: core::fmt::Debug,
     {
         let address = self.init(&mut adapter)?;
         Ok(TcpSocket::new(adapter, address))
     }
 
-    fn init<Rx, Tx, C>(
-        &self,
-        adapter: &mut Adapter<Rx, Tx, C>,
-    ) -> crate::Result<IpAddr, Rx::Error, Tx::Error>
+    fn init<Rx, Tx, C>(&self, adapter: &mut Adapter<Rx, Tx, C>) -> crate::Result<IpAddr>
     where
         Rx: serial::Read<u8> + 'static,
         Tx: serial::Write<u8> + 'static,
         C: SimpleClock,
-
-        Rx::Error: core::fmt::Debug,
-        Tx::Error: core::fmt::Debug,
     {
         // Enable Station mode.
         adapter
             .send_at_command_str("AT+CWMODE=1")?
-            .map_err(|_| Error::MalformedCommand {
-                cmd: "CWMODE",
-                msg: "Unable to set Wifi mode",
-            })?;
+            .expect("Malformed command");
 
         // Join the given access point.
         adapter
@@ -143,26 +107,17 @@ impl<'a> JoinApConfig<'a> {
                 "AT+CWJAP=\"{}\",\"{}\"",
                 self.ssid, self.password,
             ))?
-            .map_err(|_| Error::MalformedCommand {
-                cmd: "CWJAP",
-                msg: "Unable to join the selected access point.",
-            })?;
+            .expect("Malformed command");
 
         // Enable multiple connections.
         adapter
             .send_at_command_str("AT+CIPMUX=1")?
-            .map_err(|_| Error::MalformedCommand {
-                cmd: "CIPMUX",
-                msg: "Unable to enable multiple connections",
-            })?;
+            .expect("Malformed command");
 
         // Setup a TCP server.
         adapter
             .send_at_command_str("AT+CIPSERVER=1,334")?
-            .map_err(|_| Error::MalformedCommand {
-                cmd: "CIPSERVER",
-                msg: "Unable to setup a TCP server",
-            })?;
+            .expect("Malformed command");
 
         // Establish TCP connection with the given address.
         adapter
@@ -172,18 +127,12 @@ impl<'a> JoinApConfig<'a> {
                 self.address.ip(),
                 self.address.port(),
             ))?
-            .map_err(|_| Error::MalformedCommand {
-                cmd: "CIPSTART",
-                msg: "Unable to connect with the specified host",
-            })?;
+            .expect("Malformed command");
 
         // Get assigned SoftAP address.
         let raw_resp = adapter
             .send_at_command_fmt(format_args!("AT+CIFSR"))?
-            .map_err(|_| Error::MalformedCommand {
-                cmd: "CIFSR",
-                msg: "Incorrect usage of the CIFSR command",
-            })?;
+            .expect("Malformed command");
         let ap_addr = CifsrResponse::parse(raw_resp).unwrap().1.sta_ip.unwrap();
 
         adapter.clear_reader_buf();

@@ -1,14 +1,9 @@
 #[derive(Debug)]
-pub enum Error<R, W> {
-    Read(R),
-    Write(W),
-    Format,
+pub enum Error {
+    ReadBuffer,
+    WriteBuffer,
     BufferFull,
-    MalformedCommand {
-        cmd: &'static str,
-        msg: &'static str,
-    },
     Timeout,
 }
 
-pub type Result<T, R, W> = core::result::Result<T, Error<R, W>>;
+pub type Result<T> = core::result::Result<T, Error>;

@@ -2,7 +2,7 @@ use core::fmt::Write;
 
 use embedded_hal::serial;
 use heapless::Vec;
-use no_stdout::{dprint, dprintln};
+use no_stdout::dprint;
 use simple_clock::{Deadline, SimpleClock};
 
 use crate::{
@@ -20,9 +20,6 @@ where
     Rx: serial::Read<u8> + 'static,
     Tx: serial::Write<u8> + 'static,
     C: SimpleClock,
-
-    Rx::Error: core::fmt::Debug,
-    Tx::Error: core::fmt::Debug,
 {
     pub(crate) reader: ReadPart<Rx>,
     pub(crate) writer: WritePart<Tx>,
@@ -37,16 +34,8 @@ where
     Rx: serial::Read<u8> + 'static,
     Tx: serial::Write<u8> + 'static,
     C: SimpleClock,
-
-    Rx::Error: core::fmt::Debug,
-    Tx::Error: core::fmt::Debug,
 {
-    pub fn new(
-        rx: Rx,
-        tx: Tx,
-        clock: C,
-        socket_timeout: u64,
-    ) -> Result<Self, Rx::Error, Tx::Error> {
+    pub fn new(rx: Rx, tx: Tx, clock: C, socket_timeout: u64) -> Result<Self> {
         let mut adapter = Self {
             reader: ReadPart {
                 buf: Vec::default(),
@@ -61,19 +50,19 @@ where
         Ok(adapter)
     }
 
-    fn init(&mut self) -> Result<(), Rx::Error, Tx::Error> {
+    fn init(&mut self) -> Result<()> {
         self.disable_echo()?;
         Ok(())
     }
 
-    fn reset_cmd(&mut self) -> Result<(), Rx::Error, Tx::Error> {
+    fn reset_cmd(&mut self) -> Result<()> {
         self.write_command(b"AT+RST")?;
         self.read_until(ReadyCondition)?;
 
         Ok(())
     }
 
-    pub fn reset(&mut self) -> Result<(), Rx::Error, Tx::Error> {
+    pub fn reset(&mut self) -> Result<()> {
         // FIXME: It is ok to receive errors like "framing" during the reset procedure.
         self.reset_cmd().ok();
         // Workaround to catch the framing errors.
@@ -87,39 +76,28 @@ where
     }
 
     // FIXME: Get rid of the necessity of the manual `clear_reader_buf` invocations.
-    pub fn send_at_command_str(
-        &mut self,
-        cmd: &str,
-    ) -> Result<RawResponse<'_>, Rx::Error, Tx::Error> {
+    pub fn send_at_command_str(&mut self, cmd: &str) -> Result<RawResponse<'_>> {
         self.write_command(cmd.as_ref())?;
         self.read_until(OkCondition)
     }
 
-    pub fn send_at_command_fmt(
-        &mut self,
-        args: core::fmt::Arguments,
-    ) -> Result<RawResponse<'_>, Rx::Error, Tx::Error> {
-        dprintln!("    esp8266: -> {}", args);
-
+    pub fn send_at_command_fmt(&mut self, args: core::fmt::Arguments) -> Result<RawResponse<'_>> {
         self.write_command_fmt(args)?;
         self.read_until(OkCondition)
     }
 
-    fn disable_echo(&mut self) -> Result<(), Rx::Error, Tx::Error> {
+    fn disable_echo(&mut self) -> Result<()> {
         self.send_at_command_str("ATE0").map(drop)
     }
 
-    pub(crate) fn write_command(&mut self, cmd: &[u8]) -> Result<(), Rx::Error, Tx::Error> {
-        self.writer.write_bytes(cmd).map_err(Error::Write)?;
-        self.writer.write_bytes(NEWLINE).map_err(Error::Write)
+    pub(crate) fn write_command(&mut self, cmd: &[u8]) -> Result<()> {
+        self.writer.write_bytes(cmd)?;
+        self.writer.write_bytes(NEWLINE)
     }
 
-    pub(crate) fn write_command_fmt(
-        &mut self,
-        args: core::fmt::Arguments,
-    ) -> Result<(), Rx::Error, Tx::Error> {
-        self.writer.write_fmt(args).map_err(|_| Error::Format)?;
-        self.writer.write_bytes(NEWLINE).map_err(Error::Write)
+    pub(crate) fn write_command_fmt(&mut self, args: core::fmt::Arguments) -> Result<()> {
+        self.writer.write_fmt(args)?;
+        self.writer.write_bytes(NEWLINE)
     }
 
     pub(crate) fn clear_reader_buf(&mut self) {
@@ -131,10 +109,7 @@ where
         }
     }
 
-    pub(crate) fn read_until<'a, T>(
-        &'a mut self,
-        condition: T,
-    ) -> Result<T::Output, Rx::Error, Tx::Error>
+    pub(crate) fn read_until<'a, T>(&'a mut self, condition: T) -> Result<T::Output>
     where
         T: Condition<'a>,
     {
@@ -151,9 +126,9 @@ where
                     }
                 }
                 Err(nb::Error::WouldBlock) => {}
-                Err(nb::Error::Other(err)) => {
+                Err(nb::Error::Other(_)) => {
                     self.cmd_read_finished = true;
-                    return Err(Error::Read(err));
+                    return Err(Error::ReadBuffer);
                 }
             };
 
@@ -248,15 +223,14 @@ pub struct ReadPart<Rx> {
 impl<Rx> ReadPart<Rx>
 where
     Rx: serial::Read<u8> + 'static,
-    Rx::Error: core::fmt::Debug,
 {
-    pub(crate) fn read_bytes(&mut self) -> nb::Result<(), Rx::Error> {
+    pub(crate) fn read_bytes(&mut self) -> nb::Result<(), crate::Error> {
         loop {
             if self.buf.is_full() {
                 return Err(nb::Error::WouldBlock);
             }
 
-            let byte = self.rx.read()?;
+            let byte = self.rx.read().map_err(|_| Error::ReadBuffer)?;
             dprint!("{}", byte as char);
             // Safety: we have already checked if this buffer is full,
             // a couple of lines above.
@@ -275,18 +249,19 @@ pub struct WritePart<Tx> {
 impl<Tx> WritePart<Tx>
 where
     Tx: serial::Write<u8> + 'static,
-    Tx::Error: core::fmt::Debug,
 {
-    fn write_fmt(&mut self, args: core::fmt::Arguments) -> core::fmt::Result {
+    fn write_fmt(&mut self, args: core::fmt::Arguments) -> Result<()> {
         let writer = &mut self.tx as &mut (dyn serial::Write<u8, Error = Tx::Error> + 'static);
-        writer.write_fmt(args)
+        writer.write_fmt(args).map_err(|_| Error::WriteBuffer)
     }
 
-    pub(crate) fn write_byte(&mut self, byte: u8) -> nb::Result<(), Tx::Error> {
-        self.tx.write(byte)
+    pub(crate) fn write_byte(&mut self, byte: u8) -> nb::Result<(), Error> {
+        self.tx
+            .write(byte)
+            .map_err(|err| err.map(|_| Error::WriteBuffer))
     }
 
-    fn write_bytes(&mut self, bytes: &[u8]) -> core::result::Result<(), Tx::Error> {
+    fn write_bytes(&mut self, bytes: &[u8]) -> Result<()> {
         for byte in bytes.iter() {
             nb::block!(self.write_byte(*byte))?;
         }

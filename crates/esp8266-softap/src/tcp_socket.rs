@@ -16,9 +16,6 @@ where
     Rx: serial::Read<u8> + 'static,
     Tx: serial::Write<u8> + 'static,
     C: SimpleClock,
-
-    Rx::Error: core::fmt::Debug,
-    Tx::Error: core::fmt::Debug,
 {
     adapter: Adapter<Rx, Tx, C>,
     ip_addr: IpAddr,
@@ -29,9 +26,6 @@ where
     Rx: serial::Read<u8> + 'static,
     Tx: serial::Write<u8> + 'static,
     C: SimpleClock,
-
-    Rx::Error: core::fmt::Debug,
-    Tx::Error: core::fmt::Debug,
 {
     pub fn new(mut adapter: Adapter<Rx, Tx, C>, ip_addr: IpAddr) -> Self {
         adapter.reader.buf.clear();
@@ -46,19 +40,15 @@ where
         self.adapter.socket_timeout
     }
 
-    pub fn read_bytes(&mut self) -> nb::Result<(), Rx::Error> {
+    pub fn read_bytes(&mut self) -> nb::Result<(), Error> {
         self.adapter.reader.read_bytes()
     }
 
-    pub fn poll_next_event(&mut self) -> nb::Result<Event<'_, Rx>, Rx::Error> {
+    pub fn poll_next_event(&mut self) -> nb::Result<Event<'_, Rx>, Error> {
         self.adapter.reader.poll_next_event()
     }
 
-    pub fn send_packet_to_link<I>(
-        &mut self,
-        link_id: usize,
-        bytes: I,
-    ) -> crate::Result<(), Rx::Error, Tx::Error>
+    pub fn send_packet_to_link<I>(&mut self, link_id: usize, bytes: I) -> crate::Result<()>
     where
         I: Iterator<Item = u8> + ExactSizeIterator,
     {
@@ -75,15 +65,12 @@ where
         self.adapter.read_until(CarretCondition)?;
 
         for byte in bytes {
-            nb::block!(self.adapter.writer.write_byte(byte)).map_err(Error::Write)?;
+            nb::block!(self.adapter.writer.write_byte(byte))?;
         }
 
         self.adapter
             .read_until(OkCondition)?
-            .map_err(|_| Error::MalformedCommand {
-                cmd: "CIPSEND",
-                msg: "Incorrect usage of the CIPSEND (with link_id) command",
-            })?;
+            .expect("Malformed command");
         self.adapter.clear_reader_buf();
         Ok(())
     }
@@ -96,7 +83,6 @@ where
 pub enum Event<'a, Rx>
 where
     Rx: serial::Read<u8> + 'static,
-    Rx::Error: core::fmt::Debug,
 {
     Connected { link_id: usize },
     Closed { link_id: usize },
@@ -106,9 +92,8 @@ where
 impl<Rx> ReadPart<Rx>
 where
     Rx: serial::Read<u8> + 'static,
-    Rx::Error: core::fmt::Debug,
 {
-    pub(crate) fn poll_next_event(&mut self) -> nb::Result<Event<'_, Rx>, Rx::Error> {
+    pub(crate) fn poll_next_event(&mut self) -> nb::Result<Event<'_, Rx>, Error> {
         let response =
             CommandResponse::parse(&self.buf).map(|(remainder, event)| (remainder.len(), event));
 
@@ -122,7 +107,9 @@ where
                 CommandResponse::DataAvailable { link_id, size } => {
                     let current_pos = self.buf.len();
                     for _ in current_pos..size {
-                        self.buf.push(nb::block!(self.rx.read())?).unwrap();
+                        self.buf
+                            .push(nb::block!(self.rx.read()).map_err(|_| Error::ReadBuffer)?)
+                            .unwrap();
                     }
 
                     Event::DataAvailable {
@@ -144,7 +131,6 @@ where
 pub struct Data<'a, Rx>
 where
     Rx: serial::Read<u8> + 'static,
-    Rx::Error: core::fmt::Debug,
 {
     inner: &'a mut ReadPart<Rx>,
 }
@@ -152,7 +138,6 @@ where
 impl<'a, Rx> AsRef<[u8]> for Data<'a, Rx>
 where
     Rx: serial::Read<u8> + 'static,
-    Rx::Error: core::fmt::Debug,
 {
     fn as_ref(&self) -> &[u8] {
         self.inner.buf.as_ref()
@@ -162,7 +147,6 @@ where
 impl<'a, Rx> Drop for Data<'a, Rx>
 where
     Rx: serial::Read<u8> + 'static,
-    Rx::Error: core::fmt::Debug,
 {
     fn drop(&mut self) {
         self.inner.buf.clear();
@@ -172,7 +156,6 @@ where
 impl<'a, Rx> Deref for Data<'a, Rx>
 where
     Rx: serial::Read<u8> + 'static,
-    Rx::Error: core::fmt::Debug,
 {
     type Target = [u8];
 
