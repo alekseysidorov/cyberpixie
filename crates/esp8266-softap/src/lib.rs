@@ -1,20 +1,21 @@
 #![cfg_attr(not(test), no_std)]
 
 pub use crate::{
-    adapter::{Adapter, ReadPart, WritePart},
+    adapter::Adapter,
     error::{Error, Result},
-    softap::SoftApConfig,
-    tcp_socket::{Data, Event, TcpSocket},
+    softap::{JoinApConfig, SoftApConfig, WifiMode},
+    wifi_session::{Data, Event, WifiSession},
 };
 pub use no_std_net as net;
 pub use simple_clock as clock;
 
-pub mod adapter;
 pub mod error;
-pub mod softap;
 
+mod adapter;
 mod parser;
-mod tcp_socket;
+mod softap;
+mod wifi_session;
+
 #[cfg(test)]
 mod tests;
 

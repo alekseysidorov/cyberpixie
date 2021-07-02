@@ -1,4 +1,5 @@
 use cyberpixie::AppConfig;
+use esp8266_softap::WifiMode;
 use gd32vf103xx_hal::{
     serial::{Config, Parity, StopBits},
     time::{Bps, Hertz, MilliSeconds},
@@ -37,7 +38,7 @@ pub const NETWORK_CONFIG: NetworkConfig<'static> = NetworkConfig::SoftAp {
     ssid: "cyberpixie",
     password: "12345678",
     channel: 5,
-    mode: 0,
+    mode: WifiMode::Open,
 };
 #[cfg(feature = "secondary_device")]
 pub const NETWORK_CONFIG: NetworkConfig<'static> = NetworkConfig::JoinAp {

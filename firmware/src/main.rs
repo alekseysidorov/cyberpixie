@@ -165,21 +165,21 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
 
     // Network initialization step.
     strip.write(MAGENTA_LED.iter().copied()).ok();
-    let (socket, role) = {
+    let (session, address, role) = {
         let mut blocks = [Block::new()];
         let net_config = storage.network_config(&mut blocks).unwrap();
         uprintln!("Network config is {:?}", net_config);
 
         let role = net_config.device_role();
-        let socket = net_config
+        let (session, address) = net_config
             .establish(Adapter::new(esp_rx, esp_tx, clock, SOCKET_TIMEOUT).unwrap())
             .unwrap();
-        (socket, role)
+        (session, address, role)
     };
-    uprintln!("Device IP address is {}", socket.ap_address());
+    uprintln!("Device IP address is {}", address);
 
     let device_id = cyberpixie_firmware::device_id();
-    let mut network = Service::new(TransportImpl::new(socket, clock), ADAPTER_BUF_CAPACITY);
+    let mut network = Service::new(TransportImpl::new(session, clock), ADAPTER_BUF_CAPACITY);
     if role == DeviceRole::Secondary {
         uprintln!("Exchanging hanshakes with the main device");
         // In order for the main device to know about the existence of the second one,

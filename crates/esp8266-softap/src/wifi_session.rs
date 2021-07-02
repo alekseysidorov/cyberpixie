@@ -2,7 +2,7 @@ use core::{format_args, ops::Deref};
 
 use embedded_hal::serial;
 use heapless::Vec;
-use no_std_net::IpAddr;
+use no_std_net::SocketAddr;
 use simple_clock::SimpleClock;
 
 use crate::{
@@ -11,44 +11,62 @@ use crate::{
     Error,
 };
 
-pub struct TcpSocket<Rx, Tx, C>
+pub struct WifiSession<Rx, Tx, C>
 where
     Rx: serial::Read<u8> + 'static,
     Tx: serial::Write<u8> + 'static,
     C: SimpleClock,
 {
     adapter: Adapter<Rx, Tx, C>,
-    ip_addr: IpAddr,
 }
 
-impl<Rx, Tx, C> TcpSocket<Rx, Tx, C>
+impl<Rx, Tx, C> WifiSession<Rx, Tx, C>
 where
     Rx: serial::Read<u8> + 'static,
     Tx: serial::Write<u8> + 'static,
     C: SimpleClock,
 {
-    pub fn new(mut adapter: Adapter<Rx, Tx, C>, ip_addr: IpAddr) -> Self {
+    pub(crate) fn new(mut adapter: Adapter<Rx, Tx, C>) -> Self {
         adapter.reader.buf.clear();
-        Self { adapter, ip_addr }
+        Self { adapter }
     }
 
-    pub fn clock(&self) -> &C {
-        &self.adapter.clock
+    pub fn listen(&mut self, port: u16) -> crate::Result<SocketAddr> {
+        // Setup a TCP server.
+        self.adapter
+            .send_at_command_fmt(format_args!("AT+CIPSERVER=1,{}", port))?
+            .expect("Malformed command");
+        self.adapter.clear_reader_buf();
+
+        // Get assigned IP address.
+        let ip = self
+            .adapter
+            .get_softap_address()?
+            .ap_ip
+            .expect("the IP address for this access point did't assign.");
+        Ok(SocketAddr::new(ip, port))
     }
 
-    pub fn socket_timeout(&self) -> u64 {
-        self.adapter.socket_timeout
-    }
+    pub fn connect_to(&mut self, link_id: usize, address: SocketAddr) -> crate::Result<()> {
+        self.adapter
+            .send_at_command_fmt(format_args!(
+                "AT+CIPSTART={},\"{}\",\"{}\",{}",
+                link_id,
+                "TCP",
+                address.ip(),
+                address.port(),
+            ))?
+            .expect("Malformed command");
+        self.adapter.clear_reader_buf();
 
-    pub fn read_bytes(&mut self) -> nb::Result<(), Error> {
-        self.adapter.reader.read_bytes()
+        Ok(())
     }
 
     pub fn poll_next_event(&mut self) -> nb::Result<Event<'_, Rx>, Error> {
         self.adapter.reader.poll_next_event()
     }
 
-    pub fn send_packet_to_link<I>(&mut self, link_id: usize, bytes: I) -> crate::Result<()>
+    pub fn send_to<I>(&mut self, link_id: usize, bytes: I) -> crate::Result<()>
     where
         I: Iterator<Item = u8> + ExactSizeIterator,
     {
@@ -75,8 +93,12 @@ where
         Ok(())
     }
 
-    pub fn ap_address(&self) -> IpAddr {
-        self.ip_addr
+    pub fn clock(&self) -> &C {
+        &self.adapter.clock
+    }
+
+    pub fn socket_timeout(&self) -> u64 {
+        self.adapter.socket_timeout
     }
 }
 

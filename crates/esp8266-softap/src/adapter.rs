@@ -7,6 +7,7 @@ use simple_clock::{Deadline, SimpleClock};
 
 use crate::{
     error::{Error, Result},
+    parser::CifsrResponse,
     ADAPTER_BUF_CAPACITY,
 };
 
@@ -141,6 +142,17 @@ where
         }
 
         Ok(condition.output(&self.reader.buf))
+    }
+
+    pub(crate) fn get_softap_address(&mut self) -> Result<CifsrResponse> {
+        // Get assigned SoftAP address.
+        let raw_resp = self
+            .send_at_command_fmt(format_args!("AT+CIFSR"))?
+            .expect("Malformed command");
+
+        let resp = CifsrResponse::parse(raw_resp).expect("Unknown response").1;
+        self.clear_reader_buf();
+        Ok(resp)
     }
 }
 
