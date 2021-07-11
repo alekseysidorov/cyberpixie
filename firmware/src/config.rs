@@ -1,5 +1,5 @@
 use cyberpixie::AppConfig;
-use esp8266_softap::WifiMode;
+use esp8266_wifi_serial::WifiMode;
 use gd32vf103xx_hal::{
     serial::{Config, Parity, StopBits},
     time::{Bps, Hertz, MilliSeconds},
@@ -14,6 +14,7 @@ pub const SD_MMC_SPI_TIMEOUT: u64 = 100_000;
 pub const SOCKET_TIMEOUT: u64 = 60_000_000;
 pub const WATCHDOG_DEADLINE: MilliSeconds = MilliSeconds(100);
 pub const TIMER_TICK_FREQUENCY: Hertz = Hertz(20_000);
+pub const ADAPTER_BUF_CAPACITY: usize = 640;
 
 pub const SERIAL_PORT_CONFIG: Config = Config {
     baudrate: Bps(921600), // 460800, 921600

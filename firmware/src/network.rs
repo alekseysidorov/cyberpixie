@@ -2,7 +2,7 @@ use core::fmt::Debug;
 
 use cyberpixie::{proto::DeviceRole, stdout::uprintln};
 use embedded_hal::serial;
-use esp8266_softap::{
+use esp8266_wifi_serial::{
     clock::SimpleClock, net::SocketAddr, Adapter, JoinApConfig, SoftApConfig, WifiMode, WifiSession,
 };
 use serde::{Deserialize, Serialize};
@@ -32,10 +32,10 @@ impl<'a> NetworkConfig<'a> {
         }
     }
 
-    pub fn establish<Rx, Tx, C>(
+    pub fn establish<Rx, Tx, C, const N: usize>(
         self,
-        adapter: Adapter<Rx, Tx, C>,
-    ) -> esp8266_softap::Result<(WifiSession<Rx, Tx, C>, SocketAddr)>
+        adapter: Adapter<Rx, Tx, C, N>,
+    ) -> esp8266_wifi_serial::Result<(WifiSession<Rx, Tx, C, N>, SocketAddr)>
     where
         Rx: serial::Read<u8> + 'static,
         Tx: serial::Write<u8> + 'static,

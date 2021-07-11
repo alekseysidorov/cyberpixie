@@ -23,13 +23,11 @@ riscv = "0.6"
 riscv-rt = "0.8"
 ws2812-spi = { version = "0.4" }
 
-no-stdout = { git = "https://github.com/alekseysidorov/no-stdout.git", branch = "main" }
-
-esp8266-softap = { path = "../crates/esp8266-softap" }
+no-stdout = "0.1.0"
+esp8266-wifi-serial = { git = "https://github.com/alekseysidorov/esp8266-wifi-serial.git", branch = "main" }
 cyberpixie = { path = "../crates/core" }
 
 [features]
 default = []
 secondary_device = []
 reset_on_start = []
-dprint = ["esp8266-softap/dprint"]

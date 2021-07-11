@@ -13,8 +13,7 @@ serde = { version = "1", default-features = false, features = ["derive"] }
 simple-clock = "0.1"
 
 nb-utils = { git = "https://github.com/alekseysidorov/nb-utils.git", branch = "main" }
-no-stdout = { git = "https://github.com/alekseysidorov/no-stdout.git", branch = "main" }
+no-stdout = "0.1.0"
 
 [dev-dependencies]
 embedded-hal = "0.2"
-esp8266-softap = { path = "../esp8266-softap" }

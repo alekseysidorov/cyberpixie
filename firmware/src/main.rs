@@ -12,8 +12,8 @@ use cyberpixie::{
 };
 use cyberpixie_firmware::{
     config::{
-        ESP32_SERIAL_PORT_CONFIG, SD_MMC_SPI_FREQUENCY, SD_MMC_SPI_TIMEOUT, SERIAL_PORT_CONFIG,
-        SOCKET_TIMEOUT, STRIP_LEDS_COUNT, TIMER_TICK_FREQUENCY,
+        ADAPTER_BUF_CAPACITY, ESP32_SERIAL_PORT_CONFIG, SD_MMC_SPI_FREQUENCY, SD_MMC_SPI_TIMEOUT,
+        SERIAL_PORT_CONFIG, SOCKET_TIMEOUT, STRIP_LEDS_COUNT, TIMER_TICK_FREQUENCY,
     },
     init_stdout, irq, new_async_timer,
     splash::WanderingLight,
@@ -22,7 +22,7 @@ use cyberpixie_firmware::{
 };
 use embedded_hal::digital::v2::OutputPin;
 use embedded_sdmmc::Block;
-use esp8266_softap::{Adapter, ADAPTER_BUF_CAPACITY};
+use esp8266_wifi_serial::Adapter;
 use gd32vf103xx_hal::{
     pac::{self},
     prelude::*,
@@ -170,7 +170,8 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
         let net_config = storage.network_config(&mut blocks).unwrap();
 
         uprintln!("Network config is {:?}", net_config);
-        let adapter = Adapter::new(esp_rx, esp_tx, clock, SOCKET_TIMEOUT).unwrap();
+        let adapter: Adapter<_, _, _, ADAPTER_BUF_CAPACITY> =
+            Adapter::new(esp_rx, esp_tx, clock, SOCKET_TIMEOUT).unwrap();
 
         let role = net_config.device_role();
         let (session, address) = net_config.establish(adapter).unwrap();

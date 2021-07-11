@@ -3,11 +3,13 @@ use cyberpixie::{
     proto::{PacketData, PacketKind, PacketWithPayload, Transport, TransportEvent},
 };
 use embedded_hal::serial::{Read, Write};
-use esp8266_softap::{
+use esp8266_wifi_serial::{
     clock::{Deadline, SimpleClock},
-    Error as WifiError, Event as SocketEvent, WifiSession, ADAPTER_BUF_CAPACITY,
+    Error as WifiError, Event as SocketEvent, WifiSession,
 };
 use heapless::Vec;
+
+use crate::config::ADAPTER_BUF_CAPACITY;
 
 const MAX_PAYLOAD_LEN: usize = ADAPTER_BUF_CAPACITY - PacketKind::PACKED_LEN;
 
@@ -32,28 +34,28 @@ macro_rules! block_deadline {
     };
 }
 
-pub struct TransportImpl<Tx, Rx, C>
+pub struct TransportImpl<Tx, Rx, C, const N: usize>
 where
     Rx: Read<u8> + 'static,
     Tx: Write<u8> + 'static,
     C: SimpleClock,
 {
-    session: WifiSession<Rx, Tx, C>,
+    session: WifiSession<Rx, Tx, C, N>,
     clock: C,
 }
 
-impl<Tx, Rx, C> TransportImpl<Tx, Rx, C>
+impl<'a, Tx, Rx, C, const N: usize> TransportImpl<Tx, Rx, C, N>
 where
     Rx: Read<u8> + 'static,
     Tx: Write<u8> + 'static,
     C: SimpleClock,
 {
-    pub fn new(session: WifiSession<Rx, Tx, C>, clock: C) -> Self {
+    pub fn new(session: WifiSession<Rx, Tx, C, N>, clock: C) -> Self {
         Self { session, clock }
     }
 
     fn poll_next_event(
-        session: &mut WifiSession<Rx, Tx, C>,
+        session: &'a mut WifiSession<Rx, Tx, C, N>,
     ) -> nb::Result<TransportImplEvent, WifiError> {
         let event = session.poll_next_event()?;
 
@@ -81,7 +83,7 @@ where
     }
 }
 
-impl<Tx, Rx, C> Transport for TransportImpl<Tx, Rx, C>
+impl<Tx, Rx, C, const N: usize> Transport for TransportImpl<Tx, Rx, C, N>
 where
     Rx: Read<u8> + 'static,
     Tx: Write<u8> + 'static,

@@ -12,7 +12,7 @@ serde = { version = "1", default-features = false, features = ["derive"] }
 smart-leds = "0.3"
 void = { version = "1.0", default-features = false }
 
-no-stdout = { git = "https://github.com/alekseysidorov/no-stdout.git", branch = "main" }
+no-stdout = "0.1.0"
 cyberpixie-proto = { path = "../proto" }
 nb-utils = { git = "https://github.com/alekseysidorov/nb-utils.git", branch = "main" }
 
