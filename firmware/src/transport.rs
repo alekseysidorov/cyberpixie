@@ -5,7 +5,7 @@ use cyberpixie::{
 use embedded_hal::serial::{Read, Write};
 use esp8266_wifi_serial::{
     clock::{Deadline, SimpleClock},
-    Error as WifiError, Event as SocketEvent, WifiSession,
+    Error as WifiError, NetworkEvent, NetworkSession,
 };
 use heapless::Vec;
 
@@ -29,7 +29,9 @@ macro_rules! block_deadline {
                 Ok(x) => break Ok(x),
             }
 
-            $deadline.reached().map_err(|_| WifiError::Timeout)?;
+            if let Some(deadline) = $deadline.as_ref() {
+                deadline.reached().map_err(|_| WifiError::Timeout)?;
+            }
         }
     };
 }
@@ -40,7 +42,7 @@ where
     Tx: Write<u8> + 'static,
     C: SimpleClock,
 {
-    session: WifiSession<Rx, Tx, C, N>,
+    session: NetworkSession<Rx, Tx, C, N>,
     clock: C,
 }
 
@@ -50,19 +52,19 @@ where
     Tx: Write<u8> + 'static,
     C: SimpleClock,
 {
-    pub fn new(session: WifiSession<Rx, Tx, C, N>, clock: C) -> Self {
+    pub fn new(session: NetworkSession<Rx, Tx, C, N>, clock: C) -> Self {
         Self { session, clock }
     }
 
     fn poll_next_event(
-        session: &'a mut WifiSession<Rx, Tx, C, N>,
+        session: &'a mut NetworkSession<Rx, Tx, C, N>,
     ) -> nb::Result<TransportImplEvent, WifiError> {
-        let event = session.poll_next_event()?;
+        let event = session.poll_network_event()?;
 
         Ok(match event {
-            SocketEvent::Connected { link_id } => TransportEvent::Connected { address: link_id },
-            SocketEvent::Closed { link_id } => TransportEvent::Disconnected { address: link_id },
-            SocketEvent::DataAvailable { link_id, data } => {
+            NetworkEvent::Connected { link_id } => TransportEvent::Connected { address: link_id },
+            NetworkEvent::Closed { link_id } => TransportEvent::Disconnected { address: link_id },
+            NetworkEvent::DataAvailable { link_id, data } => {
                 let mut reader = data.iter().copied();
                 let packet = match PacketKind::from_reader(reader.by_ref()) {
                     PacketKind::Payload(len) => {
@@ -103,7 +105,7 @@ where
         let packet = PacketKind::Confirmed.to_bytes();
 
         let bytes = packet.iter().copied();
-        self.session.send_to(address, bytes)
+        self.session.send(address, bytes)
     }
 
     fn send_packet<P: Iterator<Item = u8> + ExactSizeIterator>(
@@ -112,12 +114,15 @@ where
         address: Self::Address,
     ) -> Result<(), Self::Error> {
         assert!(payload.len() <= MAX_PAYLOAD_LEN);
-        self.session
-            .send_to(address, PacketWithPayload::from(payload))
+        self.session.send(address, PacketWithPayload::from(payload))
     }
 
     fn wait_for_confirmation(&mut self, from: Self::Address) -> Result<(), Self::Error> {
-        let deadline = Deadline::new(&self.clock, self.session.socket_timeout());
+        let clock = &self.clock;
+        let deadline = self
+            .session
+            .timeout()
+            .map(|timeout| Deadline::new(clock, timeout));
 
         block_deadline!(
             deadline,
@@ -129,7 +134,11 @@ where
     }
 
     fn wait_for_payload(&mut self, from: Self::Address) -> Result<Self::Payload, Self::Error> {
-        let deadline = Deadline::new(&self.clock, self.session.socket_timeout());
+        let clock = &self.clock;
+        let deadline = self
+            .session
+            .timeout()
+            .map(|timeout| Deadline::new(clock, timeout));
 
         block_deadline!(
             deadline,

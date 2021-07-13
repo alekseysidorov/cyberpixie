@@ -22,7 +22,7 @@ use cyberpixie_firmware::{
 };
 use embedded_hal::digital::v2::OutputPin;
 use embedded_sdmmc::Block;
-use esp8266_wifi_serial::Adapter;
+use esp8266_wifi_serial::Module;
 use gd32vf103xx_hal::{
     pac::{self},
     prelude::*,
@@ -170,11 +170,12 @@ async fn run_main_loop(dp: pac::Peripherals) -> ! {
         let net_config = storage.network_config(&mut blocks).unwrap();
 
         uprintln!("Network config is {:?}", net_config);
-        let adapter: Adapter<_, _, _, ADAPTER_BUF_CAPACITY> =
-            Adapter::new(esp_rx, esp_tx, clock, SOCKET_TIMEOUT).unwrap();
+        let mut module: Module<_, _, _, ADAPTER_BUF_CAPACITY> =
+            Module::new(esp_rx, esp_tx, clock).unwrap();
+        module.set_timeout(Some(SOCKET_TIMEOUT));
 
         let role = net_config.device_role();
-        let (session, address) = net_config.establish(adapter).unwrap();
+        let (session, address) = net_config.establish(module).unwrap();
         (session, address, role)
     };
     uprintln!("Device IP address is {}", address);

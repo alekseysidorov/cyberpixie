@@ -3,9 +3,12 @@ use core::fmt::Debug;
 use cyberpixie::{proto::DeviceRole, stdout::uprintln};
 use embedded_hal::serial;
 use esp8266_wifi_serial::{
-    clock::SimpleClock, net::SocketAddr, Adapter, JoinApConfig, SoftApConfig, WifiMode, WifiSession,
+    clock::SimpleClock, net::SocketAddr, JoinApConfig, Module, NetworkSession, SoftApConfig,
+    WifiMode,
 };
 use serde::{Deserialize, Serialize};
+
+const LISTEN_PORT: u16 = 333;
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NetworkConfig<'a> {
@@ -34,8 +37,8 @@ impl<'a> NetworkConfig<'a> {
 
     pub fn establish<Rx, Tx, C, const N: usize>(
         self,
-        adapter: Adapter<Rx, Tx, C, N>,
-    ) -> esp8266_wifi_serial::Result<(WifiSession<Rx, Tx, C, N>, SocketAddr)>
+        adapter: Module<Rx, Tx, C, N>,
+    ) -> esp8266_wifi_serial::Result<(NetworkSession<Rx, Tx, C, N>, SocketAddr)>
     where
         Rx: serial::Read<u8> + 'static,
         Tx: serial::Write<u8> + 'static,
@@ -57,9 +60,10 @@ impl<'a> NetworkConfig<'a> {
                     mode,
                 }
                 .start(adapter)?;
-                let ap_address = session.listen(333)?;
+                session.listen(LISTEN_PORT)?;
 
-                Ok((session, ap_address))
+                let ip = session.get_info()?.softap_address.unwrap();
+                Ok((session, SocketAddr::new(ip, LISTEN_PORT)))
             }
 
             NetworkConfig::JoinAp {
@@ -70,13 +74,15 @@ impl<'a> NetworkConfig<'a> {
                 uprintln!("Joining to the existing network with ssid: \"{}\"", ssid);
 
                 let mut session = JoinApConfig { ssid, password }.join(adapter)?;
-                let ap_address = session.listen(333)?;
+                session.listen(LISTEN_PORT)?;
+                let ip = session.get_info()?.softap_address.unwrap();
 
                 let address = address
                     .parse()
                     .expect("The socket address should be written as follows: \"ip_addr:port\"");
-                session.connect_to(Self::LINK_ID, address)?;
-                Ok((session, ap_address))
+                session.connect(Self::LINK_ID, address)?;
+
+                Ok((session, SocketAddr::new(ip, LISTEN_PORT)))
             }
         }
     }
