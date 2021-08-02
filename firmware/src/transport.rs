@@ -62,8 +62,8 @@ where
         let event = session.poll_network_event()?;
 
         Ok(match event {
-            NetworkEvent::Connected { link_id } => TransportEvent::Connected { address: link_id },
-            NetworkEvent::Closed { link_id } => TransportEvent::Disconnected { address: link_id },
+            NetworkEvent::Connected { link_id } => TransportEvent::Connected { address: link_id as usize },
+            NetworkEvent::Closed { link_id } => TransportEvent::Disconnected { address: link_id as usize },
             NetworkEvent::DataAvailable { link_id, data } => {
                 let mut reader = data.iter().copied();
                 let packet = match PacketKind::from_reader(reader.by_ref()) {
@@ -77,7 +77,7 @@ where
                 };
 
                 TransportEvent::Packet {
-                    address: link_id,
+                    address: link_id as usize,
                     data: packet,
                 }
             }

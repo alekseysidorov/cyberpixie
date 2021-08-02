@@ -13,7 +13,7 @@ static USART0: Mutex<RefCell<Option<Tx<USART0>>>> = Mutex::new(RefCell::new(None
 
 pub fn init_stdout(tx: Tx<USART0>) {
     interrupt::free(|cs| {
-        let mutex = USART0.borrow(cs);
+        let mutex = USART0.borrow(*cs);
         mutex.borrow_mut().replace(tx);
     });
 
@@ -28,7 +28,7 @@ impl StdOutImpl {
         F: Fn(RefMut<Tx<USART0>>) -> fmt::Result,
     {
         interrupt::free(|cs| {
-            let mutex = USART0.borrow(cs);
+            let mutex = USART0.borrow(*cs);
             let inner = RefMut::map(mutex.borrow_mut(), |o| o.as_mut().unwrap());
             with_usart0(inner)
         })

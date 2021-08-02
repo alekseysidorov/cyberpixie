@@ -19,12 +19,12 @@ void = { version = "1.0", default-features = false }
 direct-executor = "0.3"
 
 gd32vf103xx-hal = "0.4"
-riscv = "0.6"
+riscv = "0.7"
 riscv-rt = "0.8"
 ws2812-spi = { version = "0.4" }
 
 no-stdout = "0.1.0"
-esp8266-wifi-serial = { git = "https://github.com/alekseysidorov/esp8266-wifi-serial.git", branch = "main" }
+esp8266-wifi-serial = "0.1.1"
 cyberpixie = { path = "../crates/core" }
 
 [features]
