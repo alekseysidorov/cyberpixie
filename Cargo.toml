@@ -2,6 +2,28 @@
 resolver = "2"
 
 members = [
+    'crates/wifi',
     "firmware/esp32c3"
 ]
 exclude = ["old"]
+
+# Workspace crates
+[workspace.dependencies]
+# Workspace crates
+cyberpixie-wifi = { path = "crates/wifi" }
+# Common dependencies
+embedded-hal = "1.0.0-alpha.9"
+embedded-svc = "0.23"
+esp-idf-hal = "0.39"
+esp-idf-svc = "0.43"
+esp-idf-sys = { version = "0.31.11", features = ["binstart"] }
+embuild = "0.30.4"
+heapless = { version = "0.7" }
+
+# Profile section
+[profile.release]
+opt-level = "s"
+
+[profile.dev]
+debug = true # Symbols are nice and they don't increase the size on Flash
+opt-level = "z"
