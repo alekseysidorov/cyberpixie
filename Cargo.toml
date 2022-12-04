@@ -2,10 +2,6 @@
 resolver = "2"
 
 members = [
-    "crates/core",
-    "crates/esp8266-softap", 
-    "crates/proto", 
-    "crates/std-transport",
-    "utils/image_sender",
+    "firmware/esp32c3"
 ]
-exclude = ["firmware", "application"]
+exclude = ["old"]
