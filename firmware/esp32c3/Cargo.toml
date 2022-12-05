@@ -9,9 +9,13 @@ resolver = "2"
 pio = ["esp-idf-sys/pio"]
 
 [dependencies]
+anyhow = "1"
 cyberpixie-wifi = { workspace = true }
 embedded-hal = { workspace = true }
+esp-idf-hal = { workspace = true }
+esp-idf-svc = { workspace = true }
 esp-idf-sys =  { workspace = true }
+log = "0.4"
 
 [build-dependencies]
 anyhow = "1"
