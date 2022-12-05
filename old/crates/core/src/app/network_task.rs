@@ -1,5 +1,6 @@
 use core::{fmt::Debug, mem::size_of, task::Poll};
 
+use super::{Context, DeviceLink, CORE_VERSION};
 use crate::{
     futures::{
         future::{poll_fn, select, Either},
@@ -13,8 +14,6 @@ use crate::{
     stdout::dprintln,
     storage::{RgbIter, Storage},
 };
-
-use super::{Context, DeviceLink, CORE_VERSION};
 
 #[derive(Debug)]
 pub enum SecondaryCommand {

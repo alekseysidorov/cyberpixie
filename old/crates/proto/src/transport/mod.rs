@@ -1,8 +1,7 @@
-pub use packet::PacketKind;
-
 use core::{array::IntoIter, fmt::Debug};
 
 use nb_utils::NbResultExt;
+pub use packet::PacketKind;
 
 mod packet;
 

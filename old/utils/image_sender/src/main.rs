@@ -1,9 +1,8 @@
 use std::{net::SocketAddr, path::PathBuf};
 
 use cyberpixie_proto::Hertz;
-use structopt::StructOpt;
-
 use image_sender::{convert_image_to_raw, create_service, display_err};
+use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
 enum Commands {

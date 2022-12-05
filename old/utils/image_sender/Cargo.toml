@@ -11,5 +11,5 @@ log = "0.4"
 nb = "1.0"
 structopt = "0.3"
 
-cyberpixie-std-transport = { path = "../../crates/std-transport" }
 cyberpixie-proto = { path = "../../crates/proto" }
+cyberpixie-std-transport = { path = "../../crates/std-transport" }

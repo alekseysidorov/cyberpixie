@@ -9,12 +9,11 @@ use endian_codec::{DecodeLE, EncodeLE, PackedSize};
 use no_stdout::uprintln;
 use serde::{Deserialize, Serialize};
 
+use self::types::{Header, ImageDescriptor};
 use crate::{
     config::{APP_CONFIG, NETWORK_CONFIG},
     network::NetworkConfig,
 };
-
-use self::types::{Header, ImageDescriptor};
 
 mod types;
 

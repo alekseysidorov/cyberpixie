@@ -2,14 +2,13 @@ use core::{fmt::Debug, iter::repeat};
 
 use smart_leds::{SmartLedsWrite, RGB8};
 
+use super::{Context, MAX_STRIP_LED_LEN};
 use crate::{
     nb_utils::yield_executor,
     proto::{Hertz, Transport},
     time::{AsyncCountDown, AsyncTimer},
     Storage,
 };
-
-use super::{Context, MAX_STRIP_LED_LEN};
 
 impl<'a, StorageAccess, Network> Context<'a, StorageAccess, Network>
 where

@@ -9,7 +9,6 @@ use gd32vf103xx_hal::{
     timer::Timer,
     watchdog::FreeWatchdog,
 };
-
 use heapless::mpmc::MpMcQueue;
 
 use crate::config::WATCHDOG_DEADLINE;

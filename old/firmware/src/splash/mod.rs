@@ -1,6 +1,5 @@
-pub use wandering_light::WanderingLight;
-
 use smart_leds::RGB8;
+pub use wandering_light::WanderingLight;
 
 mod wandering_light;
 

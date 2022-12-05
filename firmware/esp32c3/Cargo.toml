@@ -14,7 +14,8 @@ cyberpixie-wifi = { workspace = true }
 embedded-hal = { workspace = true }
 esp-idf-hal = { workspace = true }
 esp-idf-svc = { workspace = true }
-esp-idf-sys =  { workspace = true }
+esp-idf-sys = { workspace = true }
+esp-storage = { version = "0.1.0", features = ["esp32c3"] }
 log = "0.4"
 
 [build-dependencies]

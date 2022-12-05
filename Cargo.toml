@@ -2,8 +2,8 @@
 resolver = "2"
 
 members = [
-    'crates/wifi',
-    "firmware/esp32c3"
+  'crates/wifi',
+  "firmware/esp32c3",
 ]
 exclude = ["old"]
 

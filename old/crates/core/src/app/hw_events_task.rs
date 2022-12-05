@@ -1,12 +1,11 @@
 use core::fmt::Debug;
 
+use super::Context;
 use crate::{
     futures::{Stream, StreamExt},
     proto::Transport,
     HwEvent, Storage,
 };
-
-use super::Context;
 
 impl<'a, StorageAccess, Network> Context<'a, StorageAccess, Network>
 where

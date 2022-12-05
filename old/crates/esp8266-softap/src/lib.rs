@@ -1,13 +1,14 @@
 #![cfg_attr(not(test), no_std)]
 
+pub use no_std_net as net;
+pub use simple_clock as clock;
+
 pub use crate::{
     adapter::{Adapter, ReadPart, WritePart},
     error::{Error, Result},
     softap::SoftApConfig,
     tcp_socket::{Data, Event, TcpSocket},
 };
-pub use no_std_net as net;
-pub use simple_clock as clock;
 
 pub mod adapter;
 pub mod error;

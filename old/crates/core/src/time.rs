@@ -1,10 +1,10 @@
-pub use cyberpixie_proto::Hertz;
-pub use embedded_hal::timer::CountDown;
-
 use core::{
     task::{Context, Poll},
     time::Duration,
 };
+
+pub use cyberpixie_proto::Hertz;
+pub use embedded_hal::timer::CountDown;
 
 use crate::futures::future;
 

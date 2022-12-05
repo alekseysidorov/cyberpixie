@@ -12,8 +12,8 @@ postcard = { version = "0.7", default-features = false }
 serde = { version = "1", default-features = false, features = ["derive"] }
 
 nb-utils = { git = "https://github.com/alekseysidorov/nb-utils.git", branch = "main" }
-simple-clock = { git = "https://github.com/alekseysidorov/simple-clock.git", branch = "main" }
 no-stdout = { git = "https://github.com/alekseysidorov/no-stdout.git", branch = "main" }
+simple-clock = { git = "https://github.com/alekseysidorov/simple-clock.git", branch = "main" }
 
 [dev-dependencies]
 embedded-hal = "0.2"

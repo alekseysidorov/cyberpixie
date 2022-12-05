@@ -14,5 +14,5 @@ image = "0.23"
 log = "0.4"
 qmetaobject = "0.2.2"
 
-cyberpixie-std-transport = { path = "../../crates/std-transport" }
 cyberpixie-proto = { path = "../../crates/proto" }
+cyberpixie-std-transport = { path = "../../crates/std-transport" }

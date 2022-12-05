@@ -8,14 +8,13 @@ use heapless::Vec;
 use no_stdout::uprintln;
 use smart_leds::{SmartLedsWrite, RGB8};
 
+use self::network_task::SecondaryCommand;
 use crate::{
     futures::Stream,
     proto::{DeviceRole, Handshake, Hertz, Service, Transport},
     time::{AsyncCountDown, AsyncTimer},
     AppConfig, HwEvent, Storage,
 };
-
-use self::network_task::SecondaryCommand;
 
 mod hw_events_task;
 mod image_task;
