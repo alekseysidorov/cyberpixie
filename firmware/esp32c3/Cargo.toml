@@ -10,7 +10,6 @@ pio = ["esp-idf-sys/pio"]
 
 [dependencies]
 anyhow = "1"
-cyberpixie-wifi = { workspace = true }
 embedded-hal = { workspace = true }
 embedded-svc = { workspace = true }
 esp-idf-hal = { workspace = true }
