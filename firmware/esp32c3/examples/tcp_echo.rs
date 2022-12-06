@@ -3,7 +3,7 @@ use std::{
     net::{TcpListener, TcpStream},
 };
 
-use cyberpixie_esp32c3::wifi::{Wifi, Config};
+use cyberpixie_esp32c3::wifi::{Config, Wifi};
 use esp_idf_hal::prelude::*;
 use esp_idf_svc::{eventloop::EspSystemEventLoop, log::EspLogger};
 use esp_idf_sys as _;

@@ -2,13 +2,16 @@
 resolver = "2"
 
 members = [
+  "crates/proto",
+  "crates/std-transport",
   "firmware/esp32c3",
 ]
 exclude = ["old"]
 
-# Workspace crates
 [workspace.dependencies]
 # Workspace crates
+cyberpixie-proto = { path = "crates/proto" }
+cyberpixie-std-transport = { path = "crates/std-transport" }
 
 # Common dependencies
 embedded-hal = "1.0.0-alpha.9"

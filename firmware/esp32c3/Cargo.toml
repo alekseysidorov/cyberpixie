@@ -10,6 +10,8 @@ pio = ["esp-idf-sys/pio"]
 
 [dependencies]
 anyhow = "1"
+cyberpixie-proto = { workspace = true }
+cyberpixie-std-transport = { workspace = true }
 embedded-hal = { workspace = true }
 embedded-svc = { workspace = true }
 esp-idf-hal = { workspace = true }
