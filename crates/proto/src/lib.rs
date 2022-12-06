@@ -1,5 +1,7 @@
 #![cfg_attr(not(test), no_std)]
 
+pub use nb;
+pub use nb_utils;
 pub use postcard::Error as PayloadError;
 
 pub use crate::{

@@ -105,7 +105,13 @@ pub(super) fn read_message<T: Transport>(
 
 impl From<Error> for SimpleMessage {
     fn from(err: Error) -> Self {
-        SimpleMessage::Error(err)
+        Self::Error(err)
+    }
+}
+
+impl From<FirmwareInfo> for SimpleMessage {
+    fn from(info: FirmwareInfo) -> Self {
+        Self::Info(info)
     }
 }
 

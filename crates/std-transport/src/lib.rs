@@ -48,8 +48,10 @@ pub fn create_service(addr: SocketAddr) -> anyhow::Result<Service<TcpTransport>>
     Ok(service)
 }
 
+#[derive(Debug)]
 pub struct TcpTransport {
     address: SocketAddr,
+    // TODO Use listener.
     stream: TcpStream,
     next_msg: Vec<u8>,
 }
@@ -101,14 +103,14 @@ impl Transport for TcpTransport {
                     .read_exact(&mut payload)
                     .map_err(|e| nb::Error::Other(Self::Error::from(e)))?;
 
-                log::trace!("Received packet with payload len {}:", payload.len());
+                log::info!("Received packet with payload len {}:", payload.len());
                 TransportEvent::Packet {
                     address: self.address,
                     data: PacketData::Payload(payload),
                 }
             }
             PacketKind::Confirmed => {
-                log::trace!("Received packet confirmation");
+                log::info!("Received packet delivery confirmation");
                 TransportEvent::Packet {
                     address: self.address,
                     data: PacketData::Confirmed,
@@ -121,7 +123,7 @@ impl Transport for TcpTransport {
     }
 
     fn confirm_packet(&mut self, _from: Self::Address) -> Result<(), Self::Error> {
-        log::trace!("Send packet confirmation");
+        log::info!("Send packet confirmation");
 
         let packet = PacketKind::Confirmed.to_bytes();
         self.stream.write_all(packet.as_ref()).map_err(From::from)
@@ -132,7 +134,7 @@ impl Transport for TcpTransport {
         payload: P,
         _to: Self::Address,
     ) -> Result<(), Self::Error> {
-        log::trace!("Send packet, payload len is {}:", payload.len());
+        log::info!("Send packet, payload len is {}:", payload.len());
 
         let mut packet: Vec<u8> = Vec::new();
         packet.extend(PacketWithPayload::new(payload));

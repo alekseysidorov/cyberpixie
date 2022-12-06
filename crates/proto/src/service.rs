@@ -37,7 +37,7 @@ impl<T: Transport> Service<T> {
             receiver_buf_capacity,
         }
     }
-    
+
     pub fn poll_next_event(&mut self) -> nb::Result<Event<'_, T>, T::Error> {
         Ok(match self.transport.poll_next_event()? {
             TransportEvent::Connected { address } => Event::Connected { address },

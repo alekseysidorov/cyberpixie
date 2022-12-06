@@ -2,6 +2,7 @@
 
 use esp_idf_hal::modem::Modem;
 use esp_idf_svc::{eventloop::EspSystemEventLoop, wifi::EspWifi};
+use esp_idf_sys::EspError;
 use log::info;
 
 /// Supported Wifi auth methods
@@ -100,5 +101,9 @@ impl<'a> Wifi<'a> {
             self.inner.ap_netif().get_ip_info()?
         );
         Ok(())
+    }
+
+    pub fn mac_addr(&self) -> Result<[u8; 6], EspError> {
+        self.inner.sta_netif().get_mac()
     }
 }

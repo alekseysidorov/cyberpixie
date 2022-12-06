@@ -1,3 +1,7 @@
+[alias]
+flash = "run -p cyberpixie-esp32c3 --"
+images-sender = "run -p image-sender --target aarch64-apple-darwin --"
+
 [build]
 # Uncomment the relevant target for your chip here (ESP32, ESP32-S2, ESP32-S3 or ESP32-C3)
 # target = "xtensa-esp32-espidf"
