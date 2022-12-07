@@ -13,6 +13,8 @@ use cyberpixie_proto::{
 const TIMEOUT: Duration = Duration::from_secs(120);
 const HOST_DEVICE_ID: [u32; 4] = [0; 4];
 
+pub mod ng;
+
 pub fn display_err(err: impl Display) -> anyhow::Error {
     anyhow::format_err!("{}", err)
 }

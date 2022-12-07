@@ -1,6 +1,7 @@
-use embedded_io::blocking::{Read, Write};
+use embedded_io::blocking::Read;
 
-use self::types::{Handshake, ImageId, ImageInfo};
+pub use messages::MessageHeader;
+pub use types::{DeviceRole, FirmwareInfo, Handshake, Hertz, ImageId, ImageInfo};
 
 mod messages;
 pub mod transport;
@@ -8,12 +9,6 @@ mod types;
 
 #[derive(Debug, Clone, Copy)]
 pub struct PayloadReader<T: Read> {
-    pub len: usize,
-    pub inner: T,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct PayloadWriter<T: Write> {
     pub len: usize,
     pub inner: T,
 }

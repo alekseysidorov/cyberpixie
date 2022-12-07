@@ -4,7 +4,6 @@ resolver = "2"
 members = [
   "crates/proto",
   "crates/std-transport",
-  "firmware/esp32c3",
   "utils/image_sender",
 ]
 exclude = ["old"]
