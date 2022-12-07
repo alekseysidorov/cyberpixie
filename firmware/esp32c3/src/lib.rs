@@ -42,11 +42,11 @@ impl DefaultStorage {
 
     pub fn set<T: Serialize>(&mut self, name: &str, value: &T) -> anyhow::Result<()> {
         let buf = postcard::to_stdvec(value)?;
-        self.inner.set_raw(&format!("value.{name}"), &buf)?;
+        self.inner.set_raw(&format!("v.{name}"), &buf)?;
 
         let mut size_buf = [0_u8; 8];
         self.inner.set_raw(
-            &format!("size.{name}"),
+            &format!("s.{name}"),
             postcard::to_slice(&buf.len(), &mut size_buf)?,
         )?;
         Ok(())
@@ -57,7 +57,7 @@ impl DefaultStorage {
         T: DeserializeOwned,
     {
         let mut size_buf = [0_u8; 8];
-        let size_buf = self.inner.get_raw(&format!("size.{name}"), &mut size_buf)?;
+        let size_buf = self.inner.get_raw(&format!("s.{name}"), &mut size_buf)?;
         let size = if let Some(size_buf) = size_buf {
             postcard::from_bytes(size_buf)?
         } else {
@@ -65,12 +65,18 @@ impl DefaultStorage {
         };
 
         let mut buf = vec![0_u8; size];
-        let buf = self.inner.get_raw(&format!("value.{name}"), &mut buf)?;
+        let buf = self.inner.get_raw(&format!("v.{name}"), &mut buf)?;
         if let Some(buf) = buf {
             let value = postcard::from_bytes(buf)?;
             Ok(Some(value))
         } else {
             Ok(None)
         }
+    }
+
+    pub fn remove(&mut self, name: &str) -> anyhow::Result<()> {
+        self.inner.remove(&format!("s.{name}"))?;
+        self.inner.remove(&format!("v.{name}"))?;
+        Ok(())
     }
 }

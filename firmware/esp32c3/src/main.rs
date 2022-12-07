@@ -2,7 +2,7 @@ use std::net::TcpListener;
 
 use cyberpixie_esp32c3::wifi::{Config, Wifi};
 use cyberpixie_proto::{nb, DeviceRole, FirmwareInfo, Handshake, Message, Service, SimpleMessage};
-use cyberpixie_std_transport::{display_err, TcpTransport};
+use cyberpixie_std_transport::TcpTransport;
 use esp_idf_hal::prelude::Peripherals;
 use esp_idf_svc::{eventloop::EspSystemEventLoop, log::EspLogger};
 use esp_idf_sys as _;

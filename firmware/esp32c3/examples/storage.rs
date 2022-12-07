@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use cyberpixie_esp32c3::DefaultStorage;
 use esp_idf_svc::log::EspLogger;
 use esp_idf_sys as _;
@@ -17,16 +19,31 @@ fn main() -> anyhow::Result<()> {
     let s: String = storage.get("test")?.unwrap();
     info!("test content: `{}`", s);
 
-    for i in 1..=80 {
+    for i in 1..=40 {
+        let name = format!("buf.{i}");
         let len = 256 * i;
 
         let big_buf = vec![1_u8; len];
-        storage.set("big_buf", &big_buf)?;
+        storage.set(&name, &big_buf)?;
         drop(big_buf);
 
-        let big_buf: Vec<u8> = storage.get("big_buf")?.unwrap();
-        info!("test big_buf len: `{}`", big_buf.len());
-        drop(big_buf);
+        let strip_len = 144;
+        let times = 100;
+        let time = Instant::now();
+        for _ in 0..times {
+            let big_buf: Vec<u8> = storage.get(&name)?.unwrap();
+            assert_eq!(len, big_buf.len());
+            drop(big_buf);
+        }
+
+        let bps = (times * len) as f64 / time.elapsed().as_secs_f64();
+        info!(
+            "test big_buf len: `{}`, throughput {:.2} KB/sec, {:.4} lines/sec [{strip_len}]",
+            len,
+            bps / 1024.0,
+            bps / (3 * strip_len) as f64,
+        );
+        storage.remove(&name)?;
 
         std::thread::sleep(std::time::Duration::from_millis(250));
     }
