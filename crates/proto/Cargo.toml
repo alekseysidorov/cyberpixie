@@ -5,10 +5,11 @@ edition = "2021"
 
 [dependencies]
 displaydoc = { version = "0.2", default-features = false }
+embedded-io = "0.4"
 endian_codec = "0.1"
-nb = "1.0"
-nb-utils = { git = "https://github.com/alekseysidorov/nb-utils.git", branch = "main" }
-no-stdout = { git = "https://github.com/alekseysidorov/no-stdout.git", branch = "main" }
-postcard = { version = "1.0", default-features = false }
-serde = { version = "1", default-features = false, features = ["derive"] }
 log = "0.4"
+nb = "1.0"
+nb-utils = { workspace = true }
+postcard = { workspace = true }
+postcard-derive = { workspace = true }
+serde = { version = "1", default-features = false, features = ["derive"] }

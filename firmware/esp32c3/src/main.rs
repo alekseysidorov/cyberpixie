@@ -58,7 +58,7 @@ fn main() -> anyhow::Result<()> {
             }
         };
         service.confirm_message(address)?;
-        
+
         if let Some(response) = response {
             service.send_message(address, response)?;
         }

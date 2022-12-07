@@ -17,11 +17,14 @@ cyberpixie-std-transport = { path = "crates/std-transport" }
 # Common dependencies
 embedded-hal = "1.0.0-alpha.9"
 embedded-svc = "0.23"
+embuild = "0.30.4"
 esp-idf-hal = "0.39"
 esp-idf-svc = "0.43"
 esp-idf-sys = { version = "0.31.11", features = ["binstart"] }
-embuild = "0.30.4"
 heapless = { version = "0.7" }
+nb-utils = { git = "https://github.com/alekseysidorov/nb-utils.git", branch = "main" }
+postcard = { version = "1.0", features = ["experimental-derive"] }
+postcard-derive = "0.1.0"
 
 # Profile section
 [profile.release]
