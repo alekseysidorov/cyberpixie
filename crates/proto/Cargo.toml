@@ -13,3 +13,6 @@ nb-utils = { workspace = true }
 postcard = { workspace = true }
 postcard-derive = { workspace = true }
 serde = { version = "1", default-features = false, features = ["derive"] }
+
+# TODO Make proto no-std friendly.
+anyhow = "1.0"

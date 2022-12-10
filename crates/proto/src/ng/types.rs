@@ -34,7 +34,6 @@ pub struct FirmwareInfo {
 pub struct ImageInfo {
     pub refresh_rate: Hertz,
     pub strip_len: u16,
-    pub bytes_len: u32,
 }
 
 #[derive(Serialize, Deserialize, MaxSize, PartialEq, Eq, Clone, Copy, Debug, PartialOrd, Ord, Hash)]

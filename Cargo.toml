@@ -6,7 +6,7 @@ members = [
   "crates/std-transport",
   "utils/image_sender",
 ]
-exclude = ["old"]
+exclude = ["old", "firmware"]
 
 [workspace.dependencies]
 # Workspace crates

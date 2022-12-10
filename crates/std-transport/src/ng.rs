@@ -42,12 +42,12 @@ pub struct NextMessage<'a> {
     pub payload: Option<TcpPayloadReader<'a>>,
 }
 
-pub struct TcpConnection {
+pub struct Connection {
     stream: TcpStream,
     packet_header_buf: heapless::Vec<u8, { Packet::PACKED_LEN }>,
 }
 
-impl TcpConnection {
+impl Connection {
     pub fn new(stream: TcpStream) -> Self {
         stream.set_nodelay(true).ok();
         stream.set_nonblocking(true).ok();

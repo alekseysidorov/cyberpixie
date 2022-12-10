@@ -32,6 +32,9 @@ pub enum PacketReadError<E> {
     Other(E),
 }
 
+// TODO Temporary until I implement proper error types.
+impl<E> std::error::Error for PacketReadError<E> {}
+
 impl<E: embedded_io::Error> From<ReadExactError<E>> for PacketReadError<E> {
     fn from(inner: ReadExactError<E>) -> Self {
         match inner {
