@@ -6,13 +6,12 @@ use std::{
 };
 
 use cyberpixie_proto::{
-    DeviceRole, Handshake, PacketData, PacketKind, PacketWithPayload, Service, Transport,
+    PacketData, PacketKind, PacketWithPayload, Transport,
     TransportEvent,
 };
 use ng::Client;
 
 const TIMEOUT: Duration = Duration::from_secs(120);
-const HOST_DEVICE_ID: [u32; 4] = [0; 4];
 
 pub mod ng;
 
@@ -20,38 +19,16 @@ pub fn display_err(err: impl Display) -> anyhow::Error {
     anyhow::format_err!("{}", err)
 }
 
-pub fn connect_to(addr: &SocketAddr) -> anyhow::Result<TcpStream> {
+pub fn connect_to(addr: &SocketAddr) -> std::io::Result<TcpStream> {
     log::debug!("Connecting to the {}", addr);
     let stream = TcpStream::connect_timeout(addr, TIMEOUT)?;
     log::debug!("Connected");
 
-    stream.set_read_timeout(Some(TIMEOUT))?;
-    stream.set_write_timeout(Some(TIMEOUT))?;
     stream.set_nodelay(true).ok();
-
     Ok(stream)
 }
 
-pub fn create_service(addr: SocketAddr) -> anyhow::Result<Service<TcpTransport>> {
-    let stream = connect_to(&addr)?;
-    let transport = TcpTransport::new(addr, stream);
-
-    let mut service = Service::new(transport, 640);
-    let response = service
-        .handshake(
-            addr,
-            Handshake {
-                device_id: HOST_DEVICE_ID,
-                group_id: None,
-                role: DeviceRole::Host,
-            },
-        )?
-        .map_err(display_err)?;
-    log::trace!("Connected with device: {:?}", response);
-    Ok(service)
-}
-
-pub fn create_client(addr: SocketAddr) -> anyhow::Result<Client> {
+pub fn create_client(addr: SocketAddr) -> std::io::Result<Client> {
     let stream = connect_to(&addr)?;
     Client::connect(stream)
 }

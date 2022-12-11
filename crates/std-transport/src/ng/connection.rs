@@ -7,7 +7,7 @@ use std::{
 
 use cyberpixie_proto::ng::{
     transport::{PackedSize, Packet},
-    MessageHeader, PayloadReader, DeviceRole,
+    DeviceRole, MessageHeader, PayloadReader,
 };
 use embedded_io::adapters::{FromStd, ToStd};
 use log::trace;
@@ -69,7 +69,7 @@ impl<R: embedded_io::blocking::Read> Message<R> {
         }
     }
 
-    pub fn read_payload_to_vec(self) -> Result<Vec<u8>, anyhow::Error> {
+    pub fn read_payload_to_vec(self) -> std::io::Result<Vec<u8>> {
         let payload = self.payload.expect("There is no payload in this message");
         let mut buf = vec![0_u8; payload.len()];
         ToStd::new(payload).read_exact(&mut buf)?;
@@ -95,12 +95,16 @@ impl Connection {
         }
     }
 
-    pub fn poll_next_message(&mut self) -> nb::Result<IncomingMessage<'_>, anyhow::Error> {
+    pub fn poll_next_message(&mut self) -> nb::Result<IncomingMessage<'_>, std::io::Error> {
         let (header, payload_len) = self
             .poll_next_packet()?
             .message(self.io_reader())
-            .map_err(|x| nb::Error::Other(anyhow::anyhow!("{x}")))?;
-        trace!("[{}] Got a next message {header:?}, {payload_len:?}", self.role);
+            .map_err(|err| nb::Error::Other(std::io::Error::new(ErrorKind::Other, err)))?;
+
+        trace!(
+            "[{}] Got a next message {header:?}, {payload_len:?}",
+            self.role
+        );
 
         let payload = if payload_len > 0 {
             Some(PayloadReader::new(self.io_reader(), payload_len))
@@ -111,7 +115,7 @@ impl Connection {
         Ok(Message { header, payload })
     }
 
-    pub fn send_message(&mut self, header: MessageHeader) -> anyhow::Result<()> {
+    pub fn send_message(&mut self, header: MessageHeader) -> std::io::Result<()> {
         trace!("[{}] Sending message {header:?}", self.role);
 
         Message::<&[u8]> {
@@ -126,7 +130,7 @@ impl Connection {
         &mut self,
         header: MessageHeader,
         payload: P,
-    ) -> anyhow::Result<()>
+    ) -> std::io::Result<()>
     where
         T: embedded_io::blocking::Read,
         P: Into<PayloadReader<T>>,
@@ -146,7 +150,7 @@ impl Connection {
         Ok(())
     }
 
-    fn poll_next_packet(&mut self) -> nb::Result<Packet, anyhow::Error> {
+    fn poll_next_packet(&mut self) -> nb::Result<Packet, std::io::Error> {
         let mut buf = [0_u8; Packet::PACKED_LEN];
 
         let bytes_remaining = Packet::PACKED_LEN - self.packet_header_buf.len();
@@ -157,7 +161,7 @@ impl Connection {
             Ok(_) => Err(nb::Error::WouldBlock),
             Err(err) if err.kind() == ErrorKind::WouldBlock => Err(nb::Error::WouldBlock),
             // Something went wrong
-            Err(err) => Err(nb::Error::Other(err.into())),
+            Err(err) => Err(nb::Error::Other(err)),
         }?;
 
         self.packet_header_buf
@@ -167,7 +171,7 @@ impl Connection {
         if self.packet_header_buf.is_full() {
             let mut buf: &[u8] = &self.packet_header_buf;
             let packet = Packet::read(&mut buf)
-                .map_err(|err| nb::Error::Other(anyhow::anyhow!("{}", err)))?;
+                .map_err(|err| nb::Error::Other(std::io::Error::new(ErrorKind::Other, err)))?;
             trace!("[{}] Got a next packet {packet:?}", self.role);
 
             self.packet_header_buf.clear();

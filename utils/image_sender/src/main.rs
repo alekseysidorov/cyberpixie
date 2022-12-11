@@ -2,7 +2,7 @@ use std::{net::SocketAddr, path::PathBuf};
 
 use cyberpixie_proto::Hertz;
 use cyberpixie_std_transport::create_client;
-use image_sender::{convert_image_to_raw, create_service, display_err};
+use image_sender::{convert_image_to_raw, display_err};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -36,43 +36,6 @@ fn main() -> anyhow::Result<()> {
 
     let opts = Commands::from_args();
     match opts {
-        Commands::AddImage {
-            address,
-            image_path,
-            refresh_rate,
-        } => {
-            log::info!("Sending image {:?} to {}", image_path, address);
-
-            let (strip_len, raw) = convert_image_to_raw(image_path)?;
-
-            let index = create_service(address)?
-                .add_image(address, refresh_rate, strip_len, raw.into_iter())?
-                .map_err(display_err)?;
-            log::info!(
-                "Image loaded into the device {} with index {}",
-                address,
-                index
-            );
-        }
-
-        Commands::ShowImage { address, index } => {
-            log::info!("Sending show image {} command to {}", index, address);
-
-            create_service(address)?
-                .show_image(address, index)?
-                .map_err(display_err)?;
-            log::trace!("Showing image at {} on device {}", index, address);
-        }
-
-        Commands::ClearImages { address } => {
-            log::info!("Sending clear images command to {}", address);
-
-            create_service(address)?
-                .clear_images(address)?
-                .map_err(display_err)?;
-            log::trace!("Sent images clear command to {}", address);
-        }
-
         Commands::FirmwareInfo { address } => {
             log::info!("Sending firmare info request to {}", address);
 
@@ -80,6 +43,9 @@ fn main() -> anyhow::Result<()> {
             // TODO replace by the full firmware info.
             log::info!("Got {:#?} from the {}", client.device_info, address);
         }
+        Commands::AddImage { image_path, address, refresh_rate } => todo!(),
+        Commands::ShowImage { index, address } => todo!(),
+        Commands::ClearImages { address } => todo!(),
     }
 
     Ok(())

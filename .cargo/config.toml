@@ -1,6 +1,6 @@
 [alias]
-client = "run -p image-sender --"
-firmware = "run -Z build-std=std,panic_abort --target riscv32imc-esp-espidf  -p cyberpixie-esp32c3 --"
+client = "run -p image-sender"
+flash = "run -Z build-std=std,panic_abort --target riscv32imc-esp-espidf -p cyberpixie-esp32c3"
 
 [build]
 # Uncomment the relevant target for your chip here (ESP32, ESP32-S2, ESP32-S3 or ESP32-C3)

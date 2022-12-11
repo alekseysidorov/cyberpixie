@@ -42,5 +42,6 @@ fn main() -> anyhow::Result<()> {
         if let Err(nb::Error::Other(err)) = server.poll() {
             panic!("{err}");
         }
+        std::thread::sleep(Duration::from_millis(50));
     }
 }
