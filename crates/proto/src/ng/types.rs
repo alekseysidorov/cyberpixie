@@ -1,4 +1,5 @@
 use core::str::FromStr;
+use core::fmt::Display;
 
 use postcard_derive::MaxSize;
 use serde::{Deserialize, Serialize};
@@ -7,12 +8,22 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, MaxSize, PartialEq, Eq, Clone, Copy, Debug)]
 pub enum DeviceRole {
     /// A control device such as a telephone or laptop.
-    Host = 0,
-    /// A main device that receives commands directly from the host and then re-sends them
+    Client = 0,
+    /// A main device that receives commands directly from the client and then re-sends them
     /// to the slave devices if they exist.
     Main = 1,
     /// A secondary device that executes commands from the main one.
     Secondary = 2,
+}
+
+impl Display for DeviceRole {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DeviceRole::Client => f.write_str("client"),
+            DeviceRole::Main => f.write_str("main"),
+            DeviceRole::Secondary => f.write_str("secondary"),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, MaxSize, PartialEq, Eq, Clone, Copy, Debug)]

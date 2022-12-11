@@ -7,9 +7,10 @@ use std::{
 
 use cyberpixie_proto::ng::{
     transport::{PackedSize, Packet},
-    MessageHeader, PayloadReader,
+    MessageHeader, PayloadReader, DeviceRole,
 };
 use embedded_io::adapters::{FromStd, ToStd};
+use log::trace;
 use nb_utils::IntoNbResult;
 
 pub struct TcpStreamReader<'a>(embedded_io::adapters::FromStd<&'a mut TcpStream>);
@@ -78,17 +79,19 @@ impl<R: embedded_io::blocking::Read> Message<R> {
 
 #[derive(Debug)]
 pub struct Connection {
+    role: DeviceRole,
     stream: TcpStream,
     packet_header_buf: heapless::Vec<u8, { Packet::PACKED_LEN }>,
 }
 
 impl Connection {
-    pub fn new(stream: TcpStream) -> Self {
+    pub fn new(stream: TcpStream, role: DeviceRole) -> Self {
         stream.set_nodelay(true).ok();
         stream.set_nonblocking(true).ok();
         Self {
             stream,
             packet_header_buf: Default::default(),
+            role,
         }
     }
 
@@ -97,6 +100,7 @@ impl Connection {
             .poll_next_packet()?
             .message(self.io_reader())
             .map_err(|x| nb::Error::Other(anyhow::anyhow!("{x}")))?;
+        trace!("[{}] Got a next message {header:?}, {payload_len:?}", self.role);
 
         let payload = if payload_len > 0 {
             Some(PayloadReader::new(self.io_reader(), payload_len))
@@ -108,11 +112,13 @@ impl Connection {
     }
 
     pub fn send_message(&mut self, header: MessageHeader) -> anyhow::Result<()> {
-        let message = Message::<&[u8]> {
+        trace!("[{}] Sending message {header:?}", self.role);
+
+        Message::<&[u8]> {
             header,
             payload: None,
-        };
-        message.send(&mut self.stream)?;
+        }
+        .send(&mut self.stream)?;
         Ok(())
     }
 
@@ -125,11 +131,18 @@ impl Connection {
         T: embedded_io::blocking::Read,
         P: Into<PayloadReader<T>>,
     {
-        let message = Message {
+        let payload = payload.into();
+        trace!(
+            "[{}] Sending message {header:?} with payload {}",
+            self.role,
+            payload.len()
+        );
+
+        Message {
             header,
-            payload: Some(payload.into()),
-        };
-        message.send(&mut self.stream)?;
+            payload: Some(payload),
+        }
+        .send(&mut self.stream)?;
         Ok(())
     }
 
@@ -155,6 +168,9 @@ impl Connection {
             let mut buf: &[u8] = &self.packet_header_buf;
             let packet = Packet::read(&mut buf)
                 .map_err(|err| nb::Error::Other(anyhow::anyhow!("{}", err)))?;
+            trace!("[{}] Got a next packet {packet:?}", self.role);
+
+            self.packet_header_buf.clear();
             Ok(packet)
         } else {
             Err(nb::Error::WouldBlock)
@@ -181,8 +197,8 @@ mod tests {
 
         let sender = TcpStream::connect(addr).unwrap();
         (
-            Connection::new(sender),
-            Connection::new(listener.accept().unwrap().0),
+            Connection::new(sender, DeviceRole::Client),
+            Connection::new(listener.accept().unwrap().0, DeviceRole::Main),
         )
     }
 
@@ -197,11 +213,15 @@ mod tests {
         // Accept a first stream
         let stream = TcpStream::connect(addr).unwrap();
         nb::block!(listener.accept().into_nb_result()).unwrap();
+        assert!(listener.accept().into_nb_result().is_would_block());
         drop(stream);
         // Accept a second stream as well
         let stream = TcpStream::connect(addr).unwrap();
         nb::block!(listener.accept().into_nb_result()).unwrap();
+        assert!(listener.accept().into_nb_result().is_would_block());
         drop(stream);
+
+        assert!(listener.accept().into_nb_result().is_would_block());
     }
 
     #[test]
@@ -211,7 +231,7 @@ mod tests {
         assert!(receiver.poll_next_packet().is_would_block());
 
         let message = MessageHeader::RequestHandshake(DeviceInfo {
-            role: DeviceRole::Host,
+            role: DeviceRole::Client,
             group_id: None,
             strip_len: 64,
         });

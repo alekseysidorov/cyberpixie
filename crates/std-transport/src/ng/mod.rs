@@ -3,8 +3,8 @@ use std::{
     net::{SocketAddr, TcpListener, TcpStream},
 };
 
-use cyberpixie_proto::ng::{DeviceInfo, MessageHeader};
-use log::{debug, info};
+use cyberpixie_proto::ng::{DeviceInfo, DeviceRole, MessageHeader};
+use log::{debug, info, trace};
 use nb_utils::IntoNbResult;
 
 use self::connection::Connection;
@@ -57,14 +57,14 @@ impl<S: SimpleDevice> NetworkPart<S> {
     pub fn poll(&mut self) -> nb::Result<(), anyhow::Error> {
         nb_ready!(self.poll_next_listener(), (stream, address) => {
             info!("Got a new connection with {}, {:?}", address, stream);
-            self.connections.insert(address, Connection::new(stream));
+            self.connections.insert(address, Connection::new(stream, self.device.device_info().role));
         })?;
 
         for (peer, connection) in &mut self.connections {
             nb_ready!(
                 Self::poll_connection(&mut self.device, peer, connection),
                 operation => {
-                    debug!("Next operation: {:?}", operation);
+                    trace!("Next operation: {:?}", operation);
                 }
             )?;
         }
@@ -87,11 +87,7 @@ impl<S: SimpleDevice> NetworkPart<S> {
 
             MessageHeader::Debug => {
                 let message = next_message.read_payload_to_vec()?;
-                debug!(
-                    "Got debug message from peer {}: {:?}",
-                    peer,
-                    String::from_utf8_lossy(&message)
-                );
+                debug!("[{}]: {:?}", peer, String::from_utf8_lossy(&message));
                 Operation::None
             }
             MessageHeader::RequestAddImage(_) => todo!(),
@@ -110,7 +106,7 @@ impl<S: SimpleDevice> NetworkPart<S> {
 #[derive(Debug)]
 pub struct Client {
     connection: Connection,
-    pub host_info: DeviceInfo,
+    pub client_info: DeviceInfo,
     pub device_info: DeviceInfo,
 }
 
@@ -135,14 +131,20 @@ impl Connection {
 }
 
 impl Client {
-    pub fn connect(host_info: DeviceInfo, stream: TcpStream) -> anyhow::Result<Self> {
-        let mut connection = Connection::new(stream);
-        let device_info = connection.send_handshake(host_info)?;
+    pub fn connect(client_info: DeviceInfo, stream: TcpStream) -> anyhow::Result<Self> {
+        let mut connection = Connection::new(stream, DeviceRole::Client);
+
+        connection.send_message_with_payload(
+            MessageHeader::Debug,
+            "Test message with payload".as_bytes(),
+        )?;
+
+        let device_info = connection.send_handshake(client_info)?;
         // TODO Check compatibility
 
         Ok(Self {
             connection,
-            host_info,
+            client_info,
             device_info,
         })
     }
@@ -150,5 +152,9 @@ impl Client {
     pub fn send_debug(&mut self, msg: &str) -> Result<(), anyhow::Error> {
         self.connection
             .send_message_with_payload(MessageHeader::Debug, msg.as_bytes())
+    }
+
+    pub fn resend_handshake(&mut self) -> Result<DeviceInfo, anyhow::Error> {
+        self.connection.send_handshake(self.client_info)
     }
 }
