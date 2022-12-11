@@ -1,24 +1,27 @@
+cargo-features = ["per-package-target"]
+
 [package]
 name = "cyberpixie-esp32c3"
 version = "0.2.0"
 authors = ["Aleksey Sidorov <sauron1987@gmail.com>"]
 edition = "2021"
 resolver = "2"
+forced-target = "riscv32imc-esp-espidf"
 
 [features]
 pio = ["esp-idf-sys/pio"]
 
 [dependencies]
-nb = "1.0"
 anyhow = "1"
 cyberpixie-proto = { workspace = true }
-cyberpixie-std-transport = { workspace = true }
+cyberpixie-std-network = { workspace = true }
 embedded-hal = { workspace = true }
 embedded-svc = { workspace = true }
 esp-idf-hal = { workspace = true }
 esp-idf-svc = { workspace = true }
 esp-idf-sys = { workspace = true }
 log = "0.4"
+nb = "1.0"
 postcard = { version = "1", default-features = false, features = ["use-std"] }
 serde = { version = "1.0", features = ["derive"] }
 

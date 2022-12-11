@@ -20,7 +20,7 @@ pub enum Error {
 }
 
 impl Error {
-    pub(crate) fn from_code(code: u16) -> Self {
+    pub fn from_code(code: u16) -> Self {
         match code {
             1 => Self::StripLengthMismatch,
             2 => Self::ImageLengthMismatch,
@@ -32,7 +32,7 @@ impl Error {
         }
     }
 
-    pub(crate) fn into_code(self) -> u16 {
+    pub fn into_code(self) -> u16 {
         match self {
             Error::StripLengthMismatch => 1,
             Error::ImageLengthMismatch => 2,

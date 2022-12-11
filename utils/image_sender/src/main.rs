@@ -1,7 +1,7 @@
 use std::{net::SocketAddr, path::PathBuf};
 
-use cyberpixie_proto::Hertz;
-use cyberpixie_std_transport::create_client;
+use cyberpixie_proto::types::Hertz;
+use cyberpixie_std_network::create_client;
 use image_sender::{convert_image_to_raw, display_err};
 use structopt::StructOpt;
 
@@ -43,7 +43,11 @@ fn main() -> anyhow::Result<()> {
             // TODO replace by the full firmware info.
             log::info!("Got {:#?} from the {}", client.device_info, address);
         }
-        Commands::AddImage { image_path, address, refresh_rate } => todo!(),
+        Commands::AddImage {
+            image_path,
+            address,
+            refresh_rate,
+        } => todo!(),
         Commands::ShowImage { index, address } => todo!(),
         Commands::ClearImages { address } => todo!(),
     }

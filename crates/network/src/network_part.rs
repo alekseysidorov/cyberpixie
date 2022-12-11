@@ -4,25 +4,21 @@ use std::{
     net::{SocketAddr, TcpListener, TcpStream},
 };
 
-use cyberpixie_proto::ng::{DeviceInfo, DeviceRole, MessageHeader};
+use cyberpixie_proto::{types::{DeviceInfo, DeviceRole}, MessageHeader};
 use log::{debug, info, trace};
 use nb_utils::IntoNbResult;
 
-use self::connection::Connection;
+use crate::connection::Connection;
 
-mod connection;
-
-macro_rules! then_ready {
-    ($e:expr, $value:pat => $then:expr) => {
-        match $e {
-            Err(nb::Error::Other(e)) => Err(e),
-            Err(nb::Error::WouldBlock) => Ok(()),
-            Ok($value) => {
-                $then
-                Ok(())
-            },
-        }
-    };
+fn then_ready<T, E, F>(e: nb::Result<T, E>, then: F) -> Result<(), E>
+where
+    F: FnOnce(T) -> Result<(), E>,
+{
+    match e {
+        Err(nb::Error::Other(e)) => Err(e),
+        Err(nb::Error::WouldBlock) => Ok(()),
+        Ok(value) => then(value),
+    }
 }
 
 pub trait SimpleDevice {
@@ -53,22 +49,21 @@ impl<S: SimpleDevice> NetworkPart<S> {
     }
 
     pub fn poll(&mut self) -> nb::Result<(), std::io::Error> {
-        then_ready!(
-            self.poll_next_listener(),
-            (stream, address) => {
-                info!("Got a new connection with {}, {:?}", address, stream);
-                let connection = Connection::new(stream, self.device.device_info().role);
-                self.connections.insert(address, connection);
-            }
-        )?;
+        then_ready(self.poll_next_listener(), |(stream, address)| {
+            info!("Got a new connection with {}, {:?}", address, stream);
+            let connection = Connection::new(stream, self.device.device_info().role);
+            self.connections.insert(address, connection);
+            Ok(())
+        })?;
 
         let mut errored_connections = Vec::new();
         for (peer, connection) in &mut self.connections {
-            let result = then_ready!(
+            let result = then_ready(
                 Self::poll_connection(&mut self.device, peer, connection),
-                operation => {
+                |operation| {
                     trace!("Next operation: {:?}", operation);
-                }
+                    Ok(())
+                },
             );
 
             if let Err(err) = result {

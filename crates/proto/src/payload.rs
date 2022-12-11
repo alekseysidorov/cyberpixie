@@ -1,10 +1,6 @@
-use embedded_io::{blocking::Read, Io};
-pub use headers::MessageHeader;
-pub use types::{DeviceInfo, DeviceRole, FirmwareInfo, Hertz, ImageId, ImageInfo};
+//! Payload reader
 
-mod headers;
-pub mod packet;
-mod types;
+use embedded_io::{blocking::Read, Io};
 
 #[derive(Debug, Clone, Copy)]
 pub struct PayloadReader<T: Read> {

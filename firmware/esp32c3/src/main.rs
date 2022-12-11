@@ -1,8 +1,8 @@
 use std::{net::TcpListener, time::Duration};
 
 use cyberpixie_esp32c3::wifi::{Config, Wifi};
-use cyberpixie_proto::ng::{DeviceInfo, DeviceRole};
-use cyberpixie_std_transport::ng::{NetworkPart, SimpleDevice};
+use cyberpixie_proto::types::{DeviceInfo, DeviceRole};
+use cyberpixie_std_network::{NetworkPart, SimpleDevice};
 use esp_idf_hal::prelude::Peripherals;
 use esp_idf_svc::{eventloop::EspSystemEventLoop, log::EspLogger};
 use esp_idf_sys as _;

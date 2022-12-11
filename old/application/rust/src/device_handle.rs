@@ -5,7 +5,7 @@ use std::{
 };
 
 use cyberpixie_proto::{FirmwareInfo, Hertz, Service};
-use cyberpixie_std_transport::{display_err, TcpTransport};
+use cyberpixie_std_network::{display_err, TcpTransport};
 use image::{
     imageops::{self, FilterType},
     io::Reader,
@@ -178,7 +178,7 @@ impl DeviceHandleInner {
     }
 
     fn cyberpixie_service(self) -> anyhow::Result<Service<TcpTransport>> {
-        cyberpixie_std_transport::create_service(self.address)
+        cyberpixie_std_network::create_service(self.address)
     }
 
     fn device_info(self) -> anyhow::Result<FirmwareInfo> {

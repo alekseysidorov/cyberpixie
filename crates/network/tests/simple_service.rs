@@ -3,8 +3,8 @@ use std::{
     thread::JoinHandle,
 };
 
-use cyberpixie_proto::ng::{DeviceInfo, DeviceRole};
-use cyberpixie_std_transport::ng::{Client, NetworkPart, SimpleDevice};
+use cyberpixie_proto::types::{DeviceInfo, DeviceRole};
+use cyberpixie_std_network::{Client, SimpleDevice, NetworkPart};
 
 fn create_loopback<D>(device: D) -> anyhow::Result<(Client, JoinHandle<()>)>
 where

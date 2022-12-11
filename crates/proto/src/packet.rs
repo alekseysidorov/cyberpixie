@@ -4,7 +4,7 @@ use embedded_io::blocking::{Read, ReadExactError};
 pub use endian_codec::PackedSize;
 use endian_codec::{DecodeLE, EncodeLE};
 
-use super::messages::MessageHeader;
+use crate::headers::MessageHeader;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PackedSize, EncodeLE, DecodeLE)]
 pub struct Packet {

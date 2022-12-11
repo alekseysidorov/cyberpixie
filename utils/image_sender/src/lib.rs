@@ -1,6 +1,6 @@
 use std::path::Path;
 
-pub use cyberpixie_std_transport::{connect_to, display_err, TcpTransport};
+pub use cyberpixie_std_network::{display_err, create_client};
 use image::io::Reader;
 
 pub fn convert_image_to_raw(path: impl AsRef<Path>) -> anyhow::Result<(usize, Vec<u8>)> {
