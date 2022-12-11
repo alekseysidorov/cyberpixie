@@ -2,15 +2,15 @@ use endian_codec::PackedSize;
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
-use super::{types::{Handshake, ImageId, ImageInfo}, transport::Packet};
+use super::{types::{DeviceInfo, ImageId, ImageInfo}, transport::Packet};
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug, MaxSize)]
 pub enum MessageHeader {
-    RequestHandshake(Handshake),
+    RequestHandshake(DeviceInfo),
     RequestAddImage(ImageInfo),
     Debug,
 
-    ResponseHandshake(Handshake),
+    ResponseHandshake(DeviceInfo),
     ResponseAddImage(ImageId),
 }
 

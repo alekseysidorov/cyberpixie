@@ -40,3 +40,4 @@ rustflags = ["-C", "default-linker-libraries"]
 ESP_IDF_VERSION = "release/v4.4"
 # Builds against ESP-IDF master (mainline)
 # ESP_IDF_VERSION = "master"
+RUST_LOG = "trace"

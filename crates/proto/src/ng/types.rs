@@ -16,7 +16,7 @@ pub enum DeviceRole {
 }
 
 #[derive(Serialize, Deserialize, MaxSize, PartialEq, Eq, Clone, Copy, Debug)]
-pub struct Handshake {
+pub struct DeviceInfo {
     pub role: DeviceRole,
     pub group_id: Option<u32>,
     pub strip_len: u16,

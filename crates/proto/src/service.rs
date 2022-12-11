@@ -57,7 +57,7 @@ impl<T: Transport> Service<T> {
     pub fn poll_next_message(
         &mut self,
     ) -> nb::Result<(T::Address, IncomingMessage<'_, T>), T::Error> {
-        self.poll_next_event().filter_map(Event::message)
+        self.poll_next_event().wait_map(Event::message)
     }
 
     pub fn confirm_message(&mut self, from: T::Address) -> Result<(), T::Error> {
