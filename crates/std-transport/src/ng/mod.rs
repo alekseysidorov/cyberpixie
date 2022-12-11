@@ -106,7 +106,6 @@ impl<S: SimpleDevice> NetworkPart<S> {
 #[derive(Debug)]
 pub struct Client {
     connection: Connection,
-    pub client_info: DeviceInfo,
     pub device_info: DeviceInfo,
 }
 
@@ -131,7 +130,7 @@ impl Connection {
 }
 
 impl Client {
-    pub fn connect(client_info: DeviceInfo, stream: TcpStream) -> anyhow::Result<Self> {
+    pub fn connect(stream: TcpStream) -> anyhow::Result<Self> {
         let mut connection = Connection::new(stream, DeviceRole::Client);
 
         connection.send_message_with_payload(
@@ -139,12 +138,11 @@ impl Client {
             "Test message with payload".as_bytes(),
         )?;
 
-        let device_info = connection.send_handshake(client_info)?;
+        let device_info = connection.send_handshake(DeviceInfo::client())?;
         // TODO Check compatibility
 
         Ok(Self {
             connection,
-            client_info,
             device_info,
         })
     }
@@ -155,6 +153,6 @@ impl Client {
     }
 
     pub fn resend_handshake(&mut self) -> Result<DeviceInfo, anyhow::Error> {
-        self.connection.send_handshake(self.client_info)
+        self.connection.send_handshake(DeviceInfo::client())
     }
 }

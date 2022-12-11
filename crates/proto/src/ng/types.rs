@@ -30,7 +30,17 @@ impl Display for DeviceRole {
 pub struct DeviceInfo {
     pub role: DeviceRole,
     pub group_id: Option<u32>,
-    pub strip_len: u16,
+    pub strip_len: Option<u16>,
+}
+
+impl DeviceInfo {
+    pub fn client() -> Self {
+        Self {
+            role: DeviceRole::Client,
+            group_id: None,
+            strip_len: None,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, MaxSize, PartialEq, Eq, Clone, Copy, Debug)]

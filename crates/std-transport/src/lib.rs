@@ -9,6 +9,7 @@ use cyberpixie_proto::{
     DeviceRole, Handshake, PacketData, PacketKind, PacketWithPayload, Service, Transport,
     TransportEvent,
 };
+use ng::Client;
 
 const TIMEOUT: Duration = Duration::from_secs(120);
 const HOST_DEVICE_ID: [u32; 4] = [0; 4];
@@ -48,6 +49,11 @@ pub fn create_service(addr: SocketAddr) -> anyhow::Result<Service<TcpTransport>>
         .map_err(display_err)?;
     log::trace!("Connected with device: {:?}", response);
     Ok(service)
+}
+
+pub fn create_client(addr: SocketAddr) -> anyhow::Result<Client> {
+    let stream = connect_to(&addr)?;
+    Client::connect(stream)
 }
 
 #[derive(Debug)]

@@ -6,12 +6,6 @@ use std::{
 use cyberpixie_proto::ng::{DeviceInfo, DeviceRole};
 use cyberpixie_std_transport::ng::{Client, NetworkPart, SimpleDevice};
 
-const CLIENT_INFO: DeviceInfo = DeviceInfo {
-    role: DeviceRole::Client,
-    group_id: None,
-    strip_len: 36,
-};
-
 fn create_loopback<D>(device: D) -> anyhow::Result<(Client, JoinHandle<()>)>
 where
     D: SimpleDevice + Send + 'static,
@@ -28,7 +22,7 @@ where
         }
     });
 
-    let client = Client::connect(CLIENT_INFO, TcpStream::connect(addr)?)?;
+    let client = Client::connect(TcpStream::connect(addr)?)?;
     Ok((client, handle))
 }
 
@@ -39,7 +33,7 @@ impl SimpleDevice for DeviceStub {
         DeviceInfo {
             role: DeviceRole::Main,
             group_id: None,
-            strip_len: 36,
+            strip_len: Some(36),
         }
     }
 }
@@ -52,7 +46,7 @@ fn test_simple_handshake() {
         DeviceInfo {
             role: DeviceRole::Main,
             group_id: None,
-            strip_len: 36,
+            strip_len: Some(36),
         }
     );
 

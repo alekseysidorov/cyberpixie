@@ -1,6 +1,7 @@
 use std::{net::SocketAddr, path::PathBuf};
 
 use cyberpixie_proto::Hertz;
+use cyberpixie_std_transport::create_client;
 use image_sender::{convert_image_to_raw, create_service, display_err};
 use structopt::StructOpt;
 
@@ -75,10 +76,9 @@ fn main() -> anyhow::Result<()> {
         Commands::FirmwareInfo { address } => {
             log::info!("Sending firmare info request to {}", address);
 
-            let info = create_service(address)?
-                .request_firmware_info(address)?
-                .map_err(display_err)?;
-            log::info!("Got {:#?} from the {}", info, address);
+            let client = create_client(address).map_err(display_err)?;
+            // TODO replace by the full firmware info.
+            log::info!("Got {:#?} from the {}", client.device_info, address);
         }
     }
 

@@ -233,7 +233,7 @@ mod tests {
         let message = MessageHeader::RequestHandshake(DeviceInfo {
             role: DeviceRole::Client,
             group_id: None,
-            strip_len: 64,
+            strip_len: Some(64),
         });
         sender.send_message(message).unwrap();
 
