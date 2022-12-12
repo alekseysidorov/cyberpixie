@@ -1,13 +1,12 @@
 [alias]
-client = "run -p image-sender"
-flash = "run -Z build-std=std,panic_abort --target riscv32imc-esp-espidf -p cyberpixie-esp32c3"
+xtask = "run -p image-sender"
 
 [build]
 # Uncomment the relevant target for your chip here (ESP32, ESP32-S2, ESP32-S3 or ESP32-C3)
 # target = "xtensa-esp32-espidf"
 # target = "xtensa-esp32s2-espidf"
 # target = "xtensa-esp32s3-espidf"
-# target = "riscv32imc-esp-espidf"
+target = "riscv32imc-esp-espidf"
 
 [target.xtensa-esp32-espidf]
 linker = "ldproxy"
@@ -32,7 +31,7 @@ runner = "espflash flash --monitor"
 rustflags = ["-C", "default-linker-libraries"]
 
 [unstable]
-# build-std = ["std", "panic_abort"]
+build-std = ["std", "panic_abort"]
 # build-std-features = ["panic_immediate_abort"] # Required for older ESP-IDF versions without a realpath implementation
 
 [env]

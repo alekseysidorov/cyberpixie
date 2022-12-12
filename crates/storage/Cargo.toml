@@ -1,0 +1,11 @@
+[package]
+name = "cyberpixie-storage"
+version = "0.2.0"
+edition = "2021"
+
+[dependencies]
+embedded-io = "0.4"
+serde = { version = "1", default-features = false, features = ["derive"] }
+cyberpixie-proto = { workspace = true }
+
+[dev-dependencies]

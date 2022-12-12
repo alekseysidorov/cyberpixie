@@ -2,6 +2,7 @@
 resolver = "2"
 
 members = [
+  "crates/storage",
   "crates/proto",
   "crates/network",
   "firmware/esp32c3",
@@ -11,6 +12,7 @@ exclude = ["old"]
 
 [workspace.dependencies]
 # Workspace crates
+cyberpixie-storage = { path = "crates/storage" }
 cyberpixie-proto = { path = "crates/proto" }
 cyberpixie-std-network = { path = "crates/network" }
 

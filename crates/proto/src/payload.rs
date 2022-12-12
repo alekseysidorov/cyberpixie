@@ -1,9 +1,14 @@
 //! Payload reader
 
-use embedded_io::{blocking::Read, Io};
+use embedded_io::{
+    blocking::{Read, Seek},
+    Io,
+};
+
+use crate::ExactSizedRead;
 
 #[derive(Debug, Clone, Copy)]
-pub struct PayloadReader<T: Read> {
+pub struct PayloadReader<T> {
     payload_len: usize,
     bytes_remaining: usize,
     inner: T,
@@ -41,6 +46,22 @@ impl<T: Read> Read for PayloadReader<T> {
         let bytes_read = self.inner.read(buf)?;
         self.bytes_remaining -= bytes_read;
         Ok(bytes_read)
+    }
+}
+
+impl<T: Seek + Read> Seek for PayloadReader<T> {
+    fn seek(&mut self, pos: embedded_io::SeekFrom) -> Result<u64, Self::Error> {
+        todo!()
+    }
+}
+
+impl<T: Read> ExactSizedRead for PayloadReader<T> {
+    fn bytes_len(&self) -> usize {
+        self.payload_len
+    }
+
+    fn bytes_remaining(&self) -> usize {
+        self.bytes_remaining
     }
 }
 
