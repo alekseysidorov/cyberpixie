@@ -7,7 +7,8 @@ use std::{
 
 use cyberpixie_proto::{
     packet::{PackedSize, Packet},
-    MessageHeader, PayloadReader, types::DeviceRole,
+    types::DeviceRole,
+    MessageHeader, PayloadReader,
 };
 use embedded_io::adapters::{FromStd, ToStd};
 use log::trace;
@@ -190,7 +191,10 @@ impl Connection {
 mod tests {
     use std::net::{TcpListener, TcpStream};
 
-    use cyberpixie_proto::{MessageHeader, types::{DeviceRole, DeviceInfo}};
+    use cyberpixie_proto::{
+        types::{DeviceInfo, DeviceRole},
+        MessageHeader,
+    };
     use nb_utils::{IntoNbResult, NbResultExt};
 
     use super::Connection;

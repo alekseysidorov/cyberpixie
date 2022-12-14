@@ -4,7 +4,10 @@ use std::{
     net::{SocketAddr, TcpListener, TcpStream},
 };
 
-use cyberpixie_proto::{types::{DeviceInfo, DeviceRole}, MessageHeader};
+use cyberpixie_proto::{
+    types::{DeviceInfo, DeviceRole},
+    MessageHeader,
+};
 use log::{debug, info, trace};
 use nb_utils::IntoNbResult;
 

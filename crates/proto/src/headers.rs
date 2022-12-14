@@ -3,7 +3,8 @@ use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    types::{DeviceInfo, ImageId, ImageInfo}, packet::Packet,
+    packet::Packet,
+    types::{DeviceInfo, ImageId, ImageInfo},
 };
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug, MaxSize)]

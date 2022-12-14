@@ -4,12 +4,17 @@ use cyberpixie_proto::{
     types::{Hertz, ImageId},
     ExactSizeRead,
 };
-use cyberpixie_storage::{Config, DeviceStorage};
+use cyberpixie_storage::{Config, DeviceStorage, Image};
 use embedded_svc::storage::RawStorage;
 use esp_idf_svc::nvs::{EspNvs, EspNvsPartition, NvsDefault};
 use esp_idf_sys::EspError;
+use log::info;
 use once_cell::sync::Lazy;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+
+use self::block_reader::BlockReader;
+
+mod block_reader;
 
 struct PostCard;
 
@@ -99,6 +104,7 @@ impl ImagesRegistry {
 // }
 
 impl DeviceStorage for ImagesRegistry {
+    type ImageRead<'a> = BlockReader<'a>;
     type Error = anyhow::Error;
 
     fn config(&self) -> Result<Config, Self::Error> {
@@ -122,24 +128,43 @@ impl DeviceStorage for ImagesRegistry {
 
         // Save image header.
         let header = ImageHeader {
-            image_len: image.len() as u32,
+            image_len: image.bytes_remaining() as u32,
             refresh_rate,
         };
         self.set(&format!("img.{idx}.header"), &header)?;
+        info!("Saving image with header: {header:?}");
+
         // Save image content.
         let mut buf = [0_u8; BLOCK_SIZE];
 
-        let blocks = image.len() / BLOCK_SIZE;
+        let blocks = image.bytes_remaining() / BLOCK_SIZE;
         for block in 0..=blocks {
-            let to = std::cmp::max(image.bytes_remaining(), BLOCK_SIZE);
+            let to = std::cmp::min(image.bytes_remaining(), BLOCK_SIZE);
             image
                 .read_exact(&mut buf[0..to])
                 .map_err(|err| anyhow::anyhow!("Unable to read image: {err}"))?;
             self.set_raw(&format!("img.{idx}.block.{block}"), &buf[0..to])?;
+            info!("Write block {block} -> [0..{to}]");
         }
 
         let id = ImageId(idx);
-        self.set_images_count(idx + 1)?;
+        // self.set_images_count(idx + 1)?;
         Ok(id)
+    }
+
+    fn read_image(&self, idx: ImageId) -> Result<Option<Image<Self::ImageRead<'_>>>, Self::Error> {
+        let images_count = self.images_count()?;
+        if idx.0 >= images_count {
+            return Ok(None);
+        }
+
+        // Read image header.
+        let header: ImageHeader = self.get("img.{idx}.header")?.expect("storage corrupted");
+        // Create image block reader.
+        let image = Image {
+            refresh_rate: header.refresh_rate,
+            bytes: BlockReader::new(self, idx, header.image_len)?,
+        };
+        Ok(Some(image))
     }
 }

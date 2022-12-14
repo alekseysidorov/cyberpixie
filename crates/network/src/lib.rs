@@ -4,7 +4,7 @@ use std::{
     time::Duration,
 };
 
-pub use network_part::{Client, SimpleDevice, NetworkPart};
+pub use network_part::{Client, NetworkPart, SimpleDevice};
 
 mod connection;
 mod network_part;

@@ -2,8 +2,9 @@ use std::time::Instant;
 
 use cyberpixie_esp32c3::DefaultStorage;
 use esp_idf_svc::log::EspLogger;
+// If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 use esp_idf_sys as _;
-use log::info; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
+use log::info;
 
 fn main() -> anyhow::Result<()> {
     // Temporary. Will disappear once ESP-IDF 4.4 is released, but for now it is necessary to call this function once,

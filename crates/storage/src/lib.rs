@@ -4,7 +4,7 @@ use cyberpixie_proto::{
     types::{Hertz, ImageId},
     ExactSizeRead,
 };
-use embedded_io::blocking::{Read, Seek};
+use embedded_io::blocking::Seek;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -13,35 +13,33 @@ pub struct Config {
     pub current_image: u16,
 }
 
-pub struct ImageReader<R>
+pub struct Image<R>
 where
     R: ExactSizeRead + Seek,
 {
     pub refresh_rate: Hertz,
-    inner: R,
+    pub bytes: R,
 }
 
 /// Device data storage.
 pub trait DeviceStorage {
     type Error;
 
-    // type ImageRead<'a>: Read + Seek + ExactSizedRead
-    // where
-    //     Self: 'a;
+    type ImageRead<'a>: ExactSizeRead + Seek
+    where
+        Self: 'a;
 
     /// Returns a global configuration.
     fn config(&self) -> Result<Config, Self::Error>;
     /// Sets a global configuration.
     fn set_config(&self, value: &Config) -> Result<(), Self::Error>;
-    // TODO
-
     /// Adds a new image.
     fn add_image<R>(&self, refresh_rate: Hertz, image: R) -> Result<ImageId, Self::Error>
     where
         Self::Error: From<R::Error>,
         R: ExactSizeRead;
-    // /// Reads an image by ID.
-    // fn read_image(&self, id: ImageId) -> Option<ImageReader<Self::ImageRead<'_>>>;
+    /// Reads an image by ID.
+    fn read_image(&self, id: ImageId) -> Result<Option<Image<Self::ImageRead<'_>>>, Self::Error>;
     // /// Remove all stored images.
     // fn clear_images(&self) -> Result<(), Self::Error>;
     //

@@ -4,7 +4,7 @@ use std::{
 };
 
 use cyberpixie_proto::types::{DeviceInfo, DeviceRole};
-use cyberpixie_std_network::{Client, SimpleDevice, NetworkPart};
+use cyberpixie_std_network::{Client, NetworkPart, SimpleDevice};
 
 fn create_loopback<D>(device: D) -> anyhow::Result<(Client, JoinHandle<()>)>
 where

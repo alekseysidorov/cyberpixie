@@ -1,9 +1,6 @@
 //! Payload reader
 
-use embedded_io::{
-    blocking::{Read, Seek},
-    Io,
-};
+use embedded_io::{blocking::Read, Io};
 
 use crate::ExactSizeRead;
 
@@ -49,17 +46,7 @@ impl<T: Read> Read for PayloadReader<T> {
     }
 }
 
-impl<T: Seek + Read> Seek for PayloadReader<T> {
-    fn seek(&mut self, pos: embedded_io::SeekFrom) -> Result<u64, Self::Error> {
-        todo!()
-    }
-}
-
 impl<T: Read> ExactSizeRead for PayloadReader<T> {
-    fn len(&self) -> usize {
-        self.payload_len
-    }
-
     fn bytes_remaining(&self) -> usize {
         self.bytes_remaining
     }

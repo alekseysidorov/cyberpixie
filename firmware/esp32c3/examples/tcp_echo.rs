@@ -6,8 +6,9 @@ use std::{
 use cyberpixie_esp32c3::wifi::{Config, Wifi};
 use esp_idf_hal::prelude::*;
 use esp_idf_svc::{eventloop::EspSystemEventLoop, log::EspLogger};
+// If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 use esp_idf_sys as _;
-use log::info; // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
+use log::info;
 
 fn run_echo_server(mut stream: TcpStream) -> anyhow::Result<()> {
     // read 20 bytes at a time from stream echoing back to stream
