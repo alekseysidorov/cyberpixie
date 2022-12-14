@@ -1,5 +1,7 @@
 // #![cfg_attr(not(test), no_std)]
 
+use embedded_io::blocking::Read;
+
 pub use nb;
 pub use nb_utils;
 pub use postcard::Error as PayloadError;
@@ -16,13 +18,13 @@ mod headers;
 mod payload;
 
 /// The Blocking reader with the exact number of bytes to read.
-pub trait ExactSizedRead {
+pub trait ExactSizeRead: Read {
     /// Return the total number of bytes, that should be read.
-    fn bytes_len(&self) -> usize;
+    fn len(&self) -> usize;
     /// Returns the remaining bytes to read.
     fn bytes_remaining(&self) -> usize;
     /// Return true if there are remaining bytes to read.
     fn is_empty(&self) -> bool {
-        self.bytes_len() == 0
+        self.len() == 0
     }
 }

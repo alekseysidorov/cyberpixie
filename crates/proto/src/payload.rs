@@ -5,7 +5,7 @@ use embedded_io::{
     Io,
 };
 
-use crate::ExactSizedRead;
+use crate::ExactSizeRead;
 
 #[derive(Debug, Clone, Copy)]
 pub struct PayloadReader<T> {
@@ -55,8 +55,8 @@ impl<T: Seek + Read> Seek for PayloadReader<T> {
     }
 }
 
-impl<T: Read> ExactSizedRead for PayloadReader<T> {
-    fn bytes_len(&self) -> usize {
+impl<T: Read> ExactSizeRead for PayloadReader<T> {
+    fn len(&self) -> usize {
         self.payload_len
     }
 

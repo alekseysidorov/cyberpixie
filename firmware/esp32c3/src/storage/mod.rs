@@ -1,12 +1,22 @@
-use cyberpixie_proto::types::Hertz;
-use embedded_svc::storage::StorageImpl;
+use std::sync::Mutex;
+
+use cyberpixie_proto::{
+    types::{Hertz, ImageId},
+    ExactSizeRead,
+};
+use cyberpixie_storage::{Config, DeviceStorage};
+use embedded_svc::storage::RawStorage;
 use esp_idf_svc::nvs::{EspNvs, EspNvsPartition, NvsDefault};
 use esp_idf_sys::EspError;
-use serde::{Deserialize, Serialize};
+use once_cell::sync::Lazy;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 struct PostCard;
 
+/// Read/write block size.
 const BLOCK_SIZE: usize = 512;
+/// Image registry namespace
+const STORAGE_NAMESPACE: &str = "images";
 
 impl embedded_svc::storage::SerDe for PostCard {
     type Error = postcard::Error;
@@ -28,29 +38,108 @@ impl embedded_svc::storage::SerDe for PostCard {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct StorageMeta {
-    images_count: u16,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 struct ImageHeader {
     image_len: u32,
     refresh_rate: Hertz,
 }
 
-pub struct ImagesRegistry {
-    storage: StorageImpl<BLOCK_SIZE, EspNvs<NvsDefault>, PostCard>,
-}
+static STORAGE: Lazy<Mutex<EspNvs<NvsDefault>>> = Lazy::new(|| {
+    let partition = EspNvsPartition::<NvsDefault>::take().unwrap();
+    let esp = EspNvs::new(partition, STORAGE_NAMESPACE, true).unwrap();
+    Mutex::new(esp)
+});
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ImagesRegistry;
 
 impl ImagesRegistry {
-    const NAMESPACE: &'static str = "images";
+    pub fn new() -> Self {
+        Self
+    }
 
-    pub fn take() -> Result<Self, EspError> {
-        let partition = EspNvsPartition::<NvsDefault>::take()?;
-        let nvs = EspNvs::new(partition, Self::NAMESPACE, true)?;
+    fn set<T>(&self, name: &str, value: &T) -> anyhow::Result<()>
+    where
+        T: Serialize,
+    {
+        let mut buf = [0_u8; BLOCK_SIZE];
 
-        Ok(Self {
-            storage: StorageImpl::new(nvs, PostCard),
-        })
+        postcard::to_slice(value, &mut buf)?;
+        self.set_raw(name, &buf)?;
+        Ok(())
+    }
+
+    fn get<T>(&self, name: &str) -> anyhow::Result<Option<T>>
+    where
+        T: DeserializeOwned,
+    {
+        let mut buf = [0_u8; BLOCK_SIZE];
+
+        let bytes = self.get_raw(name, &mut buf)?;
+        bytes
+            .map(|buf| postcard::from_bytes(buf))
+            .transpose()
+            .map_err(From::from)
+    }
+
+    fn set_raw(&self, name: &str, buf: &[u8]) -> Result<bool, EspError> {
+        STORAGE.lock().unwrap().set_raw(name, buf)
+    }
+
+    fn get_raw<'a>(&self, name: &str, buf: &'a mut [u8]) -> Result<Option<&'a [u8]>, EspError> {
+        STORAGE.lock().unwrap().get_raw(name, buf)
+    }
+
+    fn set_images_count(&self, count: u16) -> Result<(), anyhow::Error> {
+        self.set("img.count", &count)
+    }
+}
+
+// impl embedded_io::Io for ImagesRegistry {
+//     type Error = std::io::Error;
+// }
+
+impl DeviceStorage for ImagesRegistry {
+    type Error = anyhow::Error;
+
+    fn config(&self) -> Result<Config, Self::Error> {
+        self.get("config").map(Option::unwrap_or_default)
+    }
+
+    fn set_config(&self, value: &Config) -> Result<(), Self::Error> {
+        self.set("config", value)
+    }
+
+    fn images_count(&self) -> Result<u16, Self::Error> {
+        self.get("img.count").map(Option::unwrap_or_default)
+    }
+
+    fn add_image<R>(&self, refresh_rate: Hertz, mut image: R) -> Result<ImageId, Self::Error>
+    where
+        Self::Error: From<R::Error>,
+        R: ExactSizeRead,
+    {
+        let idx = self.images_count()?;
+
+        // Save image header.
+        let header = ImageHeader {
+            image_len: image.len() as u32,
+            refresh_rate,
+        };
+        self.set(&format!("img.{idx}.header"), &header)?;
+        // Save image content.
+        let mut buf = [0_u8; BLOCK_SIZE];
+
+        let blocks = image.len() / BLOCK_SIZE;
+        for block in 0..=blocks {
+            let to = std::cmp::max(image.bytes_remaining(), BLOCK_SIZE);
+            image
+                .read_exact(&mut buf[0..to])
+                .map_err(|err| anyhow::anyhow!("Unable to read image: {err}"))?;
+            self.set_raw(&format!("img.{idx}.block.{block}"), &buf[0..to])?;
+        }
+
+        let id = ImageId(idx);
+        self.set_images_count(idx + 1)?;
+        Ok(id)
     }
 }
