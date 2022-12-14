@@ -12,9 +12,9 @@ use log::info;
 use once_cell::sync::Lazy;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use self::block_reader::BlockReader;
+use self::image_reader::ImageReader;
 
-mod block_reader;
+mod image_reader;
 
 struct PostCard;
 
@@ -104,7 +104,7 @@ impl ImagesRegistry {
 // }
 
 impl DeviceStorage for ImagesRegistry {
-    type ImageRead<'a> = BlockReader<'a>;
+    type ImageRead<'a> = ImageReader<'a>;
     type Error = anyhow::Error;
 
     fn config(&self) -> Result<Config, Self::Error> {
@@ -163,7 +163,7 @@ impl DeviceStorage for ImagesRegistry {
         // Create image block reader.
         let image = Image {
             refresh_rate: header.refresh_rate,
-            bytes: BlockReader::new(self, idx, header.image_len)?,
+            bytes: ImageReader::new(self, idx, header.image_len)?,
         };
         Ok(Some(image))
     }

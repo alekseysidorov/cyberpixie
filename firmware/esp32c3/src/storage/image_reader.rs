@@ -10,7 +10,7 @@ use esp_idf_sys::EspError;
 use super::{ImagesRegistry, BLOCK_SIZE};
 
 #[derive(Debug)]
-pub struct BlockReader<'a> {
+pub struct ImageReader<'a> {
     registry: &'a ImagesRegistry,
     image_index: ImageId,
     image_len: usize,
@@ -19,7 +19,7 @@ pub struct BlockReader<'a> {
     block: [u8; BLOCK_SIZE],
 }
 
-impl<'a> BlockReader<'a> {
+impl<'a> ImageReader<'a> {
     pub fn new(
         registry: &'a ImagesRegistry,
         image_index: ImageId,
@@ -63,23 +63,23 @@ impl<'a> BlockReader<'a> {
     }
 }
 
-impl<'a> Io for BlockReader<'a> {
+impl<'a> Io for ImageReader<'a> {
     type Error = std::io::Error;
 }
 
-impl<'a> ExactSizeRead for BlockReader<'a> {
+impl<'a> ExactSizeRead for ImageReader<'a> {
     fn bytes_remaining(&self) -> usize {
         self.image_len - self.bytes_read
     }
 }
 
-impl<'a> Seek for BlockReader<'a> {
+impl<'a> Seek for ImageReader<'a> {
     fn seek(&mut self, _pos: SeekFrom) -> Result<u64, Self::Error> {
         todo!()
     }
 }
 
-impl<'a> Read for BlockReader<'a> {
+impl<'a> Read for ImageReader<'a> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
         todo!()
     }
