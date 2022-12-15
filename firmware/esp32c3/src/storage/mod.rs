@@ -94,8 +94,18 @@ impl ImagesRegistry {
         STORAGE.lock().unwrap().get_raw(name, buf)
     }
 
+    fn remove(&self, name: &str) -> Result<bool, EspError> {
+        info!("Removing '{name}' entry...");
+        STORAGE.lock().unwrap().remove(name)
+    }
+
     fn set_images_count(&self, count: u16) -> Result<(), anyhow::Error> {
         self.set("img.count", &count)
+    }
+
+    fn read_image_header(&self, image_index: ImageId) -> Result<ImageHeader, anyhow::Error> {
+        self.get(&format!("img.{image_index}.header"))?
+            .ok_or_else(|| anyhow::anyhow!("Unable to read image header: storage corrupted"))
     }
 }
 
@@ -120,14 +130,14 @@ impl DeviceStorage for ImagesRegistry {
         Self::Error: From<R::Error>,
         R: ExactSizeRead,
     {
-        let idx = self.images_count()?;
+        let image_index = self.images_count()?;
 
         // Save image header.
         let header = ImageHeader {
             image_len: image.bytes_remaining() as u32,
             refresh_rate,
         };
-        self.set(&format!("img.{idx}.header"), &header)?;
+        self.set(&format!("img.{image_index}.header"), &header)?;
         info!("Saving image with header: {header:?}");
 
         // Save image content.
@@ -139,12 +149,13 @@ impl DeviceStorage for ImagesRegistry {
             image
                 .read_exact(&mut buf[0..to])
                 .map_err(|err| anyhow::anyhow!("Unable to read image: {err}"))?;
-            self.set_raw(&format!("img.{idx}.block.{block}"), &buf[0..to])?;
+            self.set_raw(&format!("img.{image_index}.block.{block}"), &buf[0..to])?;
             info!("Write block {block} -> [0..{to}]");
         }
 
-        let id = ImageId(idx);
-        // self.set_images_count(idx + 1)?;
+        let id = ImageId(image_index);
+        self.set_images_count(image_index + 1)?;
+        info!("Image saved, total images count: {}", image_index + 1);
         Ok(id)
     }
 
@@ -153,20 +164,39 @@ impl DeviceStorage for ImagesRegistry {
         image_index: ImageId,
     ) -> Result<Option<Image<Self::ImageRead<'_>>>, Self::Error> {
         let images_count = self.images_count()?;
+
         if image_index.0 >= images_count {
             return Ok(None);
         }
 
-        // Read image header.
-        let header: ImageHeader = self.get("img.{idx}.header")?.expect("storage corrupted");
-        // Create image block reader.
-        // let image = Image {
-        //     refresh_rate: header.refresh_rate,
-        //     bytes: ImageReader::new(
-        //         BlockReaderImpl::new(self, image_index),
-        //         header.image_len as usize,
-        //     )?,
-        // };
+        let header = self.read_image_header(image_index)?;
+        let image = Image {
+            refresh_rate: header.refresh_rate,
+            bytes: ImageReader::new(
+                BlockReaderImpl::new(self, image_index),
+                header.image_len as usize,
+            ),
+        };
         Ok(Some(image))
+    }
+
+    fn clear_images(&self) -> Result<(), Self::Error> {
+        let images_count = self.images_count()?;
+
+        info!("Deleting {images_count} images...");
+        for image_index in 0..images_count {
+            let header = self.read_image_header(ImageId(image_index))?;
+            // Remove image blocks.
+            let blocks_count = header.image_len as usize / BLOCK_SIZE;
+            for block in 0..=blocks_count {
+                self.remove(&format!("img.{image_index}.block.{block}"))?;
+            }
+            // Remove image header.
+            self.remove(&format!("img.{image_index}.header"))?;
+        }
+        // Reset images counter.
+        self.set_images_count(0)?;
+
+        Ok(())
     }
 }

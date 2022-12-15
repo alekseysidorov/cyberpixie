@@ -1,8 +1,6 @@
-use std::convert::Infallible;
-
 use cyberpixie_proto::types::Hertz;
-use cyberpixie_storage::{image_reader::ImageReader, BlockReader, Image};
-use embedded_io::{blocking::Read, Io};
+use cyberpixie_storage::{image_reader::ImageReader, Image};
+use embedded_io::{blocking::Read};
 
 const BLOCK_SIZE: usize = 32;
 

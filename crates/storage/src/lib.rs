@@ -47,11 +47,10 @@ pub trait DeviceStorage {
         R: ExactSizeRead;
     /// Reads an image by ID.
     fn read_image(&self, id: ImageId) -> Result<Option<Image<Self::ImageRead<'_>>>, Self::Error>;
-    // /// Remove all stored images.
-    // fn clear_images(&self) -> Result<(), Self::Error>;
-    //
     /// Returns total images count.
     fn images_count(&self) -> Result<u16, Self::Error>;
+    /// Remove all stored images.
+    fn clear_images(&self) -> Result<(), Self::Error>;
 }
 
 pub trait BlockReader<const BLOCK_SIZE: usize>: Io {

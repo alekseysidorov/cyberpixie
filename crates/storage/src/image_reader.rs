@@ -1,7 +1,5 @@
 //! Image reader wrapper over block reader.
 
-use core::convert::Infallible;
-
 use cyberpixie_proto::ExactSizeRead;
 use embedded_io::{
     blocking::{Read, Seek},
