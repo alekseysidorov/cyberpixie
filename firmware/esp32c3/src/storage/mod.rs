@@ -12,14 +12,14 @@ use log::info;
 use once_cell::sync::Lazy;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use self::image_reader::ImageReader;
+pub use cyberpixie_storage::BLOCK_SIZE;
+
+use self::image_reader::{BlockReaderImpl, ImageReader};
 
 mod image_reader;
 
 struct PostCard;
 
-/// Read/write block size.
-const BLOCK_SIZE: usize = 512;
 /// Image registry namespace
 const STORAGE_NAMESPACE: &str = "images";
 
@@ -99,10 +99,6 @@ impl ImagesRegistry {
     }
 }
 
-// impl embedded_io::Io for ImagesRegistry {
-//     type Error = std::io::Error;
-// }
-
 impl DeviceStorage for ImagesRegistry {
     type ImageRead<'a> = ImageReader<'a>;
     type Error = anyhow::Error;
@@ -152,9 +148,12 @@ impl DeviceStorage for ImagesRegistry {
         Ok(id)
     }
 
-    fn read_image(&self, idx: ImageId) -> Result<Option<Image<Self::ImageRead<'_>>>, Self::Error> {
+    fn read_image(
+        &self,
+        image_index: ImageId,
+    ) -> Result<Option<Image<Self::ImageRead<'_>>>, Self::Error> {
         let images_count = self.images_count()?;
-        if idx.0 >= images_count {
+        if image_index.0 >= images_count {
             return Ok(None);
         }
 
@@ -163,7 +162,10 @@ impl DeviceStorage for ImagesRegistry {
         // Create image block reader.
         let image = Image {
             refresh_rate: header.refresh_rate,
-            bytes: ImageReader::new(self, idx, header.image_len)?,
+            bytes: ImageReader::new(
+                BlockReaderImpl::new(self, image_index),
+                header.image_len as usize,
+            )?,
         };
         Ok(Some(image))
     }

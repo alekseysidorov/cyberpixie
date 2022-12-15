@@ -1,13 +1,18 @@
 #![cfg_attr(not(test), no_std)]
 
-use core::{convert::Infallible, usize};
+use core::usize;
 
 use cyberpixie_proto::{
     types::{Hertz, ImageId},
     ExactSizeRead,
 };
-use embedded_io::blocking::Seek;
+use embedded_io::{blocking::Seek, Io};
 use serde::{Deserialize, Serialize};
+
+pub mod image_reader;
+
+/// Block size used by default.
+pub const BLOCK_SIZE: usize = 512;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Config {
@@ -49,18 +54,14 @@ pub trait DeviceStorage {
     fn images_count(&self) -> Result<u16, Self::Error>;
 }
 
-pub trait BlockReader<const B: usize> {
-    type Error;
-
+pub trait BlockReader<const BLOCK_SIZE: usize>: Io {
     fn read_block(&self, block: usize, buf: &mut [u8]) -> Result<(), Self::Error>;
 }
 
-impl<const B: usize, const N: usize> BlockReader<B> for [u8; N] {
-    type Error = Infallible;
-
+impl<const BLOCK_SIZE: usize> BlockReader<BLOCK_SIZE> for &[u8] {
     fn read_block(&self, index: usize, buf: &mut [u8]) -> Result<(), Self::Error> {
-        let from = index * N;
-        let to = from + N;
+        let from = index * BLOCK_SIZE;
+        let to = from + BLOCK_SIZE;
         buf.copy_from_slice(&self[from..to]);
         Ok(())
     }
