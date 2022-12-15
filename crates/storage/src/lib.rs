@@ -1,5 +1,7 @@
 #![cfg_attr(not(test), no_std)]
 
+use core::{convert::Infallible, usize};
+
 use cyberpixie_proto::{
     types::{Hertz, ImageId},
     ExactSizeRead,
@@ -45,4 +47,21 @@ pub trait DeviceStorage {
     //
     /// Returns total images count.
     fn images_count(&self) -> Result<u16, Self::Error>;
+}
+
+pub trait BlockReader<const B: usize> {
+    type Error;
+
+    fn read_block(&self, block: usize, buf: &mut [u8]) -> Result<(), Self::Error>;
+}
+
+impl<const B: usize, const N: usize> BlockReader<B> for [u8; N] {
+    type Error = Infallible;
+
+    fn read_block(&self, index: usize, buf: &mut [u8]) -> Result<(), Self::Error> {
+        let from = index * N;
+        let to = from + N;
+        buf.copy_from_slice(&self[from..to]);
+        Ok(())
+    }
 }

@@ -1,6 +1,7 @@
 //! Image reader implementation
 
 use cyberpixie_proto::{types::ImageId, ExactSizeRead};
+use cyberpixie_storage::BlockReader;
 use embedded_io::{
     blocking::{Read, Seek},
     Io, SeekFrom,
@@ -10,14 +11,44 @@ use esp_idf_sys::EspError;
 use super::{ImagesRegistry, BLOCK_SIZE};
 
 #[derive(Debug)]
-pub struct ImageReader<'a> {
+pub struct BlockReaderImpl<'a> {
     registry: &'a ImagesRegistry,
     image_index: ImageId,
-    image_len: usize,
+}
 
+impl<'a> BlockReaderImpl<'a> {
+    pub fn new(registry: &'a ImagesRegistry, image_index: ImageId) -> Self {
+        Self {
+            registry,
+            image_index,
+        }
+    }
+}
+
+impl<'a> BlockReader<BLOCK_SIZE> for BlockReaderImpl<'a> {
+    type Error = EspError;
+
+    fn read_block(&self, block: usize, buf: &mut [u8]) -> Result<(), Self::Error> {
+        let idx = self.image_index.0;
+
+        log::info!("Filling block {block} [0..{}]", buf.len(),);
+        self.registry
+            .get_raw(&format!("img.{idx}.block.{block}"), buf)?;
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub struct GenericImageReader<T: BlockReader<BLOCK_SIZE>> {
+    block_reader: T,
+
+    image_len: usize,
     bytes_read: usize,
+
     block: [u8; BLOCK_SIZE],
 }
+
+pub type ImageReader<'a> = GenericImageReader<BlockReaderImpl<'a>>;
 
 impl<'a> ImageReader<'a> {
     pub fn new(
@@ -28,8 +59,7 @@ impl<'a> ImageReader<'a> {
         let image_len = image_len as usize;
 
         let mut reader = Self {
-            registry,
-            image_index,
+            block_reader: BlockReaderImpl::new(registry, image_index),
             image_len,
             bytes_read: 0,
             block: [0_u8; BLOCK_SIZE],
@@ -40,7 +70,6 @@ impl<'a> ImageReader<'a> {
 
     fn fill_block(&mut self) -> Result<(), EspError> {
         let to = std::cmp::min(self.bytes_remaining(), BLOCK_SIZE);
-        let idx = self.image_index.0;
         let block = self.current_block();
 
         log::info!(
@@ -49,8 +78,7 @@ impl<'a> ImageReader<'a> {
         );
 
         let buf = &mut self.block[0..to];
-        self.registry
-            .get_raw(&format!("img.{idx}.block.{block}"), buf)?;
+        self.block_reader.read_block(block, buf)?;
         Ok(())
     }
 
