@@ -61,7 +61,7 @@ pub trait BlockReader<const BLOCK_SIZE: usize>: Io {
 impl<const BLOCK_SIZE: usize> BlockReader<BLOCK_SIZE> for &[u8] {
     fn read_block(&self, index: usize, buf: &mut [u8]) -> Result<(), Self::Error> {
         let from = index * BLOCK_SIZE;
-        let to = from + BLOCK_SIZE;
+        let to = from + core::cmp::min(BLOCK_SIZE, buf.len());
         buf.copy_from_slice(&self[from..to]);
         Ok(())
     }

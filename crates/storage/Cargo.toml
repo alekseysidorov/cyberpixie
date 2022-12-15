@@ -10,3 +10,6 @@ serde = { version = "1", default-features = false, features = ["derive"] }
 log = "0.4"
 
 [dev-dependencies]
+
+[features]
+std = []

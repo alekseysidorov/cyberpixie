@@ -160,13 +160,13 @@ impl DeviceStorage for ImagesRegistry {
         // Read image header.
         let header: ImageHeader = self.get("img.{idx}.header")?.expect("storage corrupted");
         // Create image block reader.
-        let image = Image {
-            refresh_rate: header.refresh_rate,
-            bytes: ImageReader::new(
-                BlockReaderImpl::new(self, image_index),
-                header.image_len as usize,
-            )?,
-        };
+        // let image = Image {
+        //     refresh_rate: header.refresh_rate,
+        //     bytes: ImageReader::new(
+        //         BlockReaderImpl::new(self, image_index),
+        //         header.image_len as usize,
+        //     )?,
+        // };
         Ok(Some(image))
     }
 }
