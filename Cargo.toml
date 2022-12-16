@@ -8,6 +8,14 @@ members = [
   "firmware/esp32c3",
   "utils/image_sender",
 ]
+
+default-members = [
+  "crates/storage",
+  "crates/proto",
+  "crates/network",
+  "utils/image_sender",
+]
+
 exclude = ["old"]
 
 [workspace.dependencies]
