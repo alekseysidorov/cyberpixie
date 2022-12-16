@@ -6,8 +6,8 @@ edition = "2021"
 [dependencies]
 cyberpixie-proto = { workspace = true }
 embedded-io = "0.4"
-serde = { version = "1", default-features = false, features = ["derive"] }
 log = "0.4"
+serde = { version = "1", default-features = false, features = ["derive"] }
 
 [dev-dependencies]
 

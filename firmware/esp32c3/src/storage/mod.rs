@@ -4,6 +4,7 @@ use cyberpixie_proto::{
     types::{Hertz, ImageId},
     ExactSizeRead,
 };
+pub use cyberpixie_storage::BLOCK_SIZE;
 use cyberpixie_storage::{Config, DeviceStorage, Image};
 use embedded_svc::storage::RawStorage;
 use esp_idf_svc::nvs::{EspNvs, EspNvsPartition, NvsDefault};
@@ -11,8 +12,6 @@ use esp_idf_sys::EspError;
 use log::info;
 use once_cell::sync::Lazy;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-
-pub use cyberpixie_storage::BLOCK_SIZE;
 
 use self::image_reader::{BlockReaderImpl, ImageReader};
 

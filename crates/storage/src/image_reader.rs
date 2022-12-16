@@ -85,7 +85,7 @@ where
         let max_bytes_to_read = core::cmp::min(self.bytes_remaining(), buf.len());
         // Compute the position from where we should copy bytes from the block buffer.
         let from = self.bytes_read % N;
-        // We can read the maximum number of bytes but no more than the length 
+        // We can read the maximum number of bytes but no more than the length
         // of the remaining block part.
         let bytes_to_read = core::cmp::min(max_bytes_to_read, N - from);
         let to = from + bytes_to_read;

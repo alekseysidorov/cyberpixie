@@ -1,6 +1,6 @@
 use cyberpixie_proto::types::Hertz;
 use cyberpixie_storage::{image_reader::ImageReader, Image};
-use embedded_io::{blocking::Read};
+use embedded_io::blocking::Read;
 
 const BLOCK_SIZE: usize = 32;
 
@@ -20,7 +20,7 @@ fn test_make_block_device() {
     // More big block
     let block = make_block_device("Section 1.10.32 of 'de Finibus Bonorum");
     assert_eq!(block.len(), 64);
-    
+
     // The biggest one
     let block = make_block_device(
         "Section 1.10.32 of 'de Finibus Bonorum et Malorum', written by Cicero in 45 BC",
