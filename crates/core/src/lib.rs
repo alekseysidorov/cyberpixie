@@ -3,16 +3,13 @@
 use core::usize;
 
 use cyberpixie_proto::{
-    types::{Hertz, ImageId},
+    types::{DeviceInfo, Hertz, ImageId},
     ExactSizeRead,
 };
-use embedded_io::{blocking::Seek, Io};
+use embedded_io::blocking::Seek;
 use serde::{Deserialize, Serialize};
 
 pub mod image_reader;
-
-/// Block size used by default.
-pub const BLOCK_SIZE: usize = 512;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Config {
@@ -53,15 +50,11 @@ pub trait DeviceStorage {
     fn clear_images(&self) -> Result<(), Self::Error>;
 }
 
-pub trait BlockReader<const BLOCK_SIZE: usize>: Io {
-    fn read_block(&self, block: usize, buf: &mut [u8]) -> Result<(), Self::Error>;
-}
-
-impl<const BLOCK_SIZE: usize> BlockReader<BLOCK_SIZE> for &[u8] {
-    fn read_block(&self, index: usize, buf: &mut [u8]) -> Result<(), Self::Error> {
-        let from = index * BLOCK_SIZE;
-        let to = from + core::cmp::min(BLOCK_SIZE, buf.len());
-        buf.copy_from_slice(&self[from..to]);
-        Ok(())
-    }
+/// Basic device services.
+pub trait DeviceService {
+    type Storage: DeviceStorage;
+    /// Returns important device information necessary for handshake.
+    fn device_info(&self) -> DeviceInfo;
+    /// Returns handle to the device storage.
+    fn storage(&self) -> Self::Storage;
 }

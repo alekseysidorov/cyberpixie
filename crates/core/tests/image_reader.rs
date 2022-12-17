@@ -1,5 +1,5 @@
+use cyberpixie_core::{image_reader::ImageReader, Image};
 use cyberpixie_proto::types::Hertz;
-use cyberpixie_storage::{image_reader::ImageReader, Image};
 use embedded_io::blocking::Read;
 
 const BLOCK_SIZE: usize = 32;

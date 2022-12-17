@@ -1,14 +1,23 @@
 use std::{
+    convert::Infallible,
     net::{TcpListener, TcpStream},
     thread::JoinHandle,
 };
 
-use cyberpixie_proto::types::{DeviceInfo, DeviceRole};
-use cyberpixie_std_network::{Client, NetworkPart, SimpleDevice};
+use cyberpixie_core::{Config, DeviceService, DeviceStorage, Image};
+use cyberpixie_proto::{
+    types::{DeviceInfo, DeviceRole, ImageId},
+    ExactSizeRead,
+};
+use cyberpixie_std_network::{Client, NetworkPart};
+use embedded_io::{
+    blocking::{Read, Seek},
+    Io,
+};
 
 fn create_loopback<D>(device: D) -> anyhow::Result<(Client, JoinHandle<()>)>
 where
-    D: SimpleDevice + Send + 'static,
+    D: DeviceService + Send + 'static,
 {
     let _ = env_logger::try_init();
 
@@ -27,14 +36,82 @@ where
 }
 
 struct DeviceStub;
+struct StorageStub;
+struct ImageReadStub;
 
-impl SimpleDevice for DeviceStub {
+impl DeviceService for DeviceStub {
+    type Storage = StorageStub;
+
     fn device_info(&self) -> DeviceInfo {
         DeviceInfo {
             role: DeviceRole::Main,
             group_id: None,
             strip_len: Some(36),
         }
+    }
+
+    fn storage(&self) -> Self::Storage {
+        todo!()
+    }
+}
+
+impl Io for ImageReadStub {
+    type Error = Infallible;
+}
+
+impl Read for ImageReadStub {
+    fn read(&mut self, _buf: &mut [u8]) -> Result<usize, Self::Error> {
+        unimplemented!()
+    }
+}
+
+impl ExactSizeRead for ImageReadStub {
+    fn bytes_remaining(&self) -> usize {
+        0
+    }
+}
+
+impl Seek for ImageReadStub {
+    fn seek(&mut self, _pos: embedded_io::SeekFrom) -> Result<u64, Self::Error> {
+        unimplemented!()
+    }
+}
+
+impl DeviceStorage for StorageStub {
+    type Error = Infallible;
+
+    type ImageRead<'a> = ImageReadStub;
+
+    fn config(&self) -> Result<Config, Self::Error> {
+        unimplemented!()
+    }
+
+    fn set_config(&self, _value: &Config) -> Result<(), Self::Error> {
+        unimplemented!()
+    }
+
+    fn add_image<R>(
+        &self,
+        _refresh_rate: cyberpixie_proto::types::Hertz,
+        _image: R,
+    ) -> Result<ImageId, Self::Error>
+    where
+        Self::Error: From<R::Error>,
+        R: cyberpixie_proto::ExactSizeRead,
+    {
+        unimplemented!()
+    }
+
+    fn read_image(&self, _id: ImageId) -> Result<Option<Image<Self::ImageRead<'_>>>, Self::Error> {
+        unimplemented!()
+    }
+
+    fn images_count(&self) -> Result<u16, Self::Error> {
+        unimplemented!()
+    }
+
+    fn clear_images(&self) -> Result<(), Self::Error> {
+        unimplemented!()
     }
 }
 

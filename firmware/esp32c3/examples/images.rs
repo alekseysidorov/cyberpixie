@@ -1,9 +1,9 @@
+use cyberpixie_core::DeviceStorage;
 use cyberpixie_esp32c3::storage::ImagesRegistry;
 use cyberpixie_proto::{
     types::{Hertz, ImageId},
     ExactSizeRead,
 };
-use cyberpixie_storage::DeviceStorage;
 use embedded_io::blocking::Read;
 use esp_idf_svc::log::EspLogger;
 // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported

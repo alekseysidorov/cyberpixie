@@ -2,14 +2,14 @@
 
 use std::fmt::Display;
 
+use cyberpixie_core::image_reader::{BlockReader, BLOCK_SIZE};
 use cyberpixie_proto::types::ImageId;
-use cyberpixie_storage::BlockReader;
 use esp_idf_sys::EspError;
 
-use super::{ImagesRegistry, BLOCK_SIZE};
+use super::ImagesRegistry;
 
 pub type ImageReader<'a> =
-    cyberpixie_storage::image_reader::ImageReader<BlockReaderImpl<'a>, BLOCK_SIZE>;
+    cyberpixie_core::image_reader::ImageReader<BlockReaderImpl<'a>, BLOCK_SIZE>;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct BlockReadError(pub EspError);

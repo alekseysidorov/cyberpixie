@@ -2,7 +2,7 @@
 resolver = "2"
 
 members = [
-  "crates/storage",
+  "crates/core",
   "crates/proto",
   "crates/network",
   "firmware/esp32c3",
@@ -10,17 +10,16 @@ members = [
 ]
 
 default-members = [
-  "crates/storage",
+  "crates/core",
   "crates/proto",
   "crates/network",
-  "utils/image_sender",
 ]
 
-exclude = ["old"]
+exclude = ["old", "firmware/esp32c3", "utils/image_sender"]
 
 [workspace.dependencies]
 # Workspace crates
-cyberpixie-storage = { path = "crates/storage" }
+cyberpixie-core = { path = "crates/core" }
 cyberpixie-proto = { path = "crates/proto" }
 cyberpixie-std-network = { path = "crates/network" }
 

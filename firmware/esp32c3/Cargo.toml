@@ -1,11 +1,8 @@
-cargo-features = ["per-package-target"]
-
 [package]
 name = "cyberpixie-esp32c3"
 version = "0.2.0"
 authors = ["Aleksey Sidorov <sauron1987@gmail.com>"]
 edition = "2021"
-forced-target = "riscv32imc-esp-espidf"
 resolver = "2"
 
 [features]
@@ -13,9 +10,9 @@ pio = ["esp-idf-sys/pio"]
 
 [dependencies]
 anyhow = "1"
+cyberpixie-core = { workspace = true }
 cyberpixie-proto = { workspace = true }
 cyberpixie-std-network = { workspace = true }
-cyberpixie-storage = { workspace = true }
 embedded-hal = { workspace = true }
 embedded-io = "0.4"
 embedded-svc = { workspace = true }

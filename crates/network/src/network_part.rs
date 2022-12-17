@@ -4,6 +4,7 @@ use std::{
     net::{SocketAddr, TcpListener, TcpStream},
 };
 
+use cyberpixie_core::DeviceService;
 use cyberpixie_proto::{
     types::{DeviceInfo, DeviceRole},
     MessageHeader,
@@ -24,10 +25,6 @@ where
     }
 }
 
-pub trait SimpleDevice {
-    fn device_info(&self) -> DeviceInfo;
-}
-
 #[derive(Debug, Default)]
 enum Operation {
     #[default]
@@ -41,7 +38,10 @@ pub struct NetworkPart<S> {
     device: S,
 }
 
-impl<S: SimpleDevice> NetworkPart<S> {
+impl<S> NetworkPart<S>
+where
+    S: DeviceService,
+{
     pub fn new(device: S, listener: TcpListener) -> Result<Self, anyhow::Error> {
         listener.set_nonblocking(true)?;
         Ok(Self {
