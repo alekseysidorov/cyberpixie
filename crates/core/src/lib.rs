@@ -1,6 +1,6 @@
-#![cfg_attr(not(test), no_std)]
+#![cfg_attr(not(any(feature = "std", test)), no_std)]
 
-use core::usize;
+use core::{fmt::{Debug, Display}, usize};
 
 use cyberpixie_proto::{
     types::{DeviceInfo, Hertz, ImageId},
@@ -25,6 +25,44 @@ where
     pub bytes: R,
 }
 
+#[derive(Debug)]
+pub enum AddImageError<R, P> {
+    PayloadReadError(R),
+    ImageWriteError(P),
+}
+
+impl<R, P> embedded_io::Error for AddImageError<R, P>
+where
+    R: Debug,
+    P: Debug,
+{
+    fn kind(&self) -> embedded_io::ErrorKind {
+        embedded_io::ErrorKind::Other
+    }
+}
+
+
+impl<R, P> Display for AddImageError<R, P>
+where
+    R: Display,
+    P: Display,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            AddImageError::PayloadReadError(err) => write!(f, "Read payload error: {err}"),
+            AddImageError::ImageWriteError(err) => write!(f, "Write image error: {err}"),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl<R, P> std::error::Error for AddImageError<R, P>
+where
+    R: Debug + Display,
+    P: Debug + Display,
+{
+}
+
 /// Device data storage.
 pub trait DeviceStorage {
     type Error;
@@ -38,9 +76,12 @@ pub trait DeviceStorage {
     /// Sets a global configuration.
     fn set_config(&self, value: &Config) -> Result<(), Self::Error>;
     /// Adds a new image.
-    fn add_image<R>(&self, refresh_rate: Hertz, image: R) -> Result<ImageId, Self::Error>
+    fn add_image<R>(
+        &self,
+        refresh_rate: Hertz,
+        image: R,
+    ) -> Result<ImageId, AddImageError<R::Error, Self::Error>>
     where
-        Self::Error: From<R::Error>,
         R: ExactSizeRead;
     /// Reads an image by ID.
     fn read_image(&self, id: ImageId) -> Result<Option<Image<Self::ImageRead<'_>>>, Self::Error>;

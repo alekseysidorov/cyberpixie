@@ -19,7 +19,7 @@ exclude = ["old", "firmware/esp32c3", "utils/image_sender"]
 
 [workspace.dependencies]
 # Workspace crates
-cyberpixie-core = { path = "crates/core" }
+cyberpixie-core = { path = "crates/core", features = ["std"] }
 cyberpixie-proto = { path = "crates/proto" }
 cyberpixie-std-network = { path = "crates/network" }
 

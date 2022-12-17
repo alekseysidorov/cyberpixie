@@ -11,10 +11,13 @@ use super::{
 pub enum MessageHeader {
     RequestHandshake(DeviceInfo),
     RequestAddImage(ImageInfo),
+    RequestClearImages,
     Debug,
 
     ResponseHandshake(DeviceInfo),
     ResponseAddImage(ImageId),
+    ResponseOk,
+    ResponseError,
 }
 
 impl MessageHeader {

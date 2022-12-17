@@ -1,6 +1,7 @@
 use std::sync::Mutex;
 
-use cyberpixie_core::{image_reader::BLOCK_SIZE, Config, DeviceStorage, Image};
+use anyhow::Context;
+use cyberpixie_core::{image_reader::BLOCK_SIZE, AddImageError, Config, DeviceStorage, Image};
 use cyberpixie_proto::{
     types::{Hertz, ImageId},
     ExactSizeRead,
@@ -20,6 +21,11 @@ struct PostCard;
 
 /// Image registry namespace
 const STORAGE_NAMESPACE: &str = "images";
+
+const DEFAULT_CONFIG: Config = Config {
+    strip_len: 24,
+    current_image: 0,
+};
 
 impl embedded_svc::storage::SerDe for PostCard {
     type Error = postcard::Error;
@@ -112,7 +118,8 @@ impl DeviceStorage for ImagesRegistry {
     type Error = anyhow::Error;
 
     fn config(&self) -> Result<Config, Self::Error> {
-        self.get("config").map(Option::unwrap_or_default)
+        let config = self.get("config")?;
+        Ok(config.unwrap_or(DEFAULT_CONFIG))
     }
 
     fn set_config(&self, value: &Config) -> Result<(), Self::Error> {
@@ -123,19 +130,25 @@ impl DeviceStorage for ImagesRegistry {
         self.get("img.count").map(Option::unwrap_or_default)
     }
 
-    fn add_image<R>(&self, refresh_rate: Hertz, mut image: R) -> Result<ImageId, Self::Error>
+    fn add_image<R>(
+        &self,
+        refresh_rate: Hertz,
+        mut image: R,
+    ) -> Result<ImageId, AddImageError<R::Error, Self::Error>>
     where
-        Self::Error: From<R::Error>,
         R: ExactSizeRead,
     {
-        let image_index = self.images_count()?;
+        let image_index = self
+            .images_count()
+            .map_err(AddImageError::ImageWriteError)?;
 
         // Save image header.
         let header = ImageHeader {
             image_len: image.bytes_remaining() as u32,
             refresh_rate,
         };
-        self.set(&format!("img.{image_index}.header"), &header)?;
+        self.set(&format!("img.{image_index}.header"), &header)
+            .map_err(AddImageError::ImageWriteError)?;
         info!("Saving image with header: {header:?}");
 
         // Save image content.
@@ -146,13 +159,18 @@ impl DeviceStorage for ImagesRegistry {
             let to = std::cmp::min(image.bytes_remaining(), BLOCK_SIZE);
             image
                 .read_exact(&mut buf[0..to])
-                .map_err(|err| anyhow::anyhow!("Unable to read image: {err}"))?;
-            self.set_raw(&format!("img.{image_index}.block.{block}"), &buf[0..to])?;
+                .map_err(|_| anyhow::anyhow!("Unable to read payload"))
+                .map_err(AddImageError::ImageWriteError)?;
+
+            self.set_raw(&format!("img.{image_index}.block.{block}"), &buf[0..to])
+                .context("Unable to write image block")
+                .map_err(AddImageError::ImageWriteError)?;
             info!("Write block {block} -> [0..{to}]");
         }
 
         let id = ImageId(image_index);
-        self.set_images_count(image_index + 1)?;
+        self.set_images_count(image_index + 1)
+            .map_err(AddImageError::ImageWriteError)?;
         info!("Image saved, total images count: {}", image_index + 1);
         Ok(id)
     }

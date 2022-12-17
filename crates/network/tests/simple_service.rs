@@ -94,12 +94,11 @@ impl DeviceStorage for StorageStub {
         &self,
         _refresh_rate: cyberpixie_proto::types::Hertz,
         _image: R,
-    ) -> Result<ImageId, Self::Error>
+    ) -> Result<ImageId, cyberpixie_core::AddImageError<R::Error, Self::Error>>
     where
-        Self::Error: From<R::Error>,
-        R: cyberpixie_proto::ExactSizeRead,
+        R: ExactSizeRead,
     {
-        unimplemented!()
+        todo!()
     }
 
     fn read_image(&self, _id: ImageId) -> Result<Option<Image<Self::ImageRead<'_>>>, Self::Error> {
@@ -127,9 +126,9 @@ fn test_simple_handshake() {
         }
     );
 
-    let info = client.resend_handshake().unwrap();
+    let info = client.handshake().unwrap();
     assert_eq!(info, client.device_info);
 
-    client.send_debug("Hello debug").unwrap();
-    client.send_debug("Hello debug 2").unwrap();
+    client.debug("Hello debug").unwrap();
+    client.debug("Hello debug 2").unwrap();
 }
