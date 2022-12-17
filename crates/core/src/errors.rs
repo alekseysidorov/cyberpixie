@@ -1,20 +1,34 @@
 use displaydoc::Display;
+use postcard::experimental::max_size::MaxSize;
+use serde::{Deserialize, Serialize};
+
+/// A specialized result type for Cyberpixie device.
+pub type Result<T> = core::result::Result<T, Error>;
 
 /// Errors that can occur when processing messages.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Display, Debug)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Display, Debug, Serialize, Deserialize, MaxSize,
+)]
+#[repr(u16)]
 pub enum Error {
     /// The length of the strip does not match with the specified.
-    StripLengthMismatch,
+    StripLengthMismatch = 1,
     /// The length of the picture in bytes is not a multiple of "strip length" * "bytes per pixel".
-    ImageLengthMismatch,
+    ImageLengthMismatch = 2,
     /// The transmitted message cannot be fitted into the device's memory.
-    ImageTooBig,
+    ImageTooBig = 3,
     /// This image repository on the device is full.
-    ImageRepositoryFull,
+    ImageRepositoryFull = 4,
     /// The specified image index is greater than the total amount of the stored images.
-    ImageNotFound,
+    ImageNotFound = 5,
     /// Unexpected response to the request.
-    UnexpectedResponse,
+    UnexpectedResponse = 6,
+    /// Unable to read bytes from storage.
+    StorageRead = 7,
+    /// Unable to write bytes to storage.
+    StorageWrite = 8,
+    /// Payload read error.
+    PayloadRead = 9,
     /// Unspecified or unknown error.
     Unspecified(u16),
 }
@@ -28,6 +42,10 @@ impl Error {
             4 => Self::ImageRepositoryFull,
             5 => Self::ImageNotFound,
             6 => Self::UnexpectedResponse,
+            7 => Self::StorageRead,
+            8 => Self::StorageWrite,
+            9 => Self::PayloadRead,
+
             other => Self::Unspecified(other),
         }
     }
@@ -40,7 +58,24 @@ impl Error {
             Error::ImageRepositoryFull => 4,
             Error::ImageNotFound => 5,
             Error::UnexpectedResponse => 6,
+            Error::StorageRead => 7,
+            Error::StorageWrite => 8,
+            Error::PayloadRead => 9,
+
             Error::Unspecified(other) => other,
         }
+    }
+
+    /// Creates a new storage read error.
+    pub fn storage_read<E: embedded_io::Error>(_: E) -> Self {
+        Self::StorageRead
+    }
+
+    pub fn storage_write<E: embedded_io::Error>(_: E) -> Self {
+        Self::StorageWrite
+    }
+
+    pub fn payload_read<E: embedded_io::Error>(_: E) -> Self {
+        Self::StorageWrite
     }
 }

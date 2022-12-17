@@ -1,8 +1,38 @@
-//! Payload reader
+// // #![cfg_attr(not(test), no_std)]
+
+// use embedded_io::blocking::Read;
+// pub use nb;
+// pub use nb_utils;
+// pub use payload::PayloadReader;
+// pub use postcard::Error as PayloadError;
+
+// pub use crate::error::Error;
 
 use embedded_io::{blocking::Read, Io};
+use postcard::experimental::max_size::MaxSize;
+use serde::{Deserialize, Serialize};
 
+use self::types::{DeviceInfo, ImageId, ImageInfo};
 use crate::ExactSizeRead;
+
+pub mod packet;
+pub mod types;
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug, MaxSize)]
+pub enum RequestHeader {
+    Handshake(DeviceInfo),
+    AddImage(ImageInfo),
+    ClearImages,
+    Debug,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug, MaxSize)]
+pub enum ResponseHeader {
+    Empty,
+    Handshake(DeviceInfo),
+    AddImage(ImageId),
+    Error(crate::Error),
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct PayloadReader<T> {

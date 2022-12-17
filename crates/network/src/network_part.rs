@@ -111,7 +111,7 @@ where
             MessageHeader::RequestAddImage(ImageInfo {
                 refresh_rate,
                 strip_len,
-            }) => {                
+            }) => {
                 let storage = device.storage();
                 // TODO check strip len
                 let image = next_message.payload.unwrap();

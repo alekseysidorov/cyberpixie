@@ -1,6 +1,6 @@
 use std::convert::Infallible;
 
-use cyberpixie_core::image_reader::BlockReader;
+use cyberpixie_core::storage::BlockReader;
 
 const BLOCK_SIZE: usize = 32;
 

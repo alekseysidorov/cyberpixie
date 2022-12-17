@@ -1,6 +1,6 @@
 use core::{fmt::Display, str::FromStr};
 
-use postcard_derive::MaxSize;
+use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
 #[repr(u8)]

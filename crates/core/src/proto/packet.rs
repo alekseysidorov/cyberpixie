@@ -3,8 +3,13 @@ use core::fmt::Debug;
 use embedded_io::blocking::{Read, ReadExactError};
 pub use endian_codec::PackedSize;
 use endian_codec::{DecodeLE, EncodeLE};
+use postcard::experimental::max_size::MaxSize;
+use serde::Serialize;
 
-use crate::headers::MessageHeader;
+use super::{RequestHeader, ResponseHeader};
+
+/// Max packet with header lenght.
+const MAX_LEN: usize = Headers::POSTCARD_MAX_SIZE + Packet::PACKED_LEN;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PackedSize, EncodeLE, DecodeLE)]
 pub struct Packet {
@@ -24,7 +29,7 @@ impl Packet {
 
 #[derive(Debug, displaydoc::Display)]
 pub enum PacketReadError<E> {
-    /// Unable to decode message
+    /// Unable to decode message: {0}.
     Decode(postcard::Error),
     /// Unexpected end of file
     UnexpectedEof,
@@ -32,7 +37,7 @@ pub enum PacketReadError<E> {
     Other(E),
 }
 
-// TODO Temporary until I implement proper error types.
+#[cfg(feature = "std")]
 impl<E: Debug> std::error::Error for PacketReadError<E> {}
 
 impl<E: embedded_io::Error> From<ReadExactError<E>> for PacketReadError<E> {
@@ -57,11 +62,23 @@ impl Packet {
         Ok(Packet::decode_from_le_bytes(&buf))
     }
 
-    pub fn message<T: Read>(
+    pub fn request<T: Read>(
         self,
         mut reader: T,
-    ) -> Result<(MessageHeader, usize), PacketReadError<T::Error>> {
-        let mut buf = [0_u8; MessageHeader::MAX_LEN];
+    ) -> Result<(RequestHeader, usize), PacketReadError<T::Error>> {
+        let mut buf = [0_u8; MAX_LEN];
+
+        let header_buf = &mut buf[0..self.header_len()];
+        reader.read_exact(header_buf)?;
+        let header = postcard::from_bytes(header_buf)?;
+        Ok((header, self.payload_len()))
+    }
+
+    pub fn response<T: Read>(
+        self,
+        mut reader: T,
+    ) -> Result<(ResponseHeader, usize), PacketReadError<T::Error>> {
+        let mut buf = [0_u8; MAX_LEN];
 
         let header_buf = &mut buf[0..self.header_len()];
         reader.read_exact(header_buf)?;
@@ -70,9 +87,29 @@ impl Packet {
     }
 }
 
-impl MessageHeader {
+impl RequestHeader {
+    pub fn encode(self, buf: &mut [u8], payload_len: usize) -> &mut [u8] {
+        Headers::Request(self).encode(buf, payload_len)
+    }
+}
+
+impl ResponseHeader {
+    pub fn encode(self, buf: &mut [u8], payload_len: usize) -> &mut [u8] {
+        Headers::Response(self).encode(buf, payload_len)
+    }
+}
+
+// Helper struct to compute max length.
+#[derive(MaxSize, Serialize)]
+#[serde(untagged)]
+enum Headers {
+    Request(RequestHeader),
+    Response(ResponseHeader),
+}
+
+impl Headers {
     pub fn encode<'a>(&self, buf: &'a mut [u8], payload_len: usize) -> &'a mut [u8] {
-        assert!(buf.len() >= MessageHeader::MAX_LEN);
+        assert!(buf.len() >= MAX_LEN);
 
         let message_buf = &mut buf[Packet::PACKED_LEN..];
         let header_len = postcard::to_slice(self, message_buf).unwrap().len();

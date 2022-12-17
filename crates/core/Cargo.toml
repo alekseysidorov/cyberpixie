@@ -4,9 +4,11 @@ version = "0.2.0"
 edition = "2021"
 
 [dependencies]
-cyberpixie-proto = { workspace = true }
+displaydoc = { version = "0.2", default-features = false }
 embedded-io = "0.4"
+endian_codec = "0.1"
 log = "0.4"
+postcard = { version = "1.0", default-features = false, features = ["experimental-derive"] }
 serde = { version = "1", default-features = false, features = ["derive"] }
 
 [dev-dependencies]
