@@ -1,18 +1,21 @@
 //! Low level connection between cyberpixie devices.
 
 use std::{
+    fmt::Debug,
     io::{ErrorKind, Read, Write},
     net::TcpStream,
 };
 
-use cyberpixie_proto::{
-    packet::{PackedSize, Packet},
+use cyberpixie_core::proto::{
+    packet::{FromPacket, PackedSize, Packet},
     types::DeviceRole,
-    MessageHeader, PayloadReader,
+    Headers, PayloadReader, RequestHeader, ResponseHeader,
 };
 use embedded_io::adapters::{FromStd, ToStd};
 use log::trace;
 use nb_utils::IntoNbResult;
+
+const SEND_BUF_LEN: usize = 256;
 
 pub struct TcpStreamReader<'a>(embedded_io::adapters::FromStd<&'a mut TcpStream>);
 
@@ -32,18 +35,25 @@ impl<'a> embedded_io::blocking::Read for TcpStreamReader<'a> {
     }
 }
 
-pub struct Message<R: embedded_io::blocking::Read> {
-    pub header: MessageHeader,
+pub struct Message<R: embedded_io::blocking::Read, H> {
+    pub header: H,
     pub payload: Option<PayloadReader<R>>,
 }
 
-pub type IncomingMessage<'a> = Message<TcpStreamReader<'a>>;
+impl<R: embedded_io::blocking::Read, H> Message<R, H> {
+    pub fn read_payload_to_vec(self) -> std::io::Result<Vec<u8>> {
+        let payload = self.payload.expect("There is no payload in this message");
+        let mut buf = vec![0_u8; payload.len()];
+        ToStd::new(payload).read_exact(&mut buf)?;
+        Ok(buf)
+    }
+}
 
-impl<R: embedded_io::blocking::Read> Message<R> {
+pub type IncomingMessage<'a, H> = Message<TcpStreamReader<'a>, H>;
+pub type OutgoingMessage<R> = Message<R, Headers>;
+
+impl<R: embedded_io::blocking::Read> OutgoingMessage<R> {
     pub fn send<W: Write>(self, mut device: W) -> Result<(), std::io::Error> {
-        // TODO Move this const.
-        const SEND_BUF_LEN: usize = 256;
-
         let (header, payload_len, reader) = self.into_parts();
 
         let mut send_buf = [0_u8; SEND_BUF_LEN];
@@ -62,19 +72,12 @@ impl<R: embedded_io::blocking::Read> Message<R> {
         Ok(())
     }
 
-    pub fn into_parts(self) -> (MessageHeader, usize, Option<ToStd<PayloadReader<R>>>) {
+    pub fn into_parts(self) -> (Headers, usize, Option<ToStd<PayloadReader<R>>>) {
         if let Some(reader) = self.payload {
             (self.header, reader.len(), Some(ToStd::new(reader)))
         } else {
             (self.header, 0, None)
         }
-    }
-
-    pub fn read_payload_to_vec(self) -> std::io::Result<Vec<u8>> {
-        let payload = self.payload.expect("There is no payload in this message");
-        let mut buf = vec![0_u8; payload.len()];
-        ToStd::new(payload).read_exact(&mut buf)?;
-        Ok(buf)
     }
 }
 
@@ -96,11 +99,64 @@ impl Connection {
         }
     }
 
-    pub fn poll_next_message(&mut self) -> nb::Result<IncomingMessage<'_>, std::io::Error> {
-        let (header, payload_len) = self
+    pub fn poll_next_request(
+        &mut self,
+    ) -> nb::Result<IncomingMessage<'_, RequestHeader>, std::io::Error> {
+        self.poll_next_message()
+    }
+
+    pub fn poll_next_response(
+        &mut self,
+    ) -> nb::Result<IncomingMessage<'_, ResponseHeader>, std::io::Error> {
+        self.poll_next_message()
+    }
+
+    pub fn send_message(&mut self, header: impl Into<Headers>) -> std::io::Result<()> {
+        let header = header.into();
+        trace!("[{}] Sending message {header:?}", self.role);
+
+        OutgoingMessage::<&[u8]> {
+            header,
+            payload: None,
+        }
+        .send(&mut self.stream)?;
+        Ok(())
+    }
+
+    pub fn send_message_with_payload<T, P>(
+        &mut self,
+        header: impl Into<Headers>,
+        payload: P,
+    ) -> std::io::Result<()>
+    where
+        T: embedded_io::blocking::Read,
+        P: Into<PayloadReader<T>>,
+    {
+        let header = header.into();
+        let payload = payload.into();
+
+        trace!(
+            "[{}] Sending message {header:?} with payload {}",
+            self.role,
+            payload.len()
+        );
+
+        Message {
+            header,
+            payload: Some(payload),
+        }
+        .send(&mut self.stream)?;
+        Ok(())
+    }
+
+    fn poll_next_message<H>(&mut self) -> nb::Result<IncomingMessage<'_, H>, std::io::Error>
+    where
+        H: FromPacket + Debug,
+    {
+        let (header, payload_len): (H, _) = self
             .poll_next_packet()?
-            .message(self.io_reader())
-            .map_err(|err| nb::Error::Other(std::io::Error::new(ErrorKind::Other, err)))?;
+            .header(self.io_reader())
+            .map_err(std::io::Error::from)?;
 
         trace!(
             "[{}] Got a next message {header:?}, {payload_len:?}",
@@ -114,41 +170,6 @@ impl Connection {
         };
 
         Ok(Message { header, payload })
-    }
-
-    pub fn send_message(&mut self, header: MessageHeader) -> std::io::Result<()> {
-        trace!("[{}] Sending message {header:?}", self.role);
-
-        Message::<&[u8]> {
-            header,
-            payload: None,
-        }
-        .send(&mut self.stream)?;
-        Ok(())
-    }
-
-    pub fn send_message_with_payload<T, P>(
-        &mut self,
-        header: MessageHeader,
-        payload: P,
-    ) -> std::io::Result<()>
-    where
-        T: embedded_io::blocking::Read,
-        P: Into<PayloadReader<T>>,
-    {
-        let payload = payload.into();
-        trace!(
-            "[{}] Sending message {header:?} with payload {}",
-            self.role,
-            payload.len()
-        );
-
-        Message {
-            header,
-            payload: Some(payload),
-        }
-        .send(&mut self.stream)?;
-        Ok(())
     }
 
     fn poll_next_packet(&mut self) -> nb::Result<Packet, std::io::Error> {
@@ -191,9 +212,9 @@ impl Connection {
 mod tests {
     use std::net::{TcpListener, TcpStream};
 
-    use cyberpixie_proto::{
+    use cyberpixie_core::proto::{
         types::{DeviceInfo, DeviceRole},
-        MessageHeader,
+        RequestHeader,
     };
     use nb_utils::{IntoNbResult, NbResultExt};
 
@@ -238,14 +259,14 @@ mod tests {
 
         assert!(receiver.poll_next_packet().is_would_block());
 
-        let message = MessageHeader::RequestHandshake(DeviceInfo {
+        let message = RequestHeader::Handshake(DeviceInfo {
             role: DeviceRole::Client,
             group_id: None,
             strip_len: Some(64),
         });
         sender.send_message(message).unwrap();
 
-        let next_message = nb::block!(receiver.poll_next_message()).unwrap();
+        let next_message = nb::block!(receiver.poll_next_request()).unwrap();
         assert_eq!(next_message.header, message);
         assert!(next_message.payload.is_none());
 
@@ -258,11 +279,11 @@ mod tests {
 
         let text = b"Hello cyberpixie".as_slice();
         sender
-            .send_message_with_payload(MessageHeader::Debug, text)
+            .send_message_with_payload(RequestHeader::Debug, text)
             .unwrap();
 
-        let next_message = nb::block!(receiver.poll_next_message()).unwrap();
-        assert_eq!(next_message.header, MessageHeader::Debug);
+        let next_message = nb::block!(receiver.poll_next_request()).unwrap();
+        assert_eq!(next_message.header, RequestHeader::Debug);
         let text2 = next_message.read_payload_to_vec().unwrap();
         assert_eq!(text, text2);
 

@@ -4,9 +4,9 @@ use std::{
     thread::JoinHandle,
 };
 
-use cyberpixie_core::{Config, DeviceService, DeviceStorage, Image};
-use cyberpixie_proto::{
-    types::{DeviceInfo, DeviceRole, ImageId},
+use cyberpixie_core::{
+    proto::types::{DeviceInfo, DeviceRole, Hertz, ImageId},
+    service::{Config, DeviceImage, DeviceService, DeviceStorage},
     ExactSizeRead,
 };
 use cyberpixie_std_network::{Client, NetworkPart};
@@ -78,39 +78,34 @@ impl Seek for ImageReadStub {
 }
 
 impl DeviceStorage for StorageStub {
-    type Error = Infallible;
+    type ImageRead<'a> = ImageReadStub where Self: 'a;
 
-    type ImageRead<'a> = ImageReadStub;
-
-    fn config(&self) -> Result<Config, Self::Error> {
-        unimplemented!()
-    }
-
-    fn set_config(&self, _value: &Config) -> Result<(), Self::Error> {
-        unimplemented!()
-    }
-
-    fn add_image<R>(
-        &self,
-        _refresh_rate: cyberpixie_proto::types::Hertz,
-        _image: R,
-    ) -> Result<ImageId, cyberpixie_core::AddImageError<R::Error, Self::Error>>
-    where
-        R: ExactSizeRead,
-    {
+    fn config(&self) -> cyberpixie_core::Result<Config> {
         todo!()
     }
 
-    fn read_image(&self, _id: ImageId) -> Result<Option<Image<Self::ImageRead<'_>>>, Self::Error> {
-        unimplemented!()
+    fn set_config(&self, _value: &Config) -> cyberpixie_core::Result<()> {
+        todo!()
     }
 
-    fn images_count(&self) -> Result<u16, Self::Error> {
-        unimplemented!()
+    fn add_image<R: ExactSizeRead>(
+        &self,
+        _refresh_rate: Hertz,
+        _image: R,
+    ) -> cyberpixie_core::Result<ImageId> {
+        todo!()
     }
 
-    fn clear_images(&self) -> Result<(), Self::Error> {
-        unimplemented!()
+    fn read_image(&self, _id: ImageId) -> cyberpixie_core::Result<DeviceImage<'_, Self>> {
+        todo!()
+    }
+
+    fn images_count(&self) -> cyberpixie_core::Result<u16> {
+        todo!()
+    }
+
+    fn clear_images(&self) -> cyberpixie_core::Result<()> {
+        todo!()
     }
 }
 

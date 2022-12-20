@@ -34,6 +34,52 @@ pub enum ResponseHeader {
     Error(crate::Error),
 }
 
+impl ResponseHeader {
+    pub fn empty(self) -> crate::Result<()> {
+        match self {
+            Self::Empty => Ok(()),
+            Self::Error(err) => Err(err),
+            _ => Err(crate::Error::UnexpectedResponse),
+        }
+    }
+
+    pub fn handshake(self) -> crate::Result<DeviceInfo> {
+        match self {
+            Self::Handshake(info) => Ok(info),
+            Self::Error(err) => Err(err),
+            _ => Err(crate::Error::UnexpectedResponse),
+        }
+    }
+
+    pub fn add_image(self) -> crate::Result<ImageId> {
+        match self {
+            Self::AddImage(id) => Ok(id),
+            Self::Error(err) => Err(err),
+            _ => Err(crate::Error::UnexpectedResponse),
+        }
+    }
+}
+
+/// Possible header types.
+#[derive(Serialize, PartialEq, Eq, Clone, Copy, Debug, MaxSize)]
+#[serde(untagged)]
+pub enum Headers {
+    Request(RequestHeader),
+    Response(ResponseHeader),
+}
+
+impl From<RequestHeader> for Headers {
+    fn from(value: RequestHeader) -> Self {
+        Self::Request(value)
+    }
+}
+
+impl From<ResponseHeader> for Headers {
+    fn from(value: ResponseHeader) -> Self {
+        Self::Response(value)
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct PayloadReader<T> {
     payload_len: usize,

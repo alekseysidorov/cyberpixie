@@ -28,7 +28,7 @@ pub enum Error {
     /// Unable to write bytes to storage.
     StorageWrite = 8,
     /// Payload read error.
-    PayloadRead = 9,
+    Network = 9,
     /// Unspecified or unknown error.
     Unspecified(u16),
 }
@@ -44,7 +44,7 @@ impl Error {
             6 => Self::UnexpectedResponse,
             7 => Self::StorageRead,
             8 => Self::StorageWrite,
-            9 => Self::PayloadRead,
+            9 => Self::Network,
 
             other => Self::Unspecified(other),
         }
@@ -60,7 +60,7 @@ impl Error {
             Error::UnexpectedResponse => 6,
             Error::StorageRead => 7,
             Error::StorageWrite => 8,
-            Error::PayloadRead => 9,
+            Error::Network => 9,
 
             Error::Unspecified(other) => other,
         }
@@ -75,7 +75,17 @@ impl Error {
         Self::StorageWrite
     }
 
-    pub fn payload_read<E: embedded_io::Error>(_: E) -> Self {
-        Self::StorageWrite
+    pub fn network<E: embedded_io::Error>(_: E) -> Self {
+        Self::Network
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for Error {}
+
+#[cfg(feature = "std")]
+impl From<Error> for std::io::Error {
+    fn from(err: Error) -> Self {
+        std::io::Error::new(std::io::ErrorKind::Other, err)
     }
 }
