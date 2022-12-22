@@ -1,10 +1,10 @@
 use std::sync::Mutex;
 
-use anyhow::Context;
-use cyberpixie_core::{image_reader::BLOCK_SIZE, AddImageError, Config, DeviceStorage, Image};
-use cyberpixie_proto::{
-    types::{Hertz, ImageId},
-    ExactSizeRead,
+use cyberpixie_core::{
+    proto::types::{Hertz, ImageId},
+    service::{Config, DeviceImage, DeviceStorage, Image},
+    storage::DEFAULT_BLOCK_SIZE,
+    Error as CyberpixieError, ExactSizeRead,
 };
 use embedded_svc::storage::RawStorage;
 use esp_idf_svc::nvs::{EspNvs, EspNvsPartition, NvsDefault};
@@ -18,6 +18,8 @@ use self::image_reader::{BlockReaderImpl, ImageReader};
 mod image_reader;
 
 struct PostCard;
+
+const BLOCK_SIZE: usize = DEFAULT_BLOCK_SIZE;
 
 /// Image registry namespace
 const STORAGE_NAMESPACE: &str = "images";
@@ -66,89 +68,97 @@ impl ImagesRegistry {
         Self
     }
 
-    fn set<T>(&self, name: &str, value: &T) -> anyhow::Result<()>
+    fn set<T>(&self, name: &str, value: &T) -> cyberpixie_core::Result<()>
     where
         T: Serialize,
     {
         let mut buf = [0_u8; BLOCK_SIZE];
 
-        postcard::to_slice(value, &mut buf)?;
-        self.set_raw(name, &buf)?;
+        postcard::to_slice(value, &mut buf).map_err(CyberpixieError::encode)?;
+        self.set_raw(name, &buf)
+            .map_err(CyberpixieError::storage_write)?;
         Ok(())
     }
 
-    fn get<T>(&self, name: &str) -> anyhow::Result<Option<T>>
+    fn get<T>(&self, name: &str) -> Result<Option<T>, CyberpixieError>
     where
         T: DeserializeOwned,
     {
         let mut buf = [0_u8; BLOCK_SIZE];
 
-        let bytes = self.get_raw(name, &mut buf)?;
+        let bytes = self
+            .get_raw(name, &mut buf)
+            .map_err(CyberpixieError::storage_read)?;
+
         bytes
             .map(|buf| postcard::from_bytes(buf))
             .transpose()
-            .map_err(From::from)
+            .map_err(CyberpixieError::decode)
     }
 
-    fn set_raw(&self, name: &str, buf: &[u8]) -> Result<bool, EspError> {
-        STORAGE.lock().unwrap().set_raw(name, buf)
+    fn set_raw(&self, name: &str, buf: &[u8]) -> cyberpixie_core::Result<bool> {
+        STORAGE
+            .lock()
+            .unwrap()
+            .set_raw(name, buf)
+            .map_err(CyberpixieError::storage_write)
     }
 
     fn get_raw<'a>(&self, name: &str, buf: &'a mut [u8]) -> Result<Option<&'a [u8]>, EspError> {
         STORAGE.lock().unwrap().get_raw(name, buf)
     }
 
-    fn remove(&self, name: &str) -> Result<bool, EspError> {
+    fn remove(&self, name: &str) -> cyberpixie_core::Result<bool> {
         info!("Removing '{name}' entry...");
-        STORAGE.lock().unwrap().remove(name)
+        STORAGE
+            .lock()
+            .unwrap()
+            .remove(name)
+            .map_err(CyberpixieError::storage_write)
     }
 
-    fn set_images_count(&self, count: u16) -> Result<(), anyhow::Error> {
+    fn set_images_count(&self, count: u16) -> Result<(), CyberpixieError> {
         self.set("img.count", &count)
+            .map_err(CyberpixieError::storage_write)
     }
 
-    fn read_image_header(&self, image_index: ImageId) -> Result<ImageHeader, anyhow::Error> {
+    fn read_image_header(&self, image_index: ImageId) -> cyberpixie_core::Result<ImageHeader> {
         self.get(&format!("img.{image_index}.header"))?
-            .ok_or_else(|| anyhow::anyhow!("Unable to read image header: storage corrupted"))
+            .ok_or(CyberpixieError::StorageRead)
     }
 }
 
 impl DeviceStorage for ImagesRegistry {
     type ImageRead<'a> = ImageReader<'a>;
-    type Error = anyhow::Error;
 
-    fn config(&self) -> Result<Config, Self::Error> {
+    fn config(&self) -> cyberpixie_core::Result<Config> {
         let config = self.get("config")?;
         Ok(config.unwrap_or(DEFAULT_CONFIG))
     }
 
-    fn set_config(&self, value: &Config) -> Result<(), Self::Error> {
+    fn set_config(&self, value: &Config) -> cyberpixie_core::Result<()> {
         self.set("config", value)
+            .map_err(CyberpixieError::storage_write)
     }
 
-    fn images_count(&self) -> Result<u16, Self::Error> {
-        self.get("img.count").map(Option::unwrap_or_default)
+    fn images_count(&self) -> cyberpixie_core::Result<u16> {
+        self.get("img.count")
+            .map(Option::unwrap_or_default)
+            .map_err(CyberpixieError::storage_read)
     }
 
-    fn add_image<R>(
-        &self,
-        refresh_rate: Hertz,
-        mut image: R,
-    ) -> Result<ImageId, AddImageError<R::Error, Self::Error>>
+    fn add_image<R>(&self, refresh_rate: Hertz, mut image: R) -> cyberpixie_core::Result<ImageId>
     where
         R: ExactSizeRead,
     {
-        let image_index = self
-            .images_count()
-            .map_err(AddImageError::ImageWriteError)?;
+        let image_index = self.images_count()?;
 
         // Save image header.
         let header = ImageHeader {
             image_len: image.bytes_remaining() as u32,
             refresh_rate,
         };
-        self.set(&format!("img.{image_index}.header"), &header)
-            .map_err(AddImageError::ImageWriteError)?;
+        self.set(&format!("img.{image_index}.header"), &header)?;
         info!("Saving image with header: {header:?}");
 
         // Save image content.
@@ -159,30 +169,23 @@ impl DeviceStorage for ImagesRegistry {
             let to = std::cmp::min(image.bytes_remaining(), BLOCK_SIZE);
             image
                 .read_exact(&mut buf[0..to])
-                .map_err(|_| anyhow::anyhow!("Unable to read payload"))
-                .map_err(AddImageError::ImageWriteError)?;
+                .map_err(CyberpixieError::storage_write)?;
 
-            self.set_raw(&format!("img.{image_index}.block.{block}"), &buf[0..to])
-                .context("Unable to write image block")
-                .map_err(AddImageError::ImageWriteError)?;
+            self.set_raw(&format!("img.{image_index}.block.{block}"), &buf[0..to])?;
             info!("Write block {block} -> [0..{to}]");
         }
 
         let id = ImageId(image_index);
-        self.set_images_count(image_index + 1)
-            .map_err(AddImageError::ImageWriteError)?;
+        self.set_images_count(image_index + 1)?;
         info!("Image saved, total images count: {}", image_index + 1);
         Ok(id)
     }
 
-    fn read_image(
-        &self,
-        image_index: ImageId,
-    ) -> Result<Option<Image<Self::ImageRead<'_>>>, Self::Error> {
+    fn read_image(&self, image_index: ImageId) -> cyberpixie_core::Result<DeviceImage<'_, Self>> {
         let images_count = self.images_count()?;
 
         if image_index.0 >= images_count {
-            return Ok(None);
+            return Err(CyberpixieError::ImageNotFound);
         }
 
         let header = self.read_image_header(image_index)?;
@@ -193,10 +196,10 @@ impl DeviceStorage for ImagesRegistry {
                 header.image_len as usize,
             ),
         };
-        Ok(Some(image))
+        Ok(image)
     }
 
-    fn clear_images(&self) -> Result<(), Self::Error> {
+    fn clear_images(&self) -> cyberpixie_core::Result<()> {
         let images_count = self.images_count()?;
 
         info!("Deleting {images_count} images...");

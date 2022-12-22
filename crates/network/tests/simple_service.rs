@@ -78,7 +78,7 @@ impl Seek for ImageReadStub {
 }
 
 impl DeviceStorage for StorageStub {
-    type ImageRead<'a> = ImageReadStub where Self: 'a;
+    type ImageRead<'a> = ImageReadStub;
 
     fn config(&self) -> cyberpixie_core::Result<Config> {
         todo!()

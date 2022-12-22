@@ -1,3 +1,5 @@
+use core::fmt::Display;
+
 use displaydoc::Display;
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
@@ -27,8 +29,12 @@ pub enum Error {
     StorageRead = 7,
     /// Unable to write bytes to storage.
     StorageWrite = 8,
-    /// Payload read error.
+    /// Network read error.
     Network = 9,
+    /// Data decoding error.
+    Decode = 10,
+    /// Data encoding error.
+    Encode = 11,
     /// Unspecified or unknown error.
     Unspecified(u16),
 }
@@ -45,6 +51,8 @@ impl Error {
             7 => Self::StorageRead,
             8 => Self::StorageWrite,
             9 => Self::Network,
+            10 => Self::Decode,
+            11 => Self::Encode,
 
             other => Self::Unspecified(other),
         }
@@ -61,22 +69,49 @@ impl Error {
             Error::StorageRead => 7,
             Error::StorageWrite => 8,
             Error::Network => 9,
+            Error::Decode => 10,
+            Error::Encode => 11,
 
             Error::Unspecified(other) => other,
         }
     }
 
     /// Creates a new storage read error.
-    pub fn storage_read<E: embedded_io::Error>(_: E) -> Self {
+    pub fn storage_read<E>(_: E) -> Self
+    where
+        E: Display,
+    {
         Self::StorageRead
     }
 
-    pub fn storage_write<E: embedded_io::Error>(_: E) -> Self {
+    pub fn storage_write<E>(_: E) -> Self
+    where
+        E: Display,
+    {
         Self::StorageWrite
     }
 
-    pub fn network<E: embedded_io::Error>(_: E) -> Self {
+    pub fn network<E>(_: E) -> Self
+    where
+        E: Display,
+    {
         Self::Network
+    }
+
+    /// Creates a new decode data error.
+    pub fn decode<E>(_: E) -> Self
+    where
+        E: Display,
+    {
+        Self::Decode
+    }
+
+    /// Creates a new encode data error.
+    pub fn encode<E>(_: E) -> Self
+    where
+        E: Display,
+    {
+        Self::Encode
     }
 }
 

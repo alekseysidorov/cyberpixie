@@ -1,9 +1,9 @@
-use cyberpixie_core::DeviceStorage;
-use cyberpixie_esp32c3::storage::ImagesRegistry;
-use cyberpixie_proto::{
-    types::{Hertz, ImageId},
+use cyberpixie_core::{
+    proto::types::{Hertz, ImageId},
+    service::DeviceStorage,
     ExactSizeRead,
 };
+use cyberpixie_esp32c3::storage::ImagesRegistry;
 use embedded_io::blocking::Read;
 use esp_idf_svc::log::EspLogger;
 // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
@@ -41,7 +41,7 @@ fn main() -> anyhow::Result<()> {
     images.clear_images()?;
     images.add_image(Hertz(50), BIG_TEXT)?;
 
-    let mut reader = images.read_image(ImageId(0))?.unwrap();
+    let mut reader = images.read_image(ImageId(0))?;
 
     let mut buf = vec![0_u8; reader.bytes.bytes_remaining()];
     reader.bytes.read_exact(&mut buf)?;
