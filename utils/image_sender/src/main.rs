@@ -3,7 +3,7 @@ use std::{net::SocketAddr, path::PathBuf};
 use clap::{CommandFactory, Parser, Subcommand};
 use cyberpixie_core::proto::types::Hertz;
 use cyberpixie_std_network::create_client;
-use image_sender::{convert_image_to_raw, display_err};
+use image_sender::{convert_image_to_raw};
 
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]

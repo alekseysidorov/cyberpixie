@@ -7,6 +7,7 @@ pub struct PostCard;
 
 pub mod storage;
 pub mod wifi;
+pub mod splash;
 
 impl embedded_svc::storage::SerDe for PostCard {
     type Error = postcard::Error;
