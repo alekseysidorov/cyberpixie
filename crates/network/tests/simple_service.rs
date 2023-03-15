@@ -110,6 +110,7 @@ impl DeviceStorage for StorageStub {
 }
 
 #[test]
+#[cfg_attr(miri, ignore)]
 fn test_simple_handshake() {
     let (mut client, _device) = create_loopback(DeviceStub).unwrap();
     assert_eq!(

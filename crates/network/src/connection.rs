@@ -232,6 +232,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_create_loop_back_nonblocking() {
         let listener = TcpListener::bind("0.0.0.0:0").unwrap();
         listener.set_nonblocking(true).unwrap();
@@ -254,6 +255,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_read_write_without_payload() {
         let (mut sender, mut receiver) = create_loopback();
 
@@ -274,6 +276,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_read_write_with_payload() {
         let (mut sender, mut receiver) = create_loopback();
 
