@@ -69,7 +69,7 @@ fn main() -> anyhow::Result<()> {
                 index
             );
         }
-        Commands::ShowImage { index } => {}
+        Commands::ShowImage { .. } => {}
         Commands::ClearImages => {
             log::info!("Sending clear images command to {}", address);
 

@@ -1,4 +1,4 @@
 [toolchain]
 channel = "nightly-2023-03-15"
 targets = ["riscv32imc-unknown-none-elf"]
-components = ["llvm-tools", "rust-src"]
+components = ["llvm-tools", "rust-src", "miri"]
