@@ -9,7 +9,7 @@ fn test_block_reader_smoke() {
     let blocks_count = 10;
 
     let blocks = (0..blocks_count)
-        .flat_map(|block| (0..BLOCK_SIZE).into_iter().map(move |_| block as u8))
+        .flat_map(|block| (0..BLOCK_SIZE).map(move |_| block as u8))
         .collect::<Vec<u8>>();
 
     let block_reader = &blocks.as_slice() as &dyn BlockReader<BLOCK_SIZE, Error = Infallible>;
