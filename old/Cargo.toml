@@ -1,0 +1,11 @@
+[workspace]
+resolver = "2"
+
+members = [
+  "crates/core",
+  "crates/esp8266-softap",
+  "crates/proto",
+  "crates/std-transport",
+  "utils/image_sender",
+]
+exclude = ["firmware", "application"]

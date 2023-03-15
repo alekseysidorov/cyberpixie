@@ -1,0 +1,20 @@
+[package]
+name = "cyberpixie-proto"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+displaydoc = { version = "0.2", default-features = false }
+endian_codec = "0.1"
+heapless = "0.7"
+nb = "1.0"
+postcard = { version = "0.7", default-features = false }
+serde = { version = "1", default-features = false, features = ["derive"] }
+
+nb-utils = { git = "https://github.com/alekseysidorov/nb-utils.git", branch = "main" }
+no-stdout = { git = "https://github.com/alekseysidorov/no-stdout.git", branch = "main" }
+simple-clock = { git = "https://github.com/alekseysidorov/simple-clock.git", branch = "main" }
+
+[dev-dependencies]
+embedded-hal = "0.2"
+esp8266-softap = { path = "../esp8266-softap" }
