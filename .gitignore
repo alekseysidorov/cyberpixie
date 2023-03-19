@@ -34,3 +34,7 @@ Cargo.lock
 
 ### ESP32 files
 **/.embuild/
+
+### Nix files
+/result
+/.direnv/

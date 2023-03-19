@@ -31,10 +31,10 @@ heapless = { version = "0.7" }
 nb-utils = { git = "https://github.com/alekseysidorov/nb-utils.git", branch = "main" }
 postcard = { version = "1.0", features = ["experimental-derive"] }
 postcard-derive = "0.1.0"
-ws2812-esp32-rmt-driver = "0.4.0"
+ws2812-esp32-rmt-driver = "0.5.0"
 
-[patch.crates-io]
-ws2812-esp32-rmt-driver = { git = "https://github.com/togisoft/ws2812-esp32-rmt-driver.git", rev = "71eb2b7" }
+# [patch.crates-io]
+# ws2812-esp32-rmt-driver = { git = "https://github.com/togisoft/ws2812-esp32-rmt-driver.git", rev = "71eb2b7" }
 
 # Profile section
 [profile.release]
