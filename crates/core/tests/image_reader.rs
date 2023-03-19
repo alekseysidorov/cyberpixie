@@ -1,5 +1,8 @@
-use cyberpixie_core::{proto::types::Hertz, service::Image, storage::ImageReader};
-use embedded_io::blocking::Read;
+use cyberpixie_core::{proto::types::Hertz, service::Image, storage::ImageReader, ExactSizeRead};
+use embedded_io::{
+    blocking::{Read, Seek},
+    SeekFrom,
+};
 
 const BLOCK_SIZE: usize = 32;
 
@@ -43,6 +46,10 @@ fn test_image_reader_read_exact_lesser_than_block() {
     reader.bytes.read_exact(&mut buf).unwrap();
 
     assert_eq!(s, String::from_utf8_lossy(&buf));
+    // Go to the image beginning and try to read again
+    reader.bytes.seek(SeekFrom::Start(0)).unwrap();
+    reader.bytes.read_exact(&mut buf).unwrap();
+    assert_eq!(s, String::from_utf8_lossy(&buf));
 }
 
 #[test]
@@ -72,7 +79,7 @@ fn test_image_reader_read_parts_lesser_than_block() {
 }
 
 #[test]
-fn test_image_reader_read_exact_several_blocks() {
+fn test_image_reader_read_exact_multiple_blocks() {
     let s = "The standard Lorem Ipsum passage, used since the 1500s \
         Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod \
         tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, ";
@@ -89,10 +96,16 @@ fn test_image_reader_read_exact_several_blocks() {
     reader.bytes.read_exact(&mut buf).unwrap();
 
     assert_eq!(s, String::from_utf8_lossy(&buf));
+    // Check that there are no bytes in the reader
+    assert_eq!(0, reader.bytes.read(&mut buf).unwrap());
+    // Go to the image beginning and try to read again
+    reader.bytes.seek(SeekFrom::Start(0)).unwrap();
+    reader.bytes.read_exact(&mut buf).unwrap();
+    assert_eq!(s, String::from_utf8_lossy(&buf));
 }
 
 #[test]
-fn test_image_reader_read_parts_several_blocks() {
+fn test_image_reader_read_parts_multiple_blocks() {
     let s = "The standard Lorem Ipsum passage, used since the 1500s \
         Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod \
         tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, ";
@@ -105,22 +118,30 @@ fn test_image_reader_read_parts_several_blocks() {
         bytes: ImageReader::<_, BLOCK_SIZE>::new(blocks.as_ref(), image_len),
     };
 
-    let mut out = vec![];
-    loop {
-        let mut buf = [0_u8; 3];
-        let bytes_read = reader.bytes.read(&mut buf).unwrap();
-        if bytes_read == 0 {
-            break;
-        }
+    fn read_image(reader: &mut Image<impl ExactSizeRead + Seek>) -> Vec<u8> {
+        let mut out = vec![];
+        loop {
+            let mut buf = [0_u8; 3];
+            let bytes_read = reader.bytes.read(&mut buf).unwrap();
+            if bytes_read == 0 {
+                break;
+            }
 
-        out.extend_from_slice(&buf[0..bytes_read]);
+            out.extend_from_slice(&buf[0..bytes_read]);
+        }
+        out
     }
 
+    let out = read_image(&mut reader);
+    assert_eq!(s, String::from_utf8_lossy(&out));
+    // Go to the image beginning and try to read again
+    reader.bytes.seek(SeekFrom::Start(0)).unwrap();
+    let out = read_image(&mut reader);
     assert_eq!(s, String::from_utf8_lossy(&out));
 }
 
 #[test]
-fn test_image_reader_read_big_parts_several_blocks() {
+fn test_image_reader_read_big_parts_multiple_blocks() {
     let s = "The standard Lorem Ipsum passage, used since the 1500s \
         Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod \
         tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, ";
@@ -148,7 +169,7 @@ fn test_image_reader_read_big_parts_several_blocks() {
 }
 
 #[test]
-fn test_image_reader_read_single_several_blocks() {
+fn test_image_reader_read_single_byte_buf_multiple_blocks() {
     let s = "The standard Lorem Ipsum passage, used since the 1500s \
         Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod \
         tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, ";

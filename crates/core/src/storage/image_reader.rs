@@ -62,8 +62,18 @@ where
 }
 
 impl<T: BlockReader<N>, const N: usize> Seek for ImageReader<T, N> {
-    fn seek(&mut self, _pos: SeekFrom) -> Result<u64, Self::Error> {
-        todo!()
+    fn seek(&mut self, seek: SeekFrom) -> Result<u64, Self::Error> {
+        // Compute a new image read position
+        self.bytes_read = match seek {
+            SeekFrom::Start(pos) => pos as usize,
+            // In this project, we only have to read an image from the beginning, 
+            // so we don't need to implement the whole seek functionality
+            SeekFrom::Current(_pos) => unimplemented!(),
+            SeekFrom::End(_pos) => unimplemented!(),
+        };
+        // Reread the block corresponding to the new read position
+        self.read_current_block_to_buf()?;
+        Ok(self.bytes_read as u64)
     }
 }
 
