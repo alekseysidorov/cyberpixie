@@ -27,10 +27,45 @@
             nixpkgs-cross-overlay.overlays.default
           ];
         };
+
+        rustToolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+
       in
       {
         devShells = {
-          default = import ./shell.nix { inherit pkgs; };
+          default = pkgs.mkShell {
+            nativeBuildInputs = with pkgs; [
+              rustToolchain
+              rustBuildHostDependencies
+            ];
+            RUSTC_WRAPPER = "sccache";
+          };
+          esp32c3 = pkgs.mkShell {
+            nativeBuildInputs = with pkgs; [
+              rustToolchain
+              rustBuildHostDependencies
+              cmake
+              sccache
+              # Esp32 development packages
+              cargo-espflash
+              espflash
+              ldproxy
+              espup
+            ];
+
+            RUSTC_WRAPPER = "sccache";
+
+            CARGO_BUILD_TARGET = "riscv32imc-esp-espidf";
+            CARGO_UNSTABLE_BUILD_STD = "std,panic_abort";
+            ESP_IDF_VERSION = "release/v4.4";
+
+            shellHook = ''
+              # Disable Native compiler in shell
+              unset CC; unset CXX
+              PS1="\[\033[38;5;39m\]\w \[\033[38;5;35m\](esp32c3) \[\033[0m\]\$ "
+              echo "Hello"
+            '';
+          };
         };
       }
     );
