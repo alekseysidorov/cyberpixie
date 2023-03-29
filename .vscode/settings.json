@@ -1,9 +1,2 @@
 {
-  "rust-analyzer.imports.prefer.no.std": true,
-  "rust-analyzer.cargo.buildScripts.overrideCommand": [
-    "cargo",
-    "clippy",
-    "--quiet",
-    "--message-format=json"
-  ]
 }

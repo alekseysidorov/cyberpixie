@@ -1,6 +1,7 @@
 //! Cyberpixie service traits
 
-use embedded_io::blocking::Seek;
+use embedded_io::blocking::{ReadExactError, Seek};
+use rgb::{FromSlice, RGB8};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -20,6 +21,17 @@ where
 {
     pub refresh_rate: Hertz,
     pub bytes: R,
+}
+
+impl<R> Image<R>
+where
+    R: ExactSizeRead + Seek,
+{
+    /// Rewind to the beginning of an image.
+    pub fn rewind(&mut self) -> Result<(), R::Error> {
+        self.bytes.rewind()?;
+        Ok(())
+    }
 }
 
 /// Basic device services.
@@ -52,4 +64,66 @@ pub trait DeviceStorage {
     fn images_count(&self) -> crate::Result<u16>;
     /// Remove all stored images.
     fn clear_images(&self) -> crate::Result<()>;
+}
+
+/// An endless iterator over the image lines, then it reaches the end of image, it rewinds to the beginning.
+pub struct ImageLines<R, const BUF_LEN: usize = 600>
+where
+    R: ExactSizeRead + Seek,
+{
+    image: Image<R>,
+    current_line_buf: heapless::Vec<u8, BUF_LEN>,
+}
+
+impl<R, const BUF_LEN: usize> ImageLines<R, BUF_LEN>
+where
+    R: ExactSizeRead + Seek,
+{
+    /// Bytes count per single pixel.
+    const BYTES_PER_PIXEL: usize = 3;
+
+    /// Creates a new image lines iterator.
+    ///
+    /// # Panics
+    ///
+    /// - If the image length is lesser that the single strip line length
+    /// - If the image length in pixels is not a multiple of the strip length
+    pub fn new(image: Image<R>, strip_len: u16) -> Self {
+        let strip_len: usize = strip_len.into();
+        let strip_len_bytes = strip_len * Self::BYTES_PER_PIXEL;
+        // Check preconditions.
+        assert!(
+            image.bytes.bytes_remaining() >= strip_len_bytes,
+            "The given image should have at least {} bytes",
+            strip_len_bytes
+        );
+        assert!(
+            image.bytes.bytes_remaining() % strip_len_bytes == 0,
+            "The length of the given image in pixels is not a multiple of the given strip length."
+        );
+
+        Self {
+            image,
+            current_line_buf: core::iter::repeat(0).take(strip_len_bytes).collect(),
+        }
+    }
+
+    /// Reads and returns a next image line
+    pub fn next_line(
+        &mut self,
+    ) -> Result<(impl Iterator<Item = RGB8> + '_, Hertz), ReadExactError<R::Error>> {
+        self.fill_next_line()?;
+        let line = self.current_line_buf.as_rgb().iter().copied();
+        Ok((line, self.image.refresh_rate))
+    }
+
+    fn fill_next_line(&mut self) -> Result<(), ReadExactError<R::Error>> {
+        // In this case we reached the end of file and have to rewind to the beginning
+        if self.image.bytes.bytes_remaining() == 0 {
+            self.image.bytes.rewind().map_err(ReadExactError::Other)?;
+        }
+        // Fill the buffer with by the bytes of the next image line
+        self.image.bytes.read_exact(&mut self.current_line_buf)?;
+        Ok(())
+    }
 }

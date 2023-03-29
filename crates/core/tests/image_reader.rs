@@ -1,4 +1,4 @@
-use cyberpixie_core::{proto::types::Hertz, service::Image, storage::ImageReader, ExactSizeRead};
+use cyberpixie_core::{proto::types::Hertz, service::{Image, ImageLines}, storage::ImageReader, ExactSizeRead};
 use embedded_io::{
     blocking::{Read, Seek},
     SeekFrom,
@@ -135,7 +135,7 @@ fn test_image_reader_read_parts_multiple_blocks() {
     let out = read_image(&mut reader);
     assert_eq!(s, String::from_utf8_lossy(&out));
     // Go to the image beginning and try to read again
-    reader.bytes.seek(SeekFrom::Start(0)).unwrap();
+    reader.rewind().unwrap();
     let out = read_image(&mut reader);
     assert_eq!(s, String::from_utf8_lossy(&out));
 }
@@ -194,4 +194,35 @@ fn test_image_reader_read_single_byte_buf_multiple_blocks() {
     }
 
     assert_eq!(s, String::from_utf8_lossy(&out));
+}
+
+#[test]
+fn test_image_lines_cycle_nyan_cat() {
+    let image = image::load_from_memory(include_bytes!("../assets/nyan_cat_48.png"))
+        .unwrap()
+        .to_rgb8();
+
+    // Convert image to raw bytes
+    let mut raw = Vec::with_capacity(image.len() * 3);
+    for rgb in image.pixels() {
+        raw.extend(rgb.0);
+    }
+
+    let image = Image {
+        refresh_rate: Hertz(50),
+        bytes: ImageReader::<_, BLOCK_SIZE>::new(raw.as_ref(), raw.len()),
+    };
+
+    let mut lines: ImageLines<ImageReader<&[u8], BLOCK_SIZE>, 600> = ImageLines::new(image, 48);
+    let first_line: Vec<_> = lines.next_line().unwrap().0.collect();
+    // Render a lot of lines
+    for _ in 1..360 {
+        let (_line, _rate) = lines.next_line().unwrap();
+    }
+    // After several cycles we should return back to the first image line
+    let line: Vec<_> = lines.next_line().unwrap().0.collect();
+    assert_eq!(first_line, line);
+    // Check that the next line is not equal the first one
+    let line: Vec<_> = lines.next_line().unwrap().0.collect();
+    assert_ne!(first_line, line);
 }

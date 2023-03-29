@@ -16,7 +16,7 @@ pub enum DeviceRole {
 }
 
 impl Display for DeviceRole {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             DeviceRole::Client => f.write_str("client"),
             DeviceRole::Main => f.write_str("main"),
@@ -81,7 +81,7 @@ impl From<u32> for Hertz {
 }
 
 impl Display for ImageId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         self.0.fmt(f)
     }
 }
