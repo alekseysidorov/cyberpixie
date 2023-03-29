@@ -26,5 +26,4 @@ fn main() -> anyhow::Result<()> {
     let sysloop = EspSystemEventLoop::take()?;
     let mut wifi = Wifi::new(peripherals.modem, sysloop)?;
     wifi.establish_softap(Config::default())?;
-
 }

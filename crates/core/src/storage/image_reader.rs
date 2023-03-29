@@ -66,7 +66,7 @@ impl<T: BlockReader<N>, const N: usize> Seek for ImageReader<T, N> {
         // Compute a new image read position
         self.bytes_read = match seek {
             SeekFrom::Start(pos) => pos as usize,
-            // In this project, we only have to read an image from the beginning, 
+            // In this project, we only have to read an image from the beginning,
             // so we don't need to implement the whole seek functionality
             SeekFrom::Current(_pos) => unimplemented!(),
             SeekFrom::End(_pos) => unimplemented!(),

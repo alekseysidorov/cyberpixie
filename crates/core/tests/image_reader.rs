@@ -1,4 +1,9 @@
-use cyberpixie_core::{proto::types::Hertz, service::{Image, ImageLines}, storage::ImageReader, ExactSizeRead};
+use cyberpixie_core::{
+    proto::types::Hertz,
+    service::{Image, ImageLines},
+    storage::ImageReader,
+    ExactSizeRead,
+};
 use embedded_io::{
     blocking::{Read, Seek},
     SeekFrom,
