@@ -39,6 +39,8 @@ where
     S: DeviceService,
 {
     pub fn new(device: S, listener: TcpListener) -> Result<Self, anyhow::Error> {
+        info!("Creating a new network for device: {:?}", device.device_info());
+
         listener.set_nonblocking(true)?;
         Ok(Self {
             device,

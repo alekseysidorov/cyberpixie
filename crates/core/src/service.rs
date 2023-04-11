@@ -9,15 +9,15 @@ use crate::{
     ExactSizeRead,
 };
 
-pub const MAX_STRIP_LEN: usize = 144;
-const IMAGE_BYTES_BUF_LEN: usize = 600;
+pub const MAX_STRIP_LEN: usize = 72;
+const IMAGE_BUF_LEN: usize = 256;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Config {
     pub strip_len: u16,
-    pub current_image: ImageId,
 }
 
+#[derive(Debug)]
 pub struct Image<R>
 where
     R: ExactSizeRead + Seek,
@@ -64,21 +64,39 @@ pub trait DeviceStorage {
     /// Reads an image by ID.
     fn read_image(&self, id: ImageId) -> crate::Result<DeviceImage<'_, Self>>;
     /// Returns total images count.
-    fn images_count(&self) -> crate::Result<u16>;
+    fn images_count(&self) -> crate::Result<ImageId>;
     /// Remove all stored images.
     fn clear_images(&self) -> crate::Result<()>;
+    /// Sets an index of image that will be shown.
+    fn set_current_image(&self, id: ImageId) -> crate::Result<()>;
+    /// Returns an index of image that will be shown.
+    fn current_image(&self) -> crate::Result<Option<ImageId>>;
+    /// Switches to a next image, if it reaches the last image it turns back to the first image.
+    fn switch_to_next_image(&self) -> crate::Result<Option<ImageId>> {
+        let Some(mut current_image) = self.current_image()? else {
+            return Ok(None)
+        };
+        
+        current_image.0 += 1;
+        if current_image == self.images_count()? {
+            current_image.0 = 0;
+        }
+        Ok(Some(current_image))
+    }
 }
 
+pub type ImageLine = heapless::Vec<RGB8, MAX_STRIP_LEN>;
+
 /// An endless iterator over the image lines, then it reaches the end of image, it rewinds to the beginning.
-pub struct ImageLines<R, const BUF_LEN: usize = IMAGE_BYTES_BUF_LEN>
+pub struct ImageLines<R>
 where
     R: ExactSizeRead + Seek,
 {
     image: Image<R>,
-    current_line_buf: heapless::Vec<u8, BUF_LEN>,
+    current_line_buf: heapless::Vec<u8, IMAGE_BUF_LEN>,
 }
 
-impl<R, const BUF_LEN: usize> ImageLines<R, BUF_LEN>
+impl<R> ImageLines<R>
 where
     R: ExactSizeRead + Seek,
 {
@@ -114,9 +132,9 @@ where
     /// Reads and returns a next image line
     pub fn next_line(
         &mut self,
-    ) -> Result<(impl Iterator<Item = RGB8> + '_, Hertz), ReadExactError<R::Error>> {
+    ) -> Result<(ImageLine, Hertz), ReadExactError<R::Error>> {
         self.fill_next_line()?;
-        let line = self.current_line_buf.as_rgb().iter().copied();
+        let line = self.current_line_buf.as_rgb().iter().copied().collect();
         Ok((line, self.image.refresh_rate))
     }
 

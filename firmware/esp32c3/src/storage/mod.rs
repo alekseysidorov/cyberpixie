@@ -24,10 +24,7 @@ const BLOCK_SIZE: usize = DEFAULT_BLOCK_SIZE;
 /// Image registry namespace
 const STORAGE_NAMESPACE: &str = "images";
 
-const DEFAULT_CONFIG: Config = Config {
-    strip_len: 24,
-    current_image: ImageId(0),
-};
+const DEFAULT_CONFIG: Config = Config { strip_len: 48 };
 
 impl embedded_svc::storage::SerDe for PostCard {
     type Error = postcard::Error;
@@ -141,8 +138,24 @@ impl DeviceStorage for ImagesRegistry {
             .map_err(CyberpixieError::storage_write)
     }
 
-    fn images_count(&self) -> cyberpixie_core::Result<u16> {
+    fn images_count(&self) -> cyberpixie_core::Result<ImageId> {
         self.get("img.count")
+            .map(Option::unwrap_or_default)
+            .map_err(CyberpixieError::storage_read)
+    }
+
+    fn set_current_image(&self, id: ImageId) -> cyberpixie_core::Result<()> {
+        self.set("img.current", &id)
+            .map_err(CyberpixieError::storage_write)
+    }
+
+    fn current_image(&self) -> cyberpixie_core::Result<Option<ImageId>> {
+        // There is no images in this registry, so the current image doesn't make sense.
+        if self.images_count()?.0 == 0 {
+            return Ok(None);
+        }
+
+        self.get("img.current")
             .map(Option::unwrap_or_default)
             .map_err(CyberpixieError::storage_read)
     }
@@ -175,16 +188,16 @@ impl DeviceStorage for ImagesRegistry {
             info!("Write block {block} -> [0..{to}]");
         }
 
-        let id = ImageId(image_index);
-        self.set_images_count(image_index + 1)?;
-        info!("Image saved, total images count: {}", image_index + 1);
+        let id = image_index;
+        self.set_images_count(image_index.0 + 1)?;
+        info!("Image saved, total images count: {}", image_index.0 + 1);
         Ok(id)
     }
 
     fn read_image(&self, image_index: ImageId) -> cyberpixie_core::Result<DeviceImage<'_, Self>> {
         let images_count = self.images_count()?;
 
-        if image_index.0 >= images_count {
+        if image_index >= images_count {
             return Err(CyberpixieError::ImageNotFound);
         }
 
@@ -203,7 +216,7 @@ impl DeviceStorage for ImagesRegistry {
         let images_count = self.images_count()?;
 
         info!("Deleting {images_count} images...");
-        for image_index in 0..images_count {
+        for image_index in 0..images_count.0 {
             let header = self.read_image_header(ImageId(image_index))?;
             // Remove image blocks.
             let blocks_count = header.image_len as usize / BLOCK_SIZE;

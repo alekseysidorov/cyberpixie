@@ -8,10 +8,7 @@ members = [
   "utils/image_sender",
 ]
 
-default-members = [
-  "crates/core",
-  "crates/network",
-]
+default-members = ["crates/core", "crates/network"]
 
 exclude = ["old", "firmware/esp32c3", "utils/image_sender"]
 
@@ -39,6 +36,6 @@ opt-level = "s"
 lto = true
 
 [profile.dev]
-debug = true # Symbols are nice and they don't increase the size on Flash
+debug = true    # Symbols are nice and they don't increase the size on Flash
 opt-level = "z"
 lto = true

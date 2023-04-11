@@ -203,7 +203,7 @@ fn test_image_reader_read_single_byte_buf_multiple_blocks() {
 
 #[test]
 fn test_image_lines_cycle_nyan_cat() {
-    let image = image::load_from_memory(include_bytes!("../assets/nyan_cat_48.png"))
+    let image = image::load_from_memory(include_bytes!("../../../assets/nyan_cat_48.png"))
         .unwrap()
         .to_rgb8();
 
@@ -218,16 +218,16 @@ fn test_image_lines_cycle_nyan_cat() {
         bytes: ImageReader::<_, BLOCK_SIZE>::new(raw.as_ref(), raw.len()),
     };
 
-    let mut lines: ImageLines<ImageReader<&[u8], BLOCK_SIZE>, 600> = ImageLines::new(image, 48);
-    let first_line: Vec<_> = lines.next_line().unwrap().0.collect();
+    let mut lines: ImageLines<ImageReader<&[u8], BLOCK_SIZE>> = ImageLines::new(image, 48);
+    let first_line: Vec<_> = lines.next_line().unwrap().0.into_iter().collect();
     // Render a lot of lines
     for _ in 1..360 {
         let (_line, _rate) = lines.next_line().unwrap();
     }
     // After several cycles we should return back to the first image line
-    let line: Vec<_> = lines.next_line().unwrap().0.collect();
+    let line: Vec<_> = lines.next_line().unwrap().0.into_iter().collect();
     assert_eq!(first_line, line);
     // Check that the next line is not equal the first one
-    let line: Vec<_> = lines.next_line().unwrap().0.collect();
+    let line: Vec<_> = lines.next_line().unwrap().0.into_iter().collect();
     assert_ne!(first_line, line);
 }
