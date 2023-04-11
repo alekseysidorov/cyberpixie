@@ -57,12 +57,34 @@ pub struct ImageInfo {
 }
 
 #[derive(
-    Serialize, Deserialize, MaxSize, PartialEq, Eq, Clone, Copy, Debug, PartialOrd, Ord, Hash,
+    Serialize,
+    Deserialize,
+    MaxSize,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    Debug,
+    PartialOrd,
+    Ord,
+    Hash,
+    Default,
 )]
 pub struct Hertz(pub u32);
 
 #[derive(
-    Serialize, Deserialize, MaxSize, PartialEq, Eq, Clone, Copy, Debug, PartialOrd, Ord, Hash,
+    Serialize,
+    Deserialize,
+    MaxSize,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    Debug,
+    PartialOrd,
+    Ord,
+    Hash,
+    Default,
 )]
 pub struct ImageId(pub u16);
 

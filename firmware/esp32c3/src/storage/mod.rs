@@ -26,7 +26,7 @@ const STORAGE_NAMESPACE: &str = "images";
 
 const DEFAULT_CONFIG: Config = Config {
     strip_len: 24,
-    current_image: 0,
+    current_image: ImageId(0),
 };
 
 impl embedded_svc::storage::SerDe for PostCard {

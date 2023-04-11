@@ -9,10 +9,13 @@ use crate::{
     ExactSizeRead,
 };
 
+pub const MAX_STRIP_LEN: usize = 144;
+const IMAGE_BYTES_BUF_LEN: usize = 600;
+
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Config {
     pub strip_len: u16,
-    pub current_image: u16,
+    pub current_image: ImageId,
 }
 
 pub struct Image<R>
@@ -67,7 +70,7 @@ pub trait DeviceStorage {
 }
 
 /// An endless iterator over the image lines, then it reaches the end of image, it rewinds to the beginning.
-pub struct ImageLines<R, const BUF_LEN: usize = 600>
+pub struct ImageLines<R, const BUF_LEN: usize = IMAGE_BYTES_BUF_LEN>
 where
     R: ExactSizeRead + Seek,
 {
