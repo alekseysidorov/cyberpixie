@@ -8,10 +8,7 @@ members = [
   "utils/image_sender",
 ]
 
-default-members = [
-  "crates/core",
-  "crates/network",
-]
+default-members = ["crates/core", "crates/network"]
 
 exclude = ["old", "firmware/esp32c3", "utils/image_sender"]
 
@@ -21,20 +18,11 @@ cyberpixie-core = { path = "crates/core", features = ["std"] }
 cyberpixie-std-network = { path = "crates/network" }
 
 # Common dependencies
-embedded-hal = "1.0.0-alpha.9"
-embedded-svc = "0.24"
-embuild = "0.31"
-esp-idf-hal = "0.40"
-esp-idf-svc = "0.45"
-esp-idf-sys = { version = "0.32", features = ["binstart"] }
 heapless = { version = "0.7" }
 nb-utils = { git = "https://github.com/alekseysidorov/nb-utils.git", branch = "main" }
 postcard = { version = "1.0", features = ["experimental-derive"] }
 postcard-derive = "0.1.0"
-ws2812-esp32-rmt-driver = "0.4.0"
 
-[patch.crates-io]
-ws2812-esp32-rmt-driver = { git = "https://github.com/togisoft/ws2812-esp32-rmt-driver.git", rev = "71eb2b7" }
 
 # Profile section
 [profile.release]
@@ -42,6 +30,6 @@ opt-level = "s"
 lto = true
 
 [profile.dev]
-debug = true # Symbols are nice and they don't increase the size on Flash
+debug = true    # Symbols are nice and they don't increase the size on Flash
 opt-level = "z"
 lto = true

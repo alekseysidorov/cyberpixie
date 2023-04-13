@@ -1,4 +1,4 @@
-use core::{fmt::Display, str::FromStr};
+use core::{fmt::Display, str::FromStr, time::Duration};
 
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
@@ -16,7 +16,7 @@ pub enum DeviceRole {
 }
 
 impl Display for DeviceRole {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             DeviceRole::Client => f.write_str("client"),
             DeviceRole::Main => f.write_str("main"),
@@ -57,12 +57,34 @@ pub struct ImageInfo {
 }
 
 #[derive(
-    Serialize, Deserialize, MaxSize, PartialEq, Eq, Clone, Copy, Debug, PartialOrd, Ord, Hash,
+    Serialize,
+    Deserialize,
+    MaxSize,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    Debug,
+    PartialOrd,
+    Ord,
+    Hash,
+    Default,
 )]
 pub struct Hertz(pub u32);
 
 #[derive(
-    Serialize, Deserialize, MaxSize, PartialEq, Eq, Clone, Copy, Debug, PartialOrd, Ord, Hash,
+    Serialize,
+    Deserialize,
+    MaxSize,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    Debug,
+    PartialOrd,
+    Ord,
+    Hash,
+    Default,
 )]
 pub struct ImageId(pub u16);
 
@@ -80,8 +102,14 @@ impl From<u32> for Hertz {
     }
 }
 
+impl From<Hertz> for Duration {
+    fn from(value: Hertz) -> Self {
+        Duration::from_secs_f64(1.0_f64 / value.0 as f64)
+    }
+}
+
 impl Display for ImageId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         self.0.fmt(f)
     }
 }

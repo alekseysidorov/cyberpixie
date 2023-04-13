@@ -84,10 +84,11 @@ impl Error {
         Self::StorageRead
     }
 
-    pub fn storage_write<E>(_: E) -> Self
+    pub fn storage_write<E>(err: E) -> Self
     where
         E: Display,
     {
+        log::warn!("An error occurred: {}", err);
         Self::StorageWrite
     }
 
