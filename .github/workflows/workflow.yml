@@ -11,7 +11,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2023-04-13
+          toolchain: nightly
           components: rustfmt
           override: true
 
@@ -30,7 +30,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2023-04-13
+          toolchain: nightly
           override: true
 
       - name: Test
@@ -47,7 +47,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightnightly-2023-04-13ly
+          toolchain: nightly
           components: clippy
           override: true
 
