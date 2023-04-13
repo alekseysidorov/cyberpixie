@@ -6,7 +6,7 @@ use std::{
 
 use cyberpixie_core::{
     proto::types::{DeviceInfo, DeviceRole, Hertz, ImageId},
-    service::{Config, DeviceImage, DeviceService, DeviceStorage},
+    service::{DeviceConfig, DeviceImage, DeviceService, DeviceStorage},
     ExactSizeRead,
 };
 use cyberpixie_std_network::{Client, NetworkPart};
@@ -80,11 +80,11 @@ impl Seek for ImageReadStub {
 impl DeviceStorage for StorageStub {
     type ImageRead<'a> = ImageReadStub;
 
-    fn config(&self) -> cyberpixie_core::Result<Config> {
+    fn config(&self) -> cyberpixie_core::Result<DeviceConfig> {
         unimplemented!()
     }
 
-    fn set_config(&self, _value: &Config) -> cyberpixie_core::Result<()> {
+    fn set_config(&self, _value: &DeviceConfig) -> cyberpixie_core::Result<()> {
         unimplemented!()
     }
 

@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use cyberpixie_core::{
     proto::types::{Hertz, ImageId},
-    service::{Config, DeviceImage, DeviceStorage, Image},
+    service::{DeviceConfig, DeviceImage, DeviceStorage, Image},
     storage::BlockReader,
     Error as CyberpixieError, ExactSizeRead,
 };
@@ -21,11 +21,11 @@ struct ImageHeader {
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ImagesRegistry {
-    default_config: Config,
+    default_config: DeviceConfig,
 }
 
 impl ImagesRegistry {
-    pub fn new(default_config: Config) -> Self {
+    pub fn new(default_config: DeviceConfig) -> Self {
         Self { default_config }
     }
 
@@ -100,12 +100,12 @@ impl ImagesRegistry {
 impl DeviceStorage for ImagesRegistry {
     type ImageRead<'a> = ImageReader<'a>;
 
-    fn config(&self) -> cyberpixie_core::Result<Config> {
+    fn config(&self) -> cyberpixie_core::Result<DeviceConfig> {
         let config = self.get("config")?;
         Ok(config.unwrap_or(self.default_config))
     }
 
-    fn set_config(&self, value: &Config) -> cyberpixie_core::Result<()> {
+    fn set_config(&self, value: &DeviceConfig) -> cyberpixie_core::Result<()> {
         self.set("config", value)
             .map_err(CyberpixieError::storage_write)
     }

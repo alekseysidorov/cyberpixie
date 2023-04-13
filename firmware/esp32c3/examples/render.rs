@@ -6,7 +6,7 @@ use cyberpixie_core::{
     service::{DeviceStorage, ImageLines},
     ExactSizeRead,
 };
-use cyberpixie_esp32c3::{storage::ImagesRegistry, DEFAULT_CONFIG};
+use cyberpixie_esp32c3::{storage::ImagesRegistry, DEFAULT_DEVICE_CONFIG};
 use esp_idf_svc::log::EspLogger;
 // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 use esp_idf_sys as _;
@@ -25,7 +25,7 @@ fn main() -> anyhow::Result<()> {
     // Clear strip
     strip.write(std::iter::repeat(RGB8::default()).take(144))?;
 
-    let storage = ImagesRegistry::new(DEFAULT_CONFIG);
+    let storage = ImagesRegistry::new(DEFAULT_DEVICE_CONFIG);
     log::info!("{:?}", storage.images_count());
     log::info!("{:?}", storage.current_image());
     let Some(image_id) = storage.current_image()? else {

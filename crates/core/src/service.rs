@@ -10,7 +10,8 @@ use crate::{
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct Config {
+pub struct DeviceConfig {
+    /// The number of LEDs in the strip.
     pub strip_len: u16,
 }
 
@@ -57,9 +58,9 @@ pub trait DeviceStorage {
         Self: 'a;
 
     /// Returns a global configuration.
-    fn config(&self) -> crate::Result<Config>;
+    fn config(&self) -> crate::Result<DeviceConfig>;
     /// Sets a global configuration.
-    fn set_config(&self, value: &Config) -> crate::Result<()>;
+    fn set_config(&self, value: &DeviceConfig) -> crate::Result<()>;
     /// Adds a new image.
     fn add_image<R: ExactSizeRead>(&self, refresh_rate: Hertz, image: R) -> crate::Result<ImageId>;
     /// Reads an image by ID.
