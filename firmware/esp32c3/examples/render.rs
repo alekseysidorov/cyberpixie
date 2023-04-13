@@ -37,8 +37,8 @@ fn main() -> anyhow::Result<()> {
     log::info!("Rendering {} image", image_id);
     log::info!("image_len: {}", image.bytes.bytes_remaining());
 
-    let mut buf = vec![0_u8; 48 * 3];
     let strip_len = storage.config()?.strip_len;
+    let mut buf = vec![0_u8; strip_len as usize * 3];
     let mut lines = ImageLines::new(image, strip_len, &mut buf);
 
     let mut refresh_rate = Hertz(1);
