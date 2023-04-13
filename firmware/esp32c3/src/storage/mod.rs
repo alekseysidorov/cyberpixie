@@ -1,24 +1,21 @@
 use std::sync::Mutex;
 
-
-use embedded_svc::storage::RawStorage;
+use cyberpixie_core::storage::DEFAULT_BLOCK_SIZE;
 use esp_idf_svc::nvs::{EspNvs, EspNvsPartition, NvsDefault};
-use esp_idf_sys::EspError;
 use once_cell::sync::Lazy;
-use serde::{de::DeserializeOwned, Serialize};
 
 pub use self::registry::ImagesRegistry;
 
 mod registry;
 
-const BLOCK_SIZE: usize = 512;
+const BLOCK_SIZE: usize = DEFAULT_BLOCK_SIZE;
 
-/// Image registry namespace
+/// Pictures registry namespace
 const STORAGE_NAMESPACE: &str = "storage";
 
 static STORAGE: Lazy<Mutex<EspNvs<NvsDefault>>> = Lazy::new(|| {
     let partition = EspNvsPartition::<NvsDefault>::take().unwrap();
-    let esp = EspNvs::new(partition.clone(), STORAGE_NAMESPACE, true).unwrap();
+    let esp = EspNvs::new(partition, STORAGE_NAMESPACE, true).unwrap();
     Mutex::new(esp)
 });
 
@@ -40,60 +37,5 @@ impl embedded_svc::storage::SerDe for PostCard {
         T: serde::de::DeserializeOwned,
     {
         postcard::from_bytes(buf)
-    }
-}
-
-pub struct DefaultStorage {
-    pub inner: EspNvs<NvsDefault>,
-}
-
-impl DefaultStorage {
-    const NAMESPACE: &'static str = "images";
-
-    pub fn take() -> Result<Self, EspError> {
-        let partition = EspNvsPartition::<NvsDefault>::take()?;
-        let nvs = EspNvs::new(partition, Self::NAMESPACE, true)?;
-
-        Ok(Self { inner: nvs })
-    }
-
-    pub fn set<T: Serialize>(&mut self, name: &str, value: &T) -> anyhow::Result<()> {
-        let buf = postcard::to_stdvec(value)?;
-        self.inner.set_raw(&format!("v.{name}"), &buf)?;
-
-        let mut size_buf = [0_u8; 8];
-        self.inner.set_raw(
-            &format!("s.{name}"),
-            postcard::to_slice(&buf.len(), &mut size_buf)?,
-        )?;
-        Ok(())
-    }
-
-    pub fn get<T>(&self, name: &str) -> anyhow::Result<Option<T>>
-    where
-        T: DeserializeOwned,
-    {
-        let mut size_buf = [0_u8; 8];
-        let size_buf = self.inner.get_raw(&format!("s.{name}"), &mut size_buf)?;
-        let size = if let Some(size_buf) = size_buf {
-            postcard::from_bytes(size_buf)?
-        } else {
-            return Ok(None);
-        };
-
-        let mut buf = vec![0_u8; size];
-        let buf = self.inner.get_raw(&format!("v.{name}"), &mut buf)?;
-        if let Some(buf) = buf {
-            let value = postcard::from_bytes(buf)?;
-            Ok(Some(value))
-        } else {
-            Ok(None)
-        }
-    }
-
-    pub fn remove(&mut self, name: &str) -> anyhow::Result<()> {
-        self.inner.remove(&format!("s.{name}"))?;
-        self.inner.remove(&format!("v.{name}"))?;
-        Ok(())
     }
 }

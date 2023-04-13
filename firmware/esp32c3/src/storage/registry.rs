@@ -1,4 +1,4 @@
-use std::{fmt::Display};
+use std::fmt::Display;
 
 use cyberpixie_core::{
     proto::types::{Hertz, ImageId},
@@ -7,7 +7,6 @@ use cyberpixie_core::{
     Error as CyberpixieError, ExactSizeRead,
 };
 use embedded_svc::storage::RawStorage;
-
 use esp_idf_sys::EspError;
 use log::info;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};

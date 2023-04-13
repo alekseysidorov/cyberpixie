@@ -91,7 +91,8 @@ fn main() -> anyhow::Result<()> {
             refresh_rate.0 += 1;
             if refresh_rate.0 >= 1500 {
                 check_max_rate = false;
-                refresh_rate = lines.refresh_rate();
+                // refresh_rate = lines.refresh_rate();
+                refresh_rate.0 = 600;
                 log::info!(
                     "Setting up the refresh rate from the image source: {} Hz",
                     refresh_rate.0
