@@ -19,12 +19,10 @@ mod image_reader;
 
 struct PostCard;
 
-const BLOCK_SIZE: usize = DEFAULT_BLOCK_SIZE;
+const BLOCK_SIZE: usize = 512;
 
 /// Image registry namespace
-const STORAGE_NAMESPACE: &str = "images";
-
-const DEFAULT_CONFIG: Config = Config { strip_len: 48 };
+const STORAGE_NAMESPACE: &str = "storage";
 
 impl embedded_svc::storage::SerDe for PostCard {
     type Error = postcard::Error;
@@ -53,23 +51,33 @@ struct ImageHeader {
 
 static STORAGE: Lazy<Mutex<EspNvs<NvsDefault>>> = Lazy::new(|| {
     let partition = EspNvsPartition::<NvsDefault>::take().unwrap();
-    let esp = EspNvs::new(partition, STORAGE_NAMESPACE, true).unwrap();
+    let esp = EspNvs::new(partition.clone(), STORAGE_NAMESPACE, true).unwrap();
     Mutex::new(esp)
 });
 
 #[derive(Debug, Clone, Copy, Default)]
-pub struct ImagesRegistry;
+pub struct ImagesRegistry {
+    default_config: Config,
+}
 
 impl ImagesRegistry {
-    pub fn new() -> Self {
-        Self
+    pub fn new(default_config: Config) -> Self {
+        Self { default_config }
+    }
+
+    pub fn erase() -> Result<(), EspError> {
+        // esp-idf lacks of the erase wrapper, so we have to use unsafe code in order to erase images registry.
+        unsafe {
+            let code = esp_idf_sys::nvs_flash_erase();
+            esp_idf_sys::esp!(code)
+        }
     }
 
     fn set<T>(&self, name: &str, value: &T) -> cyberpixie_core::Result<()>
     where
         T: Serialize,
     {
-        let mut buf = [0_u8; BLOCK_SIZE];
+        let mut buf = vec![0_u8; BLOCK_SIZE];
 
         postcard::to_slice(value, &mut buf).map_err(CyberpixieError::encode)?;
         self.set_raw(name, &buf)
@@ -81,7 +89,7 @@ impl ImagesRegistry {
     where
         T: DeserializeOwned,
     {
-        let mut buf = [0_u8; BLOCK_SIZE];
+        let mut buf = vec![0_u8; BLOCK_SIZE];
 
         let bytes = self
             .get_raw(name, &mut buf)
@@ -130,7 +138,7 @@ impl DeviceStorage for ImagesRegistry {
 
     fn config(&self) -> cyberpixie_core::Result<Config> {
         let config = self.get("config")?;
-        Ok(config.unwrap_or(DEFAULT_CONFIG))
+        Ok(config.unwrap_or(self.default_config))
     }
 
     fn set_config(&self, value: &Config) -> cyberpixie_core::Result<()> {
@@ -155,9 +163,10 @@ impl DeviceStorage for ImagesRegistry {
             return Ok(None);
         }
 
-        self.get("img.current")
-            .map(Option::unwrap_or_default)
-            .map_err(CyberpixieError::storage_read)
+        let value = self
+            .get("img.current")
+            .map_err(CyberpixieError::storage_read)?;
+        Ok(value.unwrap_or(Some(ImageId(0))))
     }
 
     fn add_image<R>(&self, refresh_rate: Hertz, mut image: R) -> cyberpixie_core::Result<ImageId>
@@ -175,7 +184,7 @@ impl DeviceStorage for ImagesRegistry {
         info!("Saving image with header: {header:?}");
 
         // Save image content.
-        let mut buf = [0_u8; BLOCK_SIZE];
+        let mut buf = vec![0_u8; BLOCK_SIZE];
 
         let blocks = image.bytes_remaining() / BLOCK_SIZE;
         for block in 0..=blocks {
@@ -207,6 +216,7 @@ impl DeviceStorage for ImagesRegistry {
             bytes: ImageReader::new(
                 BlockReaderImpl::new(self, image_index),
                 header.image_len as usize,
+                vec![0_u8; BLOCK_SIZE],
             ),
         };
         Ok(image)

@@ -1,4 +1,4 @@
-use core::{fmt::Display, str::FromStr};
+use core::{fmt::Display, str::FromStr, time::Duration};
 
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
@@ -99,6 +99,12 @@ impl FromStr for Hertz {
 impl From<u32> for Hertz {
     fn from(inner: u32) -> Self {
         Self(inner)
+    }
+}
+
+impl From<Hertz> for Duration {
+    fn from(value: Hertz) -> Self {
+        Duration::from_secs_f64(1.0_f64 / value.0 as f64)
     }
 }
 

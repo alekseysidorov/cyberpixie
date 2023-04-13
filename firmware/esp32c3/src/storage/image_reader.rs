@@ -5,9 +5,9 @@ use std::fmt::Display;
 use cyberpixie_core::{proto::types::ImageId, storage::BlockReader};
 use esp_idf_sys::EspError;
 
-use super::{ImagesRegistry, BLOCK_SIZE};
+use super::ImagesRegistry;
 
-pub type ImageReader<'a> = cyberpixie_core::storage::ImageReader<BlockReaderImpl<'a>>;
+pub type ImageReader<'a> = cyberpixie_core::storage::ImageReader<BlockReaderImpl<'a>, Vec<u8>>;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct BlockReadError(pub EspError);
@@ -51,11 +51,11 @@ impl<'a> embedded_io::Io for BlockReaderImpl<'a> {
     type Error = BlockReadError;
 }
 
-impl<'a> BlockReader<BLOCK_SIZE> for BlockReaderImpl<'a> {
+impl<'a, const N: usize> BlockReader<N> for BlockReaderImpl<'a> {
     fn read_block(&self, block: usize, buf: &mut [u8]) -> Result<(), Self::Error> {
         let idx = self.image_index.0;
 
-        log::info!("Filling block {block} [0..{}]", buf.len(),);
+        log::trace!("Filling block {block} [0..{}]", buf.len(),);
         self.registry
             .get_raw(&format!("img.{idx}.block.{block}"), buf)?;
         Ok(())

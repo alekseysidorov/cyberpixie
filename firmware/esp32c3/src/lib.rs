@@ -1,3 +1,4 @@
+use cyberpixie_core::service::Config;
 use embedded_svc::storage::RawStorage;
 use esp_idf_svc::nvs::{EspNvs, EspNvsPartition, NvsDefault};
 use esp_idf_sys::EspError;
@@ -5,10 +6,13 @@ use serde::{de::DeserializeOwned, Serialize};
 
 pub struct PostCard;
 
+pub mod render;
 pub mod splash;
 pub mod storage;
 pub mod wifi;
-pub mod render;
+
+/// Default device configuration.
+pub const DEFAULT_CONFIG: Config = Config { strip_len: 48 };
 
 impl embedded_svc::storage::SerDe for PostCard {
     type Error = postcard::Error;

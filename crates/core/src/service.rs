@@ -9,9 +9,6 @@ use crate::{
     ExactSizeRead,
 };
 
-pub const MAX_STRIP_LEN: usize = 72;
-const IMAGE_BUF_LEN: usize = 256;
-
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Config {
     pub strip_len: u16,
@@ -22,6 +19,10 @@ pub struct Image<R>
 where
     R: ExactSizeRead + Seek,
 {
+    /// Refresh rate of the square area of picture with the strip length size.
+    /// 
+    /// That is, the refresh rate of a single line of a picture is the refresh rate of 
+    /// the entire image multiplied by the strip length.
     pub refresh_rate: Hertz,
     pub bytes: R,
 }
@@ -76,7 +77,7 @@ pub trait DeviceStorage {
         let Some(mut current_image) = self.current_image()? else {
             return Ok(None)
         };
-        
+
         current_image.0 += 1;
         if current_image == self.images_count()? {
             current_image.0 = 0;
@@ -85,19 +86,21 @@ pub trait DeviceStorage {
     }
 }
 
-pub type ImageLine = heapless::Vec<RGB8, MAX_STRIP_LEN>;
-
 /// An endless iterator over the image lines, then it reaches the end of image, it rewinds to the beginning.
-pub struct ImageLines<R>
+pub struct ImageLines<R, B>
 where
+    B: AsMut<[u8]>,
     R: ExactSizeRead + Seek,
 {
     image: Image<R>,
-    current_line_buf: heapless::Vec<u8, IMAGE_BUF_LEN>,
+    strip_line_len: usize,
+    strip_line_buf: B,
+    refresh_rate: Hertz,
 }
 
-impl<R> ImageLines<R>
+impl<R, B> ImageLines<R, B>
 where
+    B: AsMut<[u8]>,
     R: ExactSizeRead + Seek,
 {
     /// Bytes count per single pixel.
@@ -109,42 +112,61 @@ where
     ///
     /// - If the image length is lesser that the single strip line length
     /// - If the image length in pixels is not a multiple of the strip length
-    pub fn new(image: Image<R>, strip_len: u16) -> Self {
+    pub fn new(image: Image<R>, strip_len: u16, mut strip_line_buf: B) -> Self {
         let strip_len: usize = strip_len.into();
-        let strip_len_bytes = strip_len * Self::BYTES_PER_PIXEL;
+        let strip_line_len = strip_len * Self::BYTES_PER_PIXEL;
         // Check preconditions.
         assert!(
-            image.bytes.bytes_remaining() >= strip_len_bytes,
+            image.bytes.bytes_remaining() >= strip_line_len,
             "The given image should have at least {} bytes",
-            strip_len_bytes
+            strip_line_len
         );
         assert!(
-            image.bytes.bytes_remaining() % strip_len_bytes == 0,
-            "The length of the given image in pixels is not a multiple of the given strip length."
+            image.bytes.bytes_remaining() % strip_line_len == 0,
+            "The length of the given image in pixels `{}` is not a multiple of the given strip length `{}`.",
+            image.bytes.bytes_remaining(),
+            strip_line_len
         );
+        assert!(
+            strip_line_buf.as_mut().len() >= strip_line_len,
+            "Given buffer capacity is not enough"
+        );
+
+        // Compute the single line refresh rate.
+        let refresh_rate = Hertz(image.refresh_rate.0 * strip_len as u32);
 
         Self {
             image,
-            current_line_buf: core::iter::repeat(0).take(strip_len_bytes).collect(),
+            strip_line_len,
+            strip_line_buf,
+            refresh_rate,
         }
+    }
+
+    /// Returns a refresh line fo the single strip line.
+    /// 
+    /// We assume that the refresh rate in the given image if the frequency of 
+    /// redrawing of the square area of the picture with the strip lenght size.
+    pub fn refresh_rate(&self) -> Hertz {
+        self.refresh_rate
     }
 
     /// Reads and returns a next image line
     pub fn next_line(
         &mut self,
-    ) -> Result<(ImageLine, Hertz), ReadExactError<R::Error>> {
-        self.fill_next_line()?;
-        let line = self.current_line_buf.as_rgb().iter().copied().collect();
-        Ok((line, self.image.refresh_rate))
+    ) -> Result<impl Iterator<Item = RGB8> + '_, ReadExactError<R::Error>> {
+        let line = self.fill_next_line()?.as_rgb().iter().copied();
+        Ok(line)
     }
 
-    fn fill_next_line(&mut self) -> Result<(), ReadExactError<R::Error>> {
+    fn fill_next_line(&mut self) -> Result<&[u8], ReadExactError<R::Error>> {
         // In this case we reached the end of file and have to rewind to the beginning
         if self.image.bytes.bytes_remaining() == 0 {
             self.image.bytes.rewind().map_err(ReadExactError::Other)?;
         }
         // Fill the buffer with by the bytes of the next image line
-        self.image.bytes.read_exact(&mut self.current_line_buf)?;
-        Ok(())
+        let buf = &mut self.strip_line_buf.as_mut()[0..self.strip_line_len];
+        self.image.bytes.read_exact(buf)?;
+        Ok(buf)
     }
 }

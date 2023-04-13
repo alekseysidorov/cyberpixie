@@ -12,7 +12,7 @@ pub const DEFAULT_BLOCK_SIZE: usize = 512;
 /// Auxiliary trait describing reading from block devices.
 pub trait BlockReader<const BLOCK_SIZE: usize>: Io {
     /// Read block content into the specified buffer.
-    fn read_block(&self, block: usize, buf: &mut [u8]) -> Result<(), Self::Error>;
+    fn read_block(&self, index: usize, buf: &mut [u8]) -> Result<(), Self::Error>;
 }
 
 impl<const BLOCK_SIZE: usize> BlockReader<BLOCK_SIZE> for &[u8] {

@@ -42,9 +42,9 @@ fn test_image_reader_read_exact_lesser_than_block() {
     let blocks = make_block_device(s);
 
     let image_len = s.len();
-    let mut reader = Image {
+    let mut reader = Image::<ImageReader<_, _, BLOCK_SIZE>> {
         refresh_rate: Hertz(50),
-        bytes: ImageReader::<_, BLOCK_SIZE>::new(blocks.as_ref(), image_len),
+        bytes: ImageReader::new_in_array(blocks.as_ref(), image_len),
     };
 
     let mut buf = vec![0_u8; image_len];
@@ -64,9 +64,9 @@ fn test_image_reader_read_parts_lesser_than_block() {
     let blocks = make_block_device(s);
 
     let image_len = s.len();
-    let mut reader = Image {
+    let mut reader = Image::<ImageReader<_, _, BLOCK_SIZE>> {
         refresh_rate: Hertz(50),
-        bytes: ImageReader::<_, BLOCK_SIZE>::new(blocks.as_ref(), image_len),
+        bytes: ImageReader::new_in_array(blocks.as_ref(), image_len),
     };
 
     let mut out = vec![];
@@ -92,9 +92,9 @@ fn test_image_reader_read_exact_multiple_blocks() {
     let blocks = make_block_device(s);
 
     let image_len = s.len();
-    let mut reader = Image {
+    let mut reader = Image::<ImageReader<_, _, BLOCK_SIZE>> {
         refresh_rate: Hertz(50),
-        bytes: ImageReader::<_, BLOCK_SIZE>::new(blocks.as_ref(), image_len),
+        bytes: ImageReader::new_in_array(blocks.as_ref(), image_len),
     };
 
     let mut buf = vec![0_u8; image_len];
@@ -118,9 +118,9 @@ fn test_image_reader_read_parts_multiple_blocks() {
     let blocks = make_block_device(s);
 
     let image_len = s.len();
-    let mut reader = Image {
+    let mut reader = Image::<ImageReader<_, _, BLOCK_SIZE>> {
         refresh_rate: Hertz(50),
-        bytes: ImageReader::<_, BLOCK_SIZE>::new(blocks.as_ref(), image_len),
+        bytes: ImageReader::new_in_array(blocks.as_ref(), image_len),
     };
 
     fn read_image(reader: &mut Image<impl ExactSizeRead + Seek>) -> Vec<u8> {
@@ -154,9 +154,9 @@ fn test_image_reader_read_big_parts_multiple_blocks() {
     let blocks = make_block_device(s);
 
     let image_len = s.len();
-    let mut reader = Image {
+    let mut reader = Image::<ImageReader<_, _, BLOCK_SIZE>> {
         refresh_rate: Hertz(50),
-        bytes: ImageReader::<_, BLOCK_SIZE>::new(blocks.as_ref(), image_len),
+        bytes: ImageReader::new_in_array(blocks.as_ref(), image_len),
     };
 
     let mut out = vec![];
@@ -182,9 +182,9 @@ fn test_image_reader_read_single_byte_buf_multiple_blocks() {
     let blocks = make_block_device(s);
 
     let image_len = s.len();
-    let mut reader = Image {
+    let mut reader = Image::<ImageReader<_, _, BLOCK_SIZE>> {
         refresh_rate: Hertz(50),
-        bytes: ImageReader::<_, BLOCK_SIZE>::new(blocks.as_ref(), image_len),
+        bytes: ImageReader::new_in_array(blocks.as_ref(), image_len),
     };
 
     let mut out = vec![];
@@ -212,22 +212,25 @@ fn test_image_lines_cycle_nyan_cat() {
     for rgb in image.pixels() {
         raw.extend(rgb.0);
     }
+    // dbg!(raw.len());
+    // std::fs::write("nyan_cat_48.raw", &raw).unwrap();
 
-    let image = Image {
+    let image = Image::<ImageReader<_, _, BLOCK_SIZE>> {
         refresh_rate: Hertz(50),
-        bytes: ImageReader::<_, BLOCK_SIZE>::new(raw.as_ref(), raw.len()),
+        bytes: ImageReader::new_in_array(raw.as_ref(), raw.len()),
     };
 
-    let mut lines: ImageLines<ImageReader<&[u8], BLOCK_SIZE>> = ImageLines::new(image, 48);
-    let first_line: Vec<_> = lines.next_line().unwrap().0.into_iter().collect();
+    let mut lines: ImageLines<ImageReader<&[u8], _, BLOCK_SIZE>, _> =
+        ImageLines::new(image, 48, vec![0_u8; 512]);
+    let first_line: Vec<_> = lines.next_line().unwrap().collect();
     // Render a lot of lines
     for _ in 1..360 {
-        let (_line, _rate) = lines.next_line().unwrap();
+        let _line = lines.next_line().unwrap();
     }
     // After several cycles we should return back to the first image line
-    let line: Vec<_> = lines.next_line().unwrap().0.into_iter().collect();
+    let line: Vec<_> = lines.next_line().unwrap().collect();
     assert_eq!(first_line, line);
     // Check that the next line is not equal the first one
-    let line: Vec<_> = lines.next_line().unwrap().0.into_iter().collect();
+    let line: Vec<_> = lines.next_line().unwrap().collect();
     assert_ne!(first_line, line);
 }

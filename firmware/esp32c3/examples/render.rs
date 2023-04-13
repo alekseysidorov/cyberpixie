@@ -1,8 +1,12 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use anyhow::Context;
-use cyberpixie_core::service::{DeviceStorage, ImageLines};
-use cyberpixie_esp32c3::{render, storage::ImagesRegistry};
+use cyberpixie_core::{
+    proto::types::Hertz,
+    service::{DeviceStorage, ImageLines},
+    ExactSizeRead,
+};
+use cyberpixie_esp32c3::{storage::ImagesRegistry, DEFAULT_CONFIG};
 use esp_idf_svc::log::EspLogger;
 // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 use esp_idf_sys as _;
@@ -21,8 +25,9 @@ fn main() -> anyhow::Result<()> {
     // Clear strip
     strip.write(std::iter::repeat(RGB8::default()).take(144))?;
 
-    let mut storage = ImagesRegistry::new();
-
+    let storage = ImagesRegistry::new(DEFAULT_CONFIG);
+    log::info!("{:?}", storage.images_count());
+    log::info!("{:?}", storage.current_image());
     let Some(image_id) = storage.current_image()? else {
         log::error!("There is no images in storage");
         return Ok(());
@@ -30,17 +35,68 @@ fn main() -> anyhow::Result<()> {
 
     let image = storage.read_image(image_id)?;
     log::info!("Rendering {} image", image_id);
+    log::info!("image_len: {}", image.bytes.bytes_remaining());
 
-    let mut lines = ImageLines::new(image, storage.config()?.strip_len);
+    let mut buf = vec![0_u8; 48 * 3];
+    let strip_len = storage.config()?.strip_len;
+    let mut lines = ImageLines::new(image, strip_len, &mut buf);
+
+    let mut refresh_rate = Hertz(1);
+    let mut check_max_rate = true;
     loop {
-        let (line, frequency) = lines
+        let mut refresh_perion = Duration::from(refresh_rate);
+        if check_max_rate {
+            log::info!(
+                "Refresh period is {} [{} Hz]",
+                refresh_perion.as_secs_f32(),
+                refresh_rate.0
+            );
+        }
+
+        let now = Instant::now();
+        let line = lines
             .next_line()
             .context("Unable to read next image line")?;
-        let duration = Duration::from_secs_f32(1.0 / frequency.0 as f32);
 
-        strip
-            .write(line.into_iter())
-            .expect("Unable to show image line");
-        std::thread::sleep(duration);
+        let elapsed = now.elapsed();
+        if elapsed > refresh_perion {
+            log::warn!(
+                "Frame reading took too much time: {}, must be lesser than {} [{} Hz]",
+                elapsed.as_secs_f32(),
+                refresh_perion.as_secs_f32(),
+                refresh_rate.0
+            );
+        }
+
+        let now2 = Instant::now();
+        strip.write(line).context("Unable to show image line")?;
+
+        let elapsed = now2.elapsed();
+        if elapsed > refresh_perion {
+            log::warn!(
+                "Frame rendering took too much time: {}, must be lesser than {} [{} Hz]",
+                elapsed.as_secs_f32(),
+                refresh_perion.as_secs_f32(),
+                refresh_rate.0
+            );
+        }
+
+        if !check_max_rate {
+            refresh_perion = refresh_perion.saturating_sub(now.elapsed());
+        }
+
+        std::thread::sleep(refresh_perion);
+
+        if check_max_rate {
+            refresh_rate.0 += 1;
+            if refresh_rate.0 >= 1500 {
+                check_max_rate = false;
+                refresh_rate = lines.refresh_rate();
+                log::info!(
+                    "Setting up the refresh rate from the image source: {} Hz",
+                    refresh_rate.0
+                );
+            }
+        }
     }
 }
