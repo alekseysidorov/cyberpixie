@@ -12,7 +12,7 @@ pub mod storage;
 pub trait ExactSizeRead: Read {
     /// Return the total number of bytes, that should be read.
     // fn len(&self) -> usize;
-    
+
     /// Returns the remaining bytes to read.
     fn bytes_remaining(&self) -> usize;
     /// Return true if there are remaining bytes to read.

@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use cyberpixie_esp32c3::DefaultStorage;
+use cyberpixie_esp32c3::storage::DefaultStorage;
 use esp_idf_svc::log::EspLogger;
 // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 use esp_idf_sys as _;

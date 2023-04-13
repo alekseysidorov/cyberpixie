@@ -6,7 +6,8 @@ use cyberpixie_core::{
 };
 use cyberpixie_esp32c3::{
     storage::ImagesRegistry,
-    wifi::{Config, Wifi}, DEFAULT_CONFIG,
+    wifi::{Config, Wifi},
+    DEFAULT_CONFIG,
 };
 use cyberpixie_std_network::NetworkPart;
 use esp_idf_hal::prelude::Peripherals;

@@ -20,8 +20,8 @@ where
     R: ExactSizeRead + Seek,
 {
     /// Refresh rate of the square area of picture with the strip length size.
-    /// 
-    /// That is, the refresh rate of a single line of a picture is the refresh rate of 
+    ///
+    /// That is, the refresh rate of a single line of a picture is the refresh rate of
     /// the entire image multiplied by the strip length.
     pub refresh_rate: Hertz,
     pub bytes: R,
@@ -144,8 +144,8 @@ where
     }
 
     /// Returns a refresh line fo the single strip line.
-    /// 
-    /// We assume that the refresh rate in the given image if the frequency of 
+    ///
+    /// We assume that the refresh rate in the given image if the frequency of
     /// redrawing of the square area of the picture with the strip lenght size.
     pub fn refresh_rate(&self) -> Hertz {
         self.refresh_rate
