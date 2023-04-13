@@ -1,11 +1,6 @@
 use std::sync::Mutex;
 
-use cyberpixie_core::{
-    proto::types::ImageId,
-    service::{Config, DeviceImage, DeviceStorage, Image},
-    storage::{BlockReader, DEFAULT_BLOCK_SIZE},
-    Error as CyberpixieError, ExactSizeRead,
-};
+
 use embedded_svc::storage::RawStorage;
 use esp_idf_svc::nvs::{EspNvs, EspNvsPartition, NvsDefault};
 use esp_idf_sys::EspError;
