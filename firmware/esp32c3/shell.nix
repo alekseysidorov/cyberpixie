@@ -8,7 +8,8 @@ pkgs.mkShell {
     rustBuildHostDependencies
     # For compiling the esp-idf library
     cmake
-    virtualenv
+    python310Packages.virtualenv
+    python310Packages.pip
   ];
 
   # Enable unstable cargo features
