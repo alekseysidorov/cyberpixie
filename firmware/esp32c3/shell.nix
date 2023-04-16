@@ -37,6 +37,6 @@ pkgs.mkShell {
   shellHook = ''
     # Disable Native compiler in shell
     unset CC; unset CXX
-    PS1="\[\033[38;5;39m\]\w \[\033[38;5;35m\](esp32c3) \[\033[0m\]\$ "
+    ${pkgs.mkBashPrompt "esp32c3"}
   '';
 }

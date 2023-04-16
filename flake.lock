@@ -65,11 +65,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1681649824,
-        "narHash": "sha256-ZHlhNaV6y2ii1eSm9QoA4EEM7df2sK/yJB7XCjHHU2c=",
+        "lastModified": 1681673412,
+        "narHash": "sha256-JKH+1OXtLRcKGjr7w8XnCX7rLKABX+Ew/oHIzQwt7N8=",
         "owner": "alekseysidorov",
         "repo": "nixpkgs-cross-overlay",
-        "rev": "f1f35451d1feb27c6e5a95e6d94abe7dcde7f6dd",
+        "rev": "feec4fcd7f285c24b739c849f02474faae211046",
         "type": "github"
       },
       "original": {
@@ -96,11 +96,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1681651440,
-        "narHash": "sha256-cFXNX5q8bLvPxzaHoK1vOBc1Krb59PQuCbj1gesW3B8=",
+        "lastModified": 1681677018,
+        "narHash": "sha256-52RHH1N9b6jGFq/8axQ9xcILgMI3AYHt+aiCcB6nqOw=",
         "owner": "alekseysidorov",
         "repo": "nixpkgs-rust-esp32",
-        "rev": "a9a4a64c74a619c7478dec7f810f540ea8d10016",
+        "rev": "83e057164738fa22f06b7f0f0d6bd62a0011ca85",
         "type": "github"
       },
       "original": {
