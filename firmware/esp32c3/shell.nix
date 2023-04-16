@@ -7,7 +7,6 @@ pkgs.mkShell {
     rustToolchain
     rustBuildHostDependencies
     # For compiling the esp-idf library
-    cmake
     python310Packages.virtualenv
     python310Packages.pip
   ];
