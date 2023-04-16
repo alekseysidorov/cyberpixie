@@ -1,6 +1,13 @@
 {
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-utils.follows = "flake-utils";
+      };
+    };
     rust-esp32 = {
       url = "github:alekseysidorov/nixpkgs-rust-esp32";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -13,6 +20,7 @@
       inputs = {
         flake-utils.follows = "flake-utils";
         nixpkgs.follows = "nixpkgs";
+        rust-overlay.follows = "rust-overlay";
       };
     };
   };
@@ -25,21 +33,16 @@
           overlays = [
             rust-esp32.overlays.default
             nixpkgs-cross-overlay.overlays.default
+            (final: prev: {
+              rustToolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+            })
           ];
         };
-
-        rustToolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
 
       in
       {
         devShells = {
-          default = pkgs.mkShell {
-            nativeBuildInputs = with pkgs; [
-              rustToolchain
-              rustBuildHostDependencies
-            ];
-            RUSTC_WRAPPER = "sccache";
-          };
+          default = pkgs.callPackage ./shell.nix { };
           esp32c3 = pkgs.mkShell {
             nativeBuildInputs = with pkgs; [
               rustToolchain

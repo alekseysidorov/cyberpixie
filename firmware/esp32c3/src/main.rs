@@ -7,6 +7,7 @@ use cyberpixie_core::{
 use cyberpixie_esp32c3::{
     storage::ImagesRegistry,
     wifi::{Config, Wifi},
+    DEFAULT_DEVICE_CONFIG,
 };
 use cyberpixie_std_network::NetworkPart;
 use esp_idf_hal::prelude::Peripherals;
@@ -28,7 +29,7 @@ impl DeviceService for DeviceStub {
     }
 
     fn storage(&self) -> Self::Storage {
-        ImagesRegistry::new()
+        ImagesRegistry::new(DEFAULT_DEVICE_CONFIG)
     }
 }
 

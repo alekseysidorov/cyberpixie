@@ -1,4 +1,4 @@
-use core::fmt::{Debug, Display};
+use core::fmt::Debug;
 
 use embedded_io::blocking::{Read, ReadExactError};
 pub use endian_codec::PackedSize;
@@ -47,7 +47,7 @@ pub enum PacketReadError<E> {
 impl<E: Debug> std::error::Error for PacketReadError<E> {}
 
 #[cfg(feature = "std")]
-impl<E: Display> From<PacketReadError<E>> for std::io::Error {
+impl<E: std::fmt::Display> From<PacketReadError<E>> for std::io::Error {
     fn from(err: PacketReadError<E>) -> Self {
         std::io::Error::new(std::io::ErrorKind::Other, err.to_string())
     }

@@ -6,7 +6,7 @@ use std::{
 
 use cyberpixie_core::{
     proto::types::{DeviceInfo, DeviceRole, Hertz, ImageId},
-    service::{Config, DeviceImage, DeviceService, DeviceStorage},
+    service::{DeviceConfig, DeviceImage, DeviceService, DeviceStorage},
     ExactSizeRead,
 };
 use cyberpixie_std_network::{Client, NetworkPart};
@@ -80,12 +80,12 @@ impl Seek for ImageReadStub {
 impl DeviceStorage for StorageStub {
     type ImageRead<'a> = ImageReadStub;
 
-    fn config(&self) -> cyberpixie_core::Result<Config> {
-        todo!()
+    fn config(&self) -> cyberpixie_core::Result<DeviceConfig> {
+        unimplemented!()
     }
 
-    fn set_config(&self, _value: &Config) -> cyberpixie_core::Result<()> {
-        todo!()
+    fn set_config(&self, _value: &DeviceConfig) -> cyberpixie_core::Result<()> {
+        unimplemented!()
     }
 
     fn add_image<R: ExactSizeRead>(
@@ -93,19 +93,27 @@ impl DeviceStorage for StorageStub {
         _refresh_rate: Hertz,
         _image: R,
     ) -> cyberpixie_core::Result<ImageId> {
-        todo!()
+        unimplemented!()
     }
 
     fn read_image(&self, _id: ImageId) -> cyberpixie_core::Result<DeviceImage<'_, Self>> {
-        todo!()
+        unimplemented!()
     }
 
-    fn images_count(&self) -> cyberpixie_core::Result<u16> {
-        todo!()
+    fn images_count(&self) -> cyberpixie_core::Result<ImageId> {
+        unimplemented!()
     }
 
     fn clear_images(&self) -> cyberpixie_core::Result<()> {
-        todo!()
+        unimplemented!()
+    }
+
+    fn set_current_image(&self, _id: ImageId) -> cyberpixie_core::Result<()> {
+        unimplemented!()
+    }
+
+    fn current_image(&self) -> cyberpixie_core::Result<Option<ImageId>> {
+        unimplemented!()
     }
 }
 

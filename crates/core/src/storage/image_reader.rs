@@ -9,7 +9,7 @@ use super::{BlockReader, DEFAULT_BLOCK_SIZE};
 use crate::ExactSizeRead;
 
 #[derive(Debug)]
-pub struct ImageReader<T, const N: usize = DEFAULT_BLOCK_SIZE>
+pub struct ImageReader<T, B, const N: usize = DEFAULT_BLOCK_SIZE>
 where
     T: BlockReader<N>,
 {
@@ -18,19 +18,39 @@ where
     image_len: usize,
     bytes_read: usize,
 
-    block: [u8; N],
+    block: B,
 }
 
-impl<T, const N: usize> ImageReader<T, N>
+impl<T, const N: usize> ImageReader<T, [u8; N], N>
 where
     T: BlockReader<N>,
 {
-    pub fn new(block_reader: T, image_len: usize) -> Self {
+    pub fn new_in_array(block_reader: T, image_len: usize) -> Self {
         Self {
             block_reader,
             image_len,
             bytes_read: 0,
             block: [0_u8; N],
+        }
+    }
+}
+
+impl<T, B, const N: usize> ImageReader<T, B, N>
+where
+    T: BlockReader<N>,
+    B: AsMut<[u8]>,
+{
+    pub fn new(block_reader: T, image_len: usize, mut block: B) -> Self {
+        assert!(
+            block.as_mut().len() >= N,
+            "Given buffer has not enough capacity to store the entire block content"
+        );
+
+        Self {
+            block_reader,
+            image_len,
+            bytes_read: 0,
+            block,
         }
     }
 
@@ -42,34 +62,50 @@ where
         let to = core::cmp::min(self.bytes_remaining(), N);
         let block = self.current_block();
 
-        let buf = &mut self.block[0..to];
+        let buf = &mut self.block.as_mut()[0..to];
         self.block_reader.read_block(block, buf)?;
         Ok(())
     }
 }
 
-impl<T: BlockReader<N>, const N: usize> Io for ImageReader<T, N> {
+impl<T: BlockReader<N>, B, const N: usize> Io for ImageReader<T, B, N> {
     type Error = T::Error;
 }
 
-impl<T, const N: usize> ExactSizeRead for ImageReader<T, N>
+impl<T, B, const N: usize> ExactSizeRead for ImageReader<T, B, N>
 where
     T: BlockReader<N>,
+    B: AsMut<[u8]>,
 {
     fn bytes_remaining(&self) -> usize {
         self.image_len - self.bytes_read
     }
 }
 
-impl<T: BlockReader<N>, const N: usize> Seek for ImageReader<T, N> {
-    fn seek(&mut self, _pos: SeekFrom) -> Result<u64, Self::Error> {
-        todo!()
+impl<T, B, const N: usize> Seek for ImageReader<T, B, N>
+where
+    T: BlockReader<N>,
+    B: AsMut<[u8]>,
+{
+    fn seek(&mut self, seek: SeekFrom) -> Result<u64, Self::Error> {
+        // Compute a new image read position
+        self.bytes_read = match seek {
+            SeekFrom::Start(pos) => pos as usize,
+            // In this project, we only have to read an image from the beginning,
+            // so we don't need to implement the whole seek functionality
+            SeekFrom::Current(_pos) => unimplemented!(),
+            SeekFrom::End(_pos) => unimplemented!(),
+        };
+        // Reread the block corresponding to the new read position
+        self.read_current_block_to_buf()?;
+        Ok(self.bytes_read as u64)
     }
 }
 
-impl<T, const N: usize> Read for ImageReader<T, N>
+impl<T, B, const N: usize> Read for ImageReader<T, B, N>
 where
     T: BlockReader<N>,
+    B: AsMut<[u8]>,
 {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
         // Just return if there is nothing to read or given buffer has zero size.
@@ -90,7 +126,7 @@ where
         let bytes_to_read = core::cmp::min(max_bytes_to_read, N - from);
         let to = from + bytes_to_read;
         // Perform copying bytes from block to outgoing buffer.
-        buf[0..bytes_to_read].copy_from_slice(&self.block[from..to]);
+        buf[0..bytes_to_read].copy_from_slice(&self.block.as_mut()[from..to]);
         // Increment block read position
         self.bytes_read += bytes_to_read;
         Ok(bytes_to_read)
