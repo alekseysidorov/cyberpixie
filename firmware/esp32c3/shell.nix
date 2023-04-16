@@ -6,6 +6,7 @@ pkgs.mkShell {
   nativeBuildInputs = with pkgs; [
     rustToolchain
     rustBuildHostDependencies
+    rustPlatform.bindgenHook
     # Dependencies for the code formatting utility
     dprint
     # For compiling the esp-idf library
