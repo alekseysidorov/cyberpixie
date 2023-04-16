@@ -37,4 +37,10 @@ jobs:
       - uses: cachix/install-nix-action@v18
         with:
           nix_path: nixpkgs=channel:nixos-unstable
+      - uses: actions/cache@v3
+        with:
+          path: |
+            .embuild/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - run: nix develop .#esp32c3 --command cargo build --manifest-path firmware/esp32c3/Cargo.toml
