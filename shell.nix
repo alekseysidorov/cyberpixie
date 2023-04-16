@@ -11,7 +11,5 @@ pkgs.mkShell {
     nixpkgs-fmt
   ];
 
-  RUSTC_WRAPPER = "sccache";
-
   shellHook = "${pkgs.crossBashPrompt}";
 }

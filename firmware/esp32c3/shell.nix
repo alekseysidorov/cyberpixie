@@ -12,8 +12,6 @@ pkgs.mkShell {
     cmake
   ];
 
-  RUSTC_WRAPPER = "sccache";
-
   # Enable unstable cargo features
   CARGO_UNSTABLE_BUILD_STD = "std,panic_abort";
   # Setup the target specific build configuration
