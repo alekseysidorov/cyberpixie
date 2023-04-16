@@ -31,3 +31,10 @@
 
 ### Qt files
 *.user
+
+### ESP32 files
+**/.embuild/
+
+### Nix files
+/result
+**/.direnv/

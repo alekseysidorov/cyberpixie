@@ -13,7 +13,6 @@
   ],
   "exec": {
     "associations": "**/*.{rs,nix}",
-
     "rustfmt": "rustfmt --config-path {{cwd}}/rustfmt.toml",
     "rustfmt.associations": "**/*.rs",
     "nixpkgs-fmt": "nixpkgs-fmt",
