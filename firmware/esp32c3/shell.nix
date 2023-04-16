@@ -12,6 +12,10 @@ pkgs.mkShell {
     # For compiling the esp-idf library
     python310Packages.virtualenv
     python310Packages.pip
+    ldproxy
+    # Utilites to flash firmware to the device
+    espflash
+    cargo-espflash
   ];
 
   env = {
