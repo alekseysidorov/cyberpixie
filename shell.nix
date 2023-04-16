@@ -1,15 +1,14 @@
 # Shell for the platform independent code parts
-{ pkgs
-, rustToolchain
-, rustBuildHostDependencies
-, dprint
+{ localSystem ? builtins.currentSystem
+, pkgs ? import ./nix { inherit localSystem; }
 }:
 pkgs.mkShell {
-  nativeBuildInputs = [
+  nativeBuildInputs = with pkgs; [
     rustToolchain
     rustBuildHostDependencies
     # Dependencies for the code formatting utility
     dprint
+    nixpkgs-fmt
   ];
 
   RUSTC_WRAPPER = "sccache";

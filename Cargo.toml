@@ -29,6 +29,6 @@ opt-level = "s"
 lto = true
 
 [profile.dev]
-debug = true    # Symbols are nice and they don't increase the size on Flash
+debug = true # Symbols are nice and they don't increase the size on Flash
 opt-level = "z"
 lto = true
