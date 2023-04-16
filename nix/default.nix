@@ -15,7 +15,6 @@ let
     # Setup overlays
     overlays = [
       (import lockFile.nixpkgs-cross-overlay)
-      (import lockFile.rust-esp32)
       (import lockFile.rust-overlay)
       # Setup Rust toolchain in according with the toolchain file.
       (final: prev: {

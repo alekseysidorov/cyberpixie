@@ -11,10 +11,6 @@
         flake-utils.follows = "flake-utils";
       };
     };
-    rust-esp32 = {
-      url = "github:alekseysidorov/nixpkgs-rust-esp32";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     nixpkgs-cross-overlay = {
       url = "github:alekseysidorov/nixpkgs-cross-overlay/dev";
       inputs = {
