@@ -24,7 +24,7 @@ impl DeviceService for DeviceStub {
         DeviceInfo {
             role: DeviceRole::Main,
             group_id: None,
-            strip_len: Some(36),
+            strip_len: Some(DEFAULT_DEVICE_CONFIG.strip_len),
         }
     }
 
@@ -55,6 +55,6 @@ fn main() -> anyhow::Result<()> {
         if let Err(nb::Error::Other(err)) = server.poll() {
             panic!("{err}");
         }
-        std::thread::sleep(Duration::from_millis(50));
+        std::thread::sleep(Duration::from_millis(100));
     }
 }
