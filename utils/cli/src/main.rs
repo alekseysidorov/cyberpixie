@@ -3,8 +3,11 @@ use std::{net::SocketAddr, path::PathBuf};
 use clap::{CommandFactory, Parser, Subcommand};
 use cyberpixie_core::proto::types::Hertz;
 use cyberpixie_std_network::create_client;
-use image_sender::convert_image_to_raw;
+use cyberpixie_cli::convert_image_to_raw;
 
+/// Cyberpixie device manipulation utility
+///
+/// A command line application for interacting with the Cyberpixie device via WiFi connection
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
 #[command(propagate_version = false)]
@@ -12,34 +15,37 @@ struct Cli {
     /// Device socket address
     #[arg(short, long, default_value = "127.0.0.1:80")]
     address: SocketAddr,
-
+    /// Actual command
     #[command(subcommand)]
-    command: Commands,
+    command: Command,
 }
 
 #[derive(Debug, Subcommand)]
-enum Commands {
-    /// Get firmware info from the device.
+enum Command {
+    /// Get information about device firmware
     FirmwareInfo,
-    /// Add image to device.
+    /// Add a new image to device memory
     AddImage {
         /// Image path
         #[arg(value_name = "FILE")]
         path: PathBuf,
         /// Image refresh rate
-        #[arg(short, long = "refresh-rate", default_value = "50", value_name = "Hz")]
+        ///
+        /// We assume that the refresh rate in the given image if the frequency of
+        /// redrawing of the square area of the picture with the strip lenght size.
+        #[arg(short, long = "refresh-rate", default_value = "25", value_name = "Hz")]
         refresh_rate: Hertz,
     },
-    /// Show image.
+    /// Show image
     ShowImage {
-        /// Image index.
+        /// Image index
         index: usize,
     },
-    /// Clear device images.
+    /// Clear all images stored in the device memory
     ClearImages,
     /// Generate shell completions
     Completions {
-        /// The shell to generate the completions for.
+        /// The shell to generate the completions for
         #[arg(value_enum)]
         shell: clap_complete_command::Shell,
     },
@@ -51,14 +57,14 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     let address = cli.address;
     match cli.command {
-        Commands::FirmwareInfo => {
+        Command::FirmwareInfo => {
             log::info!("Sending firmare info request to {}", address);
 
             let client = create_client(address)?;
             // TODO replace by the full firmware info.
             log::info!("Got {:#?} from the {}", client.device_info, address);
         }
-        Commands::AddImage { path, refresh_rate } => {
+        Command::AddImage { path, refresh_rate } => {
             let (strip_len, raw) = convert_image_to_raw(&path)?;
 
             log::info!("Sending image {:?}[{}] to {}", path, strip_len, address);
@@ -69,15 +75,15 @@ fn main() -> anyhow::Result<()> {
                 index
             );
         }
-        Commands::ShowImage { .. } => {}
-        Commands::ClearImages => {
+        Command::ShowImage { .. } => {}
+        Command::ClearImages => {
             log::info!("Sending clear images command to {}", address);
 
             create_client(address)?.clear_images()?;
             log::trace!("Sent images clear command to {}", address);
         }
 
-        Commands::Completions { shell } => {
+        Command::Completions { shell } => {
             shell.generate(&mut Cli::command(), &mut std::io::stdout());
         }
     }

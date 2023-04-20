@@ -39,13 +39,24 @@ where
     }
 }
 
+/// Image rendering handle.
+pub trait ImageRenderHandle {
+    /// Stops an image rendering routine.
+    fn stop(self);
+}
+
 /// Basic device services.
 pub trait DeviceService {
+    /// Device storage type.
     type Storage: DeviceStorage;
+    /// Image rendering handle.
+    type ImageRender;
     /// Returns important device information necessary for handshake.
     fn device_info(&self) -> DeviceInfo;
     /// Returns handle to the device storage.
     fn storage(&self) -> Self::Storage;
+    /// Starts a current image rendering.
+    fn show_current_image(&mut self) -> Self::ImageRender;
 }
 
 /// A type definition to represent an image reader for a certain device.

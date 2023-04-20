@@ -41,6 +41,7 @@ struct ImageReadStub;
 
 impl DeviceService for DeviceStub {
     type Storage = StorageStub;
+    type ImageRender = ();
 
     fn device_info(&self) -> DeviceInfo {
         DeviceInfo {
@@ -51,6 +52,10 @@ impl DeviceService for DeviceStub {
     }
 
     fn storage(&self) -> Self::Storage {
+        todo!()
+    }
+
+    fn show_current_image(&mut self) -> Self::ImageRender {
         todo!()
     }
 }

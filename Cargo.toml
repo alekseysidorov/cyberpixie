@@ -5,7 +5,7 @@ members = [
   "crates/core",
   "crates/network",
   "firmware/esp32c3",
-  "utils/image_sender",
+  "utils/cli",
 ]
 
 default-members = ["crates/core", "crates/network"]

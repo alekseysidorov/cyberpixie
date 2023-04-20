@@ -19,6 +19,7 @@ struct DeviceStub;
 
 impl DeviceService for DeviceStub {
     type Storage = ImagesRegistry;
+    type ImageRender = ();
 
     fn device_info(&self) -> DeviceInfo {
         DeviceInfo {
@@ -30,6 +31,10 @@ impl DeviceService for DeviceStub {
 
     fn storage(&self) -> Self::Storage {
         ImagesRegistry::new(DEFAULT_DEVICE_CONFIG)
+    }
+
+    fn show_current_image(&mut self) -> Self::ImageRender {
+        todo!()
     }
 }
 
