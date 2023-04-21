@@ -92,10 +92,11 @@ where
     R::Error: std::fmt::Debug + std::error::Error + Send + Sync + 'static,
     // <D::ImageRead as Io>::Error: std::fmt::Debug + std::error::Error + Send + Sync + 'static,
 {
+    let refresh_period = Duration::from(refresh_rate);
+
     let cancelled = Arc::new(AtomicBool::new(false));
-    let (tx, rx) = std::sync::mpsc::sync_channel::<(heapless::Vec<RGB8, MAX_STRIP_LEN>, Duration)>(
-        RENDERING_QUEUE_LEN,
-    );
+    let (tx, rx) =
+        std::sync::mpsc::sync_channel::<heapless::Vec<RGB8, MAX_STRIP_LEN>>(RENDERING_QUEUE_LEN);
 
     // Create a reading task
     let is_cancelled = cancelled.clone();
@@ -117,12 +118,10 @@ where
                 let buf = vec![0_u8; strip_len as usize * 3];
                 let mut lines = ImageLines::new(image, strip_len, buf);
 
-                // let refresh_rate = lines.refresh_rate();
-                let refresh_perion = Duration::from(refresh_rate);
                 log::info!("refresh_rate: {refresh_rate}Hz");
                 log::info!(
                     "refresh_period: {}ms",
-                    refresh_perion.as_secs_f32() * 1_000_f32
+                    refresh_period.as_secs_f32() * 1_000_f32
                 );
 
                 let mut total_reading_time = Duration::default();
@@ -143,8 +142,7 @@ where
                     total_reading_time += elapsed;
                     total_read_frames += 1;
 
-                    let _ok = tx.send((line, refresh_perion));
-                    std::thread::yield_now();
+                    let _ok = tx.send(line);
                 }
 
                 let avg_reading_time = total_reading_time / total_read_frames;
@@ -187,8 +185,7 @@ where
                 }
 
                 let now = Instant::now();
-                let (line, refresh_period) =
-                    rx.recv().context("Unable to read a next image line")?;
+                let line = rx.recv().context("Unable to read a next image line")?;
                 let now2 = Instant::now();
                 render
                     .write(line.into_iter())
