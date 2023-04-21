@@ -94,6 +94,7 @@ pub trait DeviceStorage {
         if current_image == self.images_count()? {
             current_image.0 = 0;
         }
+        self.set_current_image(current_image)?;
         Ok(Some(current_image))
     }
 }
@@ -107,7 +108,6 @@ where
     image: Image<R>,
     strip_line_len: usize,
     strip_line_buf: B,
-    refresh_rate: Hertz,
 }
 
 impl<R, B> ImageLines<R, B>
@@ -116,7 +116,7 @@ where
     R: ExactSizeRead + Seek,
 {
     /// Bytes count per single pixel.
-    const BYTES_PER_PIXEL: usize = 3;
+    pub const BYTES_PER_PIXEL: usize = 3;
 
     /// Creates a new image lines iterator.
     ///
@@ -144,23 +144,16 @@ where
             "Given buffer capacity is not enough"
         );
 
-        // Compute the single line refresh rate.
-        let refresh_rate = Hertz(image.refresh_rate.0 * strip_len as u32);
-
         Self {
             image,
             strip_line_len,
             strip_line_buf,
-            refresh_rate,
         }
     }
 
     /// Returns a refresh line fo the single strip line.
-    ///
-    /// We assume that the refresh rate in the given image if the frequency of
-    /// redrawing of the square area of the picture with the strip lenght size.
     pub fn refresh_rate(&self) -> Hertz {
-        self.refresh_rate
+        self.image.refresh_rate
     }
 
     /// Reads and returns a next image line

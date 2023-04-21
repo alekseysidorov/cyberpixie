@@ -29,11 +29,8 @@ enum Command {
         /// Image path
         #[arg(value_name = "FILE")]
         path: PathBuf,
-        /// Image refresh rate
-        ///
-        /// We assume that the refresh rate in the given image if the frequency of
-        /// redrawing of the square area of the picture with the strip lenght size.
-        #[arg(short, long = "refresh-rate", default_value = "25", value_name = "Hz")]
+        /// Refresh rate of the single image line
+        #[arg(short, long = "refresh-rate", default_value = "300", value_name = "Hz")]
         refresh_rate: Hertz,
     },
     /// Show image
