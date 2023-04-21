@@ -1,9 +1,9 @@
 use std::{net::SocketAddr, path::PathBuf};
 
 use clap::{CommandFactory, Parser, Subcommand};
+use cyberpixie_cli::convert_image_to_raw;
 use cyberpixie_core::proto::types::Hertz;
 use cyberpixie_std_network::create_client;
-use cyberpixie_cli::convert_image_to_raw;
 
 /// Cyberpixie device manipulation utility
 ///

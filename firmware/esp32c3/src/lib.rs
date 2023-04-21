@@ -8,5 +8,4 @@ pub mod wifi;
 /// Default device configuration.
 pub const DEFAULT_DEVICE_CONFIG: DeviceConfig = DeviceConfig { strip_len: 24 };
 
-pub struct DeviceImpl {
-}
+pub struct DeviceImpl {}

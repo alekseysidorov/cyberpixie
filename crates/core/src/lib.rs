@@ -9,9 +9,9 @@ pub mod service;
 pub mod storage;
 
 /// The maximum effective length of the pixel strip.
-/// 
-/// It doesn't make sense to create pixel devices with strip longer than this one, 
-/// the ws2812 protocol has not enough refresh rate. 
+///
+/// It doesn't make sense to create pixel devices with strip longer than this one,
+/// the ws2812 protocol has not enough refresh rate.
 pub const MAX_STRIP_LEN: usize = 48;
 
 /// The Blocking reader with the exact number of bytes to read.

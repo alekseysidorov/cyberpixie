@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use cyberpixie_core::{service::DeviceStorage, proto::types::Hertz};
+use cyberpixie_core::{proto::types::Hertz, service::DeviceStorage};
 use cyberpixie_esp32c3::{storage::ImagesRegistry, DEFAULT_DEVICE_CONFIG};
 use esp_idf_svc::log::EspLogger;
 // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
@@ -26,7 +26,11 @@ fn main() -> anyhow::Result<()> {
     let mut render = Some(strip);
     loop {
         // Render a current image.
-        let handle = cyberpixie_esp32c3::render::start_rendering(render.take().unwrap(), storage, refresh_rate)?;
+        let handle = cyberpixie_esp32c3::render::start_rendering(
+            render.take().unwrap(),
+            storage,
+            refresh_rate,
+        )?;
         // Wait for a minute
         std::thread::sleep(Duration::from_secs(60));
         // Finish rendering task and swith to a next stored image.

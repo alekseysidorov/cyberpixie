@@ -61,7 +61,7 @@ fn main() -> anyhow::Result<()> {
         );
         log::info!(
             "-> Max frame rendering frame rate is {}Hz",
-            1.0_f32 / max_lag.as_secs_f32() 
+            1.0_f32 / max_lag.as_secs_f32()
         );
 
         refresh_rate.0 += 50;
