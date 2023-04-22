@@ -1,6 +1,16 @@
 [build]
 target = "riscv32imc-esp-espidf"
 
+# Profile section
+[profile.release]
+opt-level = "s"
+lto = true
+
+[profile.dev]
+debug = true # Symbols are nice and they don't increase the size on Flash
+opt-level = "z"
+lto = true
+
 [target.riscv32imc-esp-espidf]
 linker = "ldproxy"
 runner = "espflash flash --monitor --partition-table partitionTable.csv"

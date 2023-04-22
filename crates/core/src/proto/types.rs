@@ -113,3 +113,9 @@ impl Display for ImageId {
         self.0.fmt(f)
     }
 }
+
+impl Display for Hertz {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        self.0.fmt(f)
+    }
+}

@@ -19,17 +19,22 @@ struct DeviceStub;
 
 impl DeviceService for DeviceStub {
     type Storage = ImagesRegistry;
+    type ImageRender = ();
 
     fn device_info(&self) -> DeviceInfo {
         DeviceInfo {
             role: DeviceRole::Main,
             group_id: None,
-            strip_len: Some(36),
+            strip_len: Some(DEFAULT_DEVICE_CONFIG.strip_len),
         }
     }
 
     fn storage(&self) -> Self::Storage {
         ImagesRegistry::new(DEFAULT_DEVICE_CONFIG)
+    }
+
+    fn show_current_image(&mut self) -> Self::ImageRender {
+        todo!()
     }
 }
 
@@ -55,6 +60,6 @@ fn main() -> anyhow::Result<()> {
         if let Err(nb::Error::Other(err)) = server.poll() {
             panic!("{err}");
         }
-        std::thread::sleep(Duration::from_millis(50));
+        std::thread::sleep(Duration::from_millis(100));
     }
 }

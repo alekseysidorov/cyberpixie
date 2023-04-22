@@ -6,4 +6,6 @@ pub mod storage;
 pub mod wifi;
 
 /// Default device configuration.
-pub const DEFAULT_DEVICE_CONFIG: DeviceConfig = DeviceConfig { strip_len: 48 };
+pub const DEFAULT_DEVICE_CONFIG: DeviceConfig = DeviceConfig { strip_len: 24 };
+
+pub struct DeviceImpl {}
