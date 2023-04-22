@@ -12,7 +12,7 @@ use embedded_io::{blocking::Read, Io};
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
-use self::types::{DeviceInfo, ImageId, ImageInfo};
+use self::types::{PeerInfo, ImageId, ImageInfo};
 use crate::ExactSizeRead;
 
 pub mod packet;
@@ -20,8 +20,12 @@ pub mod types;
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug, MaxSize)]
 pub enum RequestHeader {
-    Handshake(DeviceInfo),
+    Handshake(PeerInfo),
     AddImage(ImageInfo),
+    /// Start showing image with the specified ID
+    ShowImage(ImageId),
+    /// Hide currently showing image
+    HideImage,
     ClearImages,
     Debug,
 }
@@ -29,7 +33,7 @@ pub enum RequestHeader {
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Copy, Debug, MaxSize)]
 pub enum ResponseHeader {
     Empty,
-    Handshake(DeviceInfo),
+    Handshake(PeerInfo),
     AddImage(ImageId),
     Error(crate::Error),
 }
@@ -43,7 +47,7 @@ impl ResponseHeader {
         }
     }
 
-    pub fn handshake(self) -> crate::Result<DeviceInfo> {
+    pub fn handshake(self) -> crate::Result<PeerInfo> {
         match self {
             Self::Handshake(info) => Ok(info),
             Self::Error(err) => Err(err),

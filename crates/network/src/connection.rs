@@ -213,7 +213,7 @@ mod tests {
     use std::net::{TcpListener, TcpStream};
 
     use cyberpixie_core::proto::{
-        types::{DeviceInfo, DeviceRole},
+        types::{PeerInfo, DeviceRole, DeviceInfo},
         RequestHeader,
     };
     use nb_utils::{IntoNbResult, NbResultExt};
@@ -261,10 +261,10 @@ mod tests {
 
         assert!(receiver.poll_next_packet().is_would_block());
 
-        let message = RequestHeader::Handshake(DeviceInfo {
+        let message = RequestHeader::Handshake(PeerInfo {
             role: DeviceRole::Client,
             group_id: None,
-            strip_len: Some(64),
+            device_info: Some(DeviceInfo::empty(64)),
         });
         sender.send_message(message).unwrap();
 

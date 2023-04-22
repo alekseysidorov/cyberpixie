@@ -18,45 +18,6 @@ use smart_leds::{SmartLedsWrite, RGB8};
 
 const RENDERING_QUEUE_LEN: usize = 10;
 
-// #[derive(Debug)]
-// pub struct Render<R, D> {
-//     state: State<R, D>,
-// }
-
-// impl<R, D> Render<R, D> {
-//     pub fn new(render: R) -> Self {
-//         Self {
-//             state: State::Idle { render },
-//         }
-//     }
-// }
-
-// impl<R, D> Render<R, D>
-// where
-//     R: SmartLedsWrite<Color = RGB8> + Send + 'static,
-//     D: DeviceStorage + Send + 'static,
-//     R::Error: std::fmt::Debug,
-// {
-//     pub fn start(&mut self, device: D) -> anyhow::Result<()> {
-//         // let render = match self.state {
-//         //     State::Idle { render } => render,
-//         //     State::Running { handle } => bail!("An error in the program logic: image rendering already started."),
-//         // };
-
-//         todo!()
-//     }
-
-//     pub fn stop(&mut self) -> anyhow::Result<D> {
-//         todo!()
-//     }
-// }
-
-// #[derive(Debug)]
-// enum State<R, D> {
-//     Idle { render: R },
-//     Running { handle: Handle<R, D> },
-// }
-
 #[derive(Debug)]
 pub struct Handle<R, D> {
     reading_task: std::thread::JoinHandle<anyhow::Result<D>>,
@@ -107,7 +68,7 @@ where
             {
                 // Get the current image ID
                 let image_id = storage
-                    .current_image()?
+                    .current_image_id()?
                     .context("There is no images in storage")?;
                 // Create image reader
                 let image = storage.read_image(image_id)?;

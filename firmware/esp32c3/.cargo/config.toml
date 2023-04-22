@@ -3,7 +3,7 @@ target = "riscv32imc-esp-espidf"
 
 # Profile section
 [profile.release]
-opt-level = "s"
+opt-level = 3
 lto = true
 
 [profile.dev]
@@ -13,7 +13,7 @@ lto = true
 
 [target.riscv32imc-esp-espidf]
 linker = "ldproxy"
-runner = "espflash flash --monitor --partition-table partitionTable.csv"
+runner = "espflash flash --monitor --partition-table partitions.csv"
 # Future - necessary for the experimental "native build" of esp-idf-sys with ESP32C3. See also https://github.com/ivmarkov/embuild/issues/16
 # For ESP-IDF 5 add `espidf_time64` and for earlier versions - remove this flag: https://github.com/esp-rs/rust/issues/110
 rustflags = ["-C", "default-linker-libraries"]

@@ -27,8 +27,8 @@ fn main() -> anyhow::Result<()> {
 
     let storage = ImagesRegistry::new(DEFAULT_DEVICE_CONFIG);
     log::info!("{:?}", storage.images_count());
-    log::info!("{:?}", storage.current_image());
-    let Some(image_id) = storage.current_image()? else {
+    log::info!("{:?}", storage.current_image_id());
+    let Some(image_id) = storage.current_image_id()? else {
         log::error!("There is no images in storage");
         return Ok(());
     };

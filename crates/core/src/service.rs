@@ -5,7 +5,7 @@ use rgb::{FromSlice, RGB8};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    proto::types::{DeviceInfo, Hertz, ImageId},
+    proto::types::{PeerInfo, Hertz, ImageId},
     ExactSizeRead,
 };
 
@@ -39,24 +39,20 @@ where
     }
 }
 
-/// Image rendering handle.
-pub trait ImageRenderHandle {
-    /// Stops an image rendering routine.
-    fn stop(self);
-}
-
 /// Basic device services.
 pub trait DeviceService {
     /// Device storage type.
     type Storage: DeviceStorage;
     /// Image rendering handle.
-    type ImageRender;
-    /// Returns important device information necessary for handshake.
-    fn device_info(&self) -> DeviceInfo;
+    type ImageRender: Send + 'static;
+    /// Returns an important peer information necessary for handshake.
+    fn peer_info(&self) -> crate::Result<PeerInfo>;
     /// Returns handle to the device storage.
     fn storage(&self) -> Self::Storage;
     /// Starts a current image rendering.
-    fn show_current_image(&mut self) -> Self::ImageRender;
+    fn show_current_image(&mut self) -> crate::Result<Self::ImageRender>;
+    /// Stops an image rendering task.
+    fn hide_current_image(&mut self, task: Self::ImageRender) -> crate::Result<()>;
 }
 
 /// A type definition to represent an image reader for a certain device.
@@ -81,12 +77,13 @@ pub trait DeviceStorage {
     /// Remove all stored images.
     fn clear_images(&self) -> crate::Result<()>;
     /// Sets an index of image that will be shown.
-    fn set_current_image(&self, id: ImageId) -> crate::Result<()>;
+    fn set_current_image_id(&self, id: ImageId) -> crate::Result<()>;
     /// Returns an index of image that will be shown.
-    fn current_image(&self) -> crate::Result<Option<ImageId>>;
+    fn current_image_id(&self) -> crate::Result<Option<ImageId>>;
+
     /// Switches to a next image, if it reaches the last image it turns back to the first image.
     fn switch_to_next_image(&self) -> crate::Result<Option<ImageId>> {
-        let Some(mut current_image) = self.current_image()? else {
+        let Some(mut current_image) = self.current_image_id()? else {
             return Ok(None)
         };
 
@@ -94,8 +91,16 @@ pub trait DeviceStorage {
         if current_image == self.images_count()? {
             current_image.0 = 0;
         }
-        self.set_current_image(current_image)?;
+        self.set_current_image_id(current_image)?;
         Ok(Some(current_image))
+    }
+
+    /// Reads a current image.
+    fn read_current_image(&self) -> crate::Result<DeviceImage<'_, Self>> {
+        let image_id = self
+            .current_image_id()?
+            .ok_or(crate::Error::ImageRepositoryIsEmpty)?;
+        self.read_image(image_id)
     }
 }
 

@@ -26,28 +26,40 @@ impl Display for DeviceRole {
 }
 
 #[derive(Serialize, Deserialize, MaxSize, PartialEq, Eq, Clone, Copy, Debug)]
-pub struct DeviceInfo {
+pub struct PeerInfo {
     pub role: DeviceRole,
     pub group_id: Option<u32>,
-    pub strip_len: Option<u16>,
+    pub device_info: Option<DeviceInfo>,
 }
 
-impl DeviceInfo {
+impl PeerInfo {
     pub fn client() -> Self {
         Self {
             role: DeviceRole::Client,
             group_id: None,
-            strip_len: None,
+            device_info: None,
         }
     }
 }
 
 #[derive(Serialize, Deserialize, MaxSize, PartialEq, Eq, Clone, Copy, Debug)]
-pub struct FirmwareInfo {
-    pub version: [u8; 4],
-    pub role: DeviceRole,
+pub struct DeviceInfo {
     pub strip_len: u16,
-    pub images_count: u16,
+    pub images_count: ImageId,
+    pub current_image: Option<ImageId>,
+    /// Indicates whether there is an active image rendering task. 
+    pub active: bool
+}
+
+impl DeviceInfo {
+    pub fn empty(strip_len: u16) -> Self {
+        Self {
+            strip_len,
+            images_count: ImageId(0),
+            current_image: None,
+            active: false,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, MaxSize, PartialEq, Eq, Clone, Copy, Debug)]

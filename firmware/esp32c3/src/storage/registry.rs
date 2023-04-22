@@ -116,12 +116,12 @@ impl DeviceStorage for ImagesRegistry {
             .map_err(CyberpixieError::storage_read)
     }
 
-    fn set_current_image(&self, id: ImageId) -> cyberpixie_core::Result<()> {
+    fn set_current_image_id(&self, id: ImageId) -> cyberpixie_core::Result<()> {
         self.set("img.current", &id)
             .map_err(CyberpixieError::storage_write)
     }
 
-    fn current_image(&self) -> cyberpixie_core::Result<Option<ImageId>> {
+    fn current_image_id(&self) -> cyberpixie_core::Result<Option<ImageId>> {
         // There is no images in this registry, so the current image doesn't make sense.
         if self.images_count()?.0 == 0 {
             return Ok(None);
@@ -130,7 +130,7 @@ impl DeviceStorage for ImagesRegistry {
         let value = self
             .get("img.current")
             .map_err(CyberpixieError::storage_read)?;
-        Ok(value.unwrap_or(Some(ImageId(0))))
+        Ok(value.or(Some(ImageId(0))))
     }
 
     fn add_image<R>(&self, refresh_rate: Hertz, mut image: R) -> cyberpixie_core::Result<ImageId>

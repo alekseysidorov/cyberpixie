@@ -3,7 +3,7 @@
 , pkgs ? import ./../../nix { inherit localSystem; }
 }:
 let
-  partitionTable = ./partitionTable.csv;
+  partitions = ./partitions.csv;
 in
 pkgs.mkShell {
   nativeBuildInputs = with pkgs; [
@@ -26,9 +26,10 @@ pkgs.mkShell {
     CARGO_TARGET_RISCV32IMC_ESP_ESPIDF_LINKER = "ldproxy";
     CARGO_TARGET_RISCV32IMC_ESP_ESPIDF_RUSTFLAGS = "-C default-linker-libraries";
     # Setup the target runnner
-    CARGO_TARGET_RISCV32IMC_ESP_ESPIDF_RUNNER = "espflash flash --monitor --partition-table ${partitionTable}";
+    CARGO_TARGET_RISCV32IMC_ESP_ESPIDF_RUNNER = "espflash flash --monitor --partition-table ${partitions}";
     # Builds against ESP-IDF stable (v4.4)
     ESP_IDF_VERSION = "release/v4.4";
+    ESP_IDF_SDKCONFIG_DEFAULTS = "sdkconfig.defaults;";
     # It's impossible to use the rustPlatform.bindgenHook, 
     # but we have to provide the path to the libclang anyway.
     LIBCLANG_PATH = "${pkgs.llvmPackages_14.libclang.lib}/lib";
