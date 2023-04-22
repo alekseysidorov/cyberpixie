@@ -15,7 +15,7 @@ fn main() -> anyhow::Result<()> {
     // or else some patches to the runtime implemented by esp-idf-sys might not link properly.
     esp_idf_sys::link_patches();
     EspLogger::initialize_default();
-
+    
     // Initialize and clear strip
     let mut strip = Ws2812Esp32Rmt::new(0, LED_PIN)?;
     strip.write(std::iter::repeat(RGB8::default()).take(144))?;

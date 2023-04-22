@@ -16,7 +16,7 @@ use cyberpixie_core::{
 };
 use smart_leds::{SmartLedsWrite, RGB8};
 
-const RENDERING_QUEUE_LEN: usize = 10;
+const RENDERING_QUEUE_LEN: usize = 30;
 
 #[derive(Debug)]
 pub struct Handle<R, D> {
@@ -56,8 +56,7 @@ where
     let refresh_period = Duration::from(refresh_rate);
 
     let cancelled = Arc::new(AtomicBool::new(false));
-    let (tx, rx) =
-        std::sync::mpsc::sync_channel::<heapless::Vec<RGB8, MAX_STRIP_LEN>>(RENDERING_QUEUE_LEN);
+    let (tx, rx) = std::sync::mpsc::sync_channel::<Vec<RGB8>>(RENDERING_QUEUE_LEN);
 
     // Create a reading task
     let is_cancelled = cancelled.clone();
@@ -168,7 +167,12 @@ where
             render.write(std::iter::repeat(RGB8::default()).take(MAX_STRIP_LEN))?;
 
             log::info!("Image rendering finished");
-            log::info!("-> Laggy frames {} of {}", laggy_frames, total_frames);
+            log::info!(
+                "-> Laggy frames {} of {} [{}%]",
+                laggy_frames,
+                total_frames,
+                (laggy_frames / total_frames * 100)
+            );
             log::info!(
                 "-> Max frame rendering duration is {}ms",
                 max_rendering_time.as_secs_f32() * 1_000_f32

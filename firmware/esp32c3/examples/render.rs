@@ -21,6 +21,14 @@ fn main() -> anyhow::Result<()> {
     esp_idf_sys::link_patches();
     EspLogger::initialize_default();
 
+    unsafe {
+        let mut cfg = esp_idf_sys::rtc_cpu_freq_config_t::default();
+        esp_idf_sys::rtc_clk_cpu_freq_get_config(
+            &mut cfg as *mut esp_idf_sys::rtc_cpu_freq_config_t,
+        );
+        log::info!("CPU cfg {:?}", cfg);
+    }
+
     let mut strip = Ws2812Esp32Rmt::new(0, LED_PIN)?;
     // Clear strip
     strip.write(std::iter::repeat(RGB8::default()).take(144))?;

@@ -2,7 +2,6 @@ use std::{net::TcpListener, time::Duration};
 
 use cyberpixie_core::proto::types::Hertz;
 use cyberpixie_esp32c3::{
-    render::Render,
     splash::WanderingLight,
     storage::ImagesRegistry,
     wifi::{Config, Wifi},
@@ -14,6 +13,8 @@ use esp_idf_svc::{eventloop::EspSystemEventLoop, log::EspLogger};
 // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 use esp_idf_sys as _;
 use log::info;
+use smart_leds::{SmartLedsWrite, RGB8};
+use ws2812_esp32_rmt_driver::Ws2812Esp32Rmt; 
 
 fn main() -> anyhow::Result<()> {
     // Temporary. Will disappear once ESP-IDF 4.4 is released, but for now it is necessary to call this function once,
@@ -32,13 +33,13 @@ fn main() -> anyhow::Result<()> {
     info!("Bound TCP on: {:?}", listener.local_addr());
 
     // Initialize and clear strip.
-    let mut strip = Render::new(0, LED_PIN)?;
-    strip.clear(144)?;
+    let mut strip = Ws2812Esp32Rmt::new(0, LED_PIN)?;
+    strip.write(std::iter::repeat(RGB8::default()).take(144))?;
     // Show splash
     let splash = WanderingLight::<STRIP_LEN>::new(64);
     let rate = Hertz(100);
     for (_ticks, line) in splash {
-        strip.write(line.into_iter().collect())?;
+        strip.write(line.into_iter())?;
         std::thread::sleep(Duration::from(rate));
     }
 
@@ -53,6 +54,6 @@ fn main() -> anyhow::Result<()> {
         if let Err(nb::Error::Other(err)) = server.poll() {
             panic!("{err}");
         }
-        std::thread::sleep(Duration::from_millis(100));
+        std::thread::sleep(Duration::from_millis(50));
     }
 }
