@@ -51,4 +51,4 @@ jobs:
             .embuild/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - run: nix develop .#esp32c3 --command cargo build --manifest-path firmware/esp32c3/Cargo.toml
+      - run: nix develop .#esp32c3 --command cargo clippy --manifest-path firmware/esp32c3/Cargo.toml
