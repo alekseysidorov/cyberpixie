@@ -1,3 +1,13 @@
+#![warn(unsafe_code, missing_copy_implementations)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::use_self, clippy::missing_const_for_fn)]
+// Too many false positives.
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::missing_panics_doc,
+    clippy::module_name_repetitions
+)]
+
 use std::{
     fmt::Display,
     net::{SocketAddr, TcpStream},

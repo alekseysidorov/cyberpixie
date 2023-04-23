@@ -25,39 +25,45 @@ pub struct ImagesRegistry {
 }
 
 impl ImagesRegistry {
-    pub fn new(default_config: DeviceConfig) -> Self {
+    #[must_use]
+    pub const fn new(default_config: DeviceConfig) -> Self {
         Self { default_config }
     }
 
+    // Erases images registry memory.
+    //
+    // esp-idf lacks of the erase wrapper, so we have to use unsafe code in order to erase images registry.
     pub fn erase() -> Result<(), EspError> {
-        // esp-idf lacks of the erase wrapper, so we have to use unsafe code in order to erase images registry.
+        let _guard = STORAGE.lock().unwrap();
+        // # Safety
+        //
+        // We protect storage access by mutex, so we guarantee that there is no concurrent
+        // access to the storage partition.
+        #[allow(unsafe_code)]
         unsafe {
             let code = esp_idf_sys::nvs_flash_erase();
             esp_idf_sys::esp!(code)
         }
     }
 
-    fn set<T>(&self, name: &str, value: &T) -> cyberpixie_core::Result<()>
+    fn set<T>(name: &str, value: &T) -> cyberpixie_core::Result<()>
     where
         T: Serialize,
     {
         let mut buf = vec![0_u8; BLOCK_SIZE];
 
         postcard::to_slice(value, &mut buf).map_err(CyberpixieError::encode)?;
-        self.set_raw(name, &buf)
-            .map_err(CyberpixieError::storage_write)?;
+        Self::set_raw(name, &buf).map_err(CyberpixieError::storage_write)?;
         Ok(())
     }
 
-    fn get<T>(&self, name: &str) -> Result<Option<T>, CyberpixieError>
+    fn get<T>(name: &str) -> Result<Option<T>, CyberpixieError>
     where
         T: DeserializeOwned,
     {
         let mut buf = vec![0_u8; BLOCK_SIZE];
 
-        let bytes = self
-            .get_raw(name, &mut buf)
-            .map_err(CyberpixieError::storage_read)?;
+        let bytes = Self::get_raw(name, &mut buf).map_err(CyberpixieError::storage_read)?;
 
         bytes
             .map(|buf| postcard::from_bytes(buf))
@@ -65,7 +71,7 @@ impl ImagesRegistry {
             .map_err(CyberpixieError::decode)
     }
 
-    fn set_raw(&self, name: &str, buf: &[u8]) -> cyberpixie_core::Result<bool> {
+    fn set_raw(name: &str, buf: &[u8]) -> cyberpixie_core::Result<bool> {
         STORAGE
             .lock()
             .unwrap()
@@ -73,11 +79,11 @@ impl ImagesRegistry {
             .map_err(CyberpixieError::storage_write)
     }
 
-    fn get_raw<'a>(&self, name: &str, buf: &'a mut [u8]) -> Result<Option<&'a [u8]>, EspError> {
+    fn get_raw<'a>(name: &str, buf: &'a mut [u8]) -> Result<Option<&'a [u8]>, EspError> {
         STORAGE.lock().unwrap().get_raw(name, buf)
     }
 
-    fn remove(&self, name: &str) -> cyberpixie_core::Result<bool> {
+    fn remove(name: &str) -> cyberpixie_core::Result<bool> {
         info!("Removing '{name}' entry...");
         STORAGE
             .lock()
@@ -86,14 +92,12 @@ impl ImagesRegistry {
             .map_err(CyberpixieError::storage_write)
     }
 
-    fn set_images_count(&self, count: u16) -> Result<(), CyberpixieError> {
-        self.set("img.count", &count)
-            .map_err(CyberpixieError::storage_write)
+    fn set_images_count(count: u16) -> Result<(), CyberpixieError> {
+        Self::set("img.count", &count).map_err(CyberpixieError::storage_write)
     }
 
-    fn read_image_header(&self, image_index: ImageId) -> cyberpixie_core::Result<ImageHeader> {
-        self.get(&format!("img.{image_index}.header"))?
-            .ok_or(CyberpixieError::StorageRead)
+    fn read_image_header(image_index: ImageId) -> cyberpixie_core::Result<ImageHeader> {
+        Self::get(&format!("img.{image_index}.header"))?.ok_or(CyberpixieError::StorageRead)
     }
 }
 
@@ -101,24 +105,22 @@ impl DeviceStorage for ImagesRegistry {
     type ImageRead<'a> = ImageReader<'a>;
 
     fn config(&self) -> cyberpixie_core::Result<DeviceConfig> {
-        let config = self.get("config")?;
+        let config = Self::get("config")?;
         Ok(config.unwrap_or(self.default_config))
     }
 
     fn set_config(&self, value: &DeviceConfig) -> cyberpixie_core::Result<()> {
-        self.set("config", value)
-            .map_err(CyberpixieError::storage_write)
+        Self::set("config", value).map_err(CyberpixieError::storage_write)
     }
 
     fn images_count(&self) -> cyberpixie_core::Result<ImageId> {
-        self.get("img.count")
+        Self::get("img.count")
             .map(Option::unwrap_or_default)
             .map_err(CyberpixieError::storage_read)
     }
 
     fn set_current_image_id(&self, id: ImageId) -> cyberpixie_core::Result<()> {
-        self.set("img.current", &id)
-            .map_err(CyberpixieError::storage_write)
+        Self::set("img.current", &id).map_err(CyberpixieError::storage_write)
     }
 
     fn current_image_id(&self) -> cyberpixie_core::Result<Option<ImageId>> {
@@ -127,9 +129,7 @@ impl DeviceStorage for ImagesRegistry {
             return Ok(None);
         }
 
-        let value = self
-            .get("img.current")
-            .map_err(CyberpixieError::storage_read)?;
+        let value = Self::get("img.current").map_err(CyberpixieError::storage_read)?;
         Ok(value.or(Some(ImageId(0))))
     }
 
@@ -144,7 +144,7 @@ impl DeviceStorage for ImagesRegistry {
             image_len: image.bytes_remaining() as u32,
             refresh_rate,
         };
-        self.set(&format!("img.{image_index}.header"), &header)?;
+        Self::set(&format!("img.{image_index}.header"), &header)?;
         info!("Saving image with header: {header:?}");
 
         // Save image content.
@@ -157,12 +157,12 @@ impl DeviceStorage for ImagesRegistry {
                 .read_exact(&mut buf[0..to])
                 .map_err(CyberpixieError::storage_write)?;
 
-            self.set_raw(&format!("img.{image_index}.block.{block}"), &buf[0..to])?;
+            Self::set_raw(&format!("img.{image_index}.block.{block}"), &buf[0..to])?;
             info!("Write block {block} -> [0..{to}]");
         }
 
         let id = image_index;
-        self.set_images_count(image_index.0 + 1)?;
+        Self::set_images_count(image_index.0 + 1)?;
         info!("Image saved, total images count: {}", image_index.0 + 1);
         Ok(id)
     }
@@ -174,7 +174,7 @@ impl DeviceStorage for ImagesRegistry {
             return Err(CyberpixieError::ImageNotFound);
         }
 
-        let header = self.read_image_header(image_index)?;
+        let header = Self::read_image_header(image_index)?;
         let image = Image {
             refresh_rate: header.refresh_rate,
             bytes: ImageReader::new(
@@ -191,17 +191,17 @@ impl DeviceStorage for ImagesRegistry {
 
         info!("Deleting {images_count} images...");
         for image_index in 0..images_count.0 {
-            let header = self.read_image_header(ImageId(image_index))?;
+            let header = Self::read_image_header(ImageId(image_index))?;
             // Remove image blocks.
             let blocks_count = header.image_len as usize / BLOCK_SIZE;
             for block in 0..=blocks_count {
-                self.remove(&format!("img.{image_index}.block.{block}"))?;
+                Self::remove(&format!("img.{image_index}.block.{block}"))?;
             }
             // Remove image header.
-            self.remove(&format!("img.{image_index}.header"))?;
+            Self::remove(&format!("img.{image_index}.header"))?;
         }
         // Reset images counter.
-        self.set_images_count(0)?;
+        Self::set_images_count(0)?;
 
         Ok(())
     }
@@ -234,14 +234,15 @@ impl From<EspError> for BlockReadError {
 
 #[derive(Debug)]
 pub struct BlockReaderImpl<'a> {
-    registry: &'a ImagesRegistry,
+    _registry: &'a ImagesRegistry,
     image_index: ImageId,
 }
 
 impl<'a> BlockReaderImpl<'a> {
-    pub fn new(registry: &'a ImagesRegistry, image_index: ImageId) -> Self {
+    pub const fn new(_registry: &'a ImagesRegistry, image_index: ImageId) -> Self {
+        #[allow(clippy::used_underscore_binding)]
         Self {
-            registry,
+            _registry,
             image_index,
         }
     }
@@ -256,8 +257,7 @@ impl<'a, const N: usize> BlockReader<N> for BlockReaderImpl<'a> {
         let idx = self.image_index.0;
 
         log::trace!("Filling block {block} [0..{}]", buf.len(),);
-        self.registry
-            .get_raw(&format!("img.{idx}.block.{block}"), buf)?;
+        ImagesRegistry::get_raw(&format!("img.{idx}.block.{block}"), buf)?;
         Ok(())
     }
 }

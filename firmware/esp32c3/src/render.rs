@@ -139,7 +139,7 @@ where
             std::thread::sleep(Duration::from_millis(0));
 
             let critical_section = esp_idf_hal::task::CriticalSection::new();
-            let expected_rendering_time = PIXEL_RENDERING_DURATION * strip_len as u32;
+            let expected_rendering_time = PIXEL_RENDERING_DURATION * u32::from(strip_len);
 
             let mut stats = RenderingStats::new(refresh_period, expected_rendering_time);
             loop {
@@ -206,22 +206,13 @@ impl RenderingStats {
         }
     }
 
-    fn update(&mut self, rendering_time: Duration) {
-        self.total_frames += 1;
-        self.max_rendering_time = std::cmp::max(self.max_rendering_time, rendering_time);
-        self.total_rendering_time += rendering_time;
-        if rendering_time > self.refresh_period {
-            self.laggy_frames += 1;
-        }
-    }
-
     fn show(&self) {
         log::info!("Print statistics snapshot");
         log::info!(
             "-> Laggy frames {} of {} [{}%]",
             self.laggy_frames,
             self.total_frames,
-            (self.laggy_frames as f32 / self.total_frames as f32 * 100_f32)
+            (self.laggy_frames as f64 / self.total_frames as f64 * 100_f64)
         );
         log::info!(
             "-> Max frame rendering duration is {}ms",
@@ -250,5 +241,14 @@ impl RenderingStats {
             "-> Expected frame rendering frame rate is {}Hz",
             1.0_f32 / self.expected_rendering_time.as_secs_f32()
         );
+    }
+
+    fn update(&mut self, rendering_time: Duration) {
+        self.total_frames += 1;
+        self.max_rendering_time = std::cmp::max(self.max_rendering_time, rendering_time);
+        self.total_rendering_time += rendering_time;
+        if rendering_time > self.refresh_period {
+            self.laggy_frames += 1;
+        }
     }
 }

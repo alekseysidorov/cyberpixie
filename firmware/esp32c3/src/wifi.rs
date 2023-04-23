@@ -31,7 +31,7 @@ impl<'a> Default for Config<'a> {
 }
 
 impl<'a> Config<'a> {
-    fn auth_method(&self) -> (embedded_svc::wifi::AuthMethod, &'a str) {
+    const fn auth_method(&self) -> (embedded_svc::wifi::AuthMethod, &'a str) {
         match self.auth_method {
             AuthMethod::Open => (embedded_svc::wifi::AuthMethod::None, ""),
             AuthMethod::WPA1 { password } => (embedded_svc::wifi::AuthMethod::WPA, password),

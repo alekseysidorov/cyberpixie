@@ -46,7 +46,8 @@ pub enum Error {
 }
 
 impl Error {
-    pub fn from_code(code: u16) -> Self {
+    #[must_use]
+    pub const fn from_code(code: u16) -> Self {
         match code {
             1 => Self::StripLengthMismatch,
             2 => Self::ImageLengthMismatch,
@@ -67,7 +68,8 @@ impl Error {
         }
     }
 
-    pub fn into_code(self) -> u16 {
+    #[must_use]
+    pub const fn into_code(self) -> u16 {
         match self {
             Self::StripLengthMismatch => 1,
             Self::ImageLengthMismatch => 2,
@@ -109,23 +111,27 @@ impl Error {
     where
         E: Display,
     {
-        log::warn!("A network error occurred: {}", err);
+        log::warn!("A network error occurred: {err}");
         Self::Network
     }
 
     /// Creates a new decode data error.
-    pub fn decode<E>(_: E) -> Self
+    #[must_use]
+    pub fn decode<E>(err: E) -> Self
     where
         E: Display,
     {
+        log::warn!("A decoding error occurred: {err}");
         Self::Decode
     }
 
     /// Creates a new encode data error.
-    pub fn encode<E>(_: E) -> Self
+    #[must_use]
+    pub fn encode<E>(err: E) -> Self
     where
         E: Display,
     {
+        log::warn!("An encoding error occurred: {err}");
         Self::Encode
     }
 
@@ -134,7 +140,7 @@ impl Error {
     where
         E: Display,
     {
-        log::warn!("A network error occurred: {}", err);
+        log::warn!("A network error occurred: {err}");
         Self::Internal
     }
 }
@@ -145,6 +151,6 @@ impl std::error::Error for Error {}
 #[cfg(feature = "std")]
 impl From<Error> for std::io::Error {
     fn from(err: Error) -> Self {
-        std::io::Error::new(std::io::ErrorKind::Other, err)
+        Self::new(std::io::ErrorKind::Other, err)
     }
 }

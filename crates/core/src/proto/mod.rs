@@ -39,7 +39,7 @@ pub enum ResponseHeader {
 }
 
 impl ResponseHeader {
-    pub fn empty(self) -> crate::Result<()> {
+    pub const fn empty(self) -> crate::Result<()> {
         match self {
             Self::Empty => Ok(()),
             Self::Error(err) => Err(err),
@@ -47,7 +47,7 @@ impl ResponseHeader {
         }
     }
 
-    pub fn handshake(self) -> crate::Result<PeerInfo> {
+    pub const fn handshake(self) -> crate::Result<PeerInfo> {
         match self {
             Self::Handshake(info) => Ok(info),
             Self::Error(err) => Err(err),
@@ -55,7 +55,7 @@ impl ResponseHeader {
         }
     }
 
-    pub fn add_image(self) -> crate::Result<ImageId> {
+    pub const fn add_image(self) -> crate::Result<ImageId> {
         match self {
             Self::AddImage(id) => Ok(id),
             Self::Error(err) => Err(err),
@@ -92,7 +92,7 @@ pub struct PayloadReader<T> {
 }
 
 impl<T: Read> PayloadReader<T> {
-    pub fn new(inner: T, payload_len: usize) -> Self {
+    pub const fn new(inner: T, payload_len: usize) -> Self {
         Self {
             payload_len,
             bytes_remaining: payload_len,
@@ -100,11 +100,11 @@ impl<T: Read> PayloadReader<T> {
         }
     }
 
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.payload_len
     }
 
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.payload_len == 0
     }
 }

@@ -18,6 +18,7 @@ impl<const N: usize> Default for WanderingLight<N> {
 }
 
 impl<const N: usize> WanderingLight<N> {
+    #[must_use]
     pub fn new(brightness: u8) -> Self {
         Self {
             brightness,
@@ -55,21 +56,21 @@ impl<const N: usize> Default for State<N> {
 }
 
 impl<const N: usize> SplashState<N> for State<N> {
-    type State = State<N>;
+    type State = Self;
 
     fn next_line(&mut self, brightness: u8) -> Option<(u32, [RGB8; N])> {
         match self {
-            State::Ticker(out) => out.next_line(brightness),
-            State::ColorTransitions(out) => out.next_line(brightness),
-            State::Final => None,
+            Self::Ticker(out) => out.next_line(brightness),
+            Self::ColorTransitions(out) => out.next_line(brightness),
+            Self::Final => None,
         }
     }
 
     fn next_state(&self, brightness: u8) -> Self::State {
         match self {
-            State::Ticker(out) => out.next_state(brightness),
-            State::ColorTransitions(out) => out.next_state(brightness),
-            State::Final => State::Final,
+            Self::Ticker(out) => out.next_state(brightness),
+            Self::ColorTransitions(out) => out.next_state(brightness),
+            Self::Final => Self::Final,
         }
     }
 }
@@ -182,6 +183,7 @@ impl<const N: usize> SplashState<N> for ColorTransitions<N> {
         }
 
         self.transitions.pop();
+        #[allow(clippy::used_underscore_binding)]
         self.next_line(_brightness)
     }
 
@@ -199,17 +201,17 @@ struct ColorTransition<const N: usize> {
 
 impl<const N: usize> ColorTransition<N> {
     fn next_line(&mut self) -> Option<(u32, [RGB8; N])> {
-        if self.from == self.to {
-            return None;
-        }
-
         // TODO Use Bresenham's line algorithm.
-        fn next_step(from: u8, to: u8) -> u8 {
+        const fn next_step(from: u8, to: u8) -> u8 {
             match to as i16 - from as i16 {
                 i if i > 0 => from + 1,
                 i if i < 0 => from - 1,
                 _ => from,
             }
+        }
+
+        if self.from == self.to {
+            return None;
         }
 
         self.from.r = next_step(self.from.r, self.to.r);

@@ -135,8 +135,7 @@ where
         // Check preconditions.
         assert!(
             image.bytes.bytes_remaining() >= strip_line_len,
-            "The given image should have at least {} bytes",
-            strip_line_len
+            "The given image should have at least {strip_line_len} bytes"
         );
         assert!(
             image.bytes.bytes_remaining() % strip_line_len == 0,
@@ -157,7 +156,7 @@ where
     }
 
     /// Returns a refresh line fo the single strip line.
-    pub fn refresh_rate(&self) -> Hertz {
+    pub const fn refresh_rate(&self) -> Hertz {
         self.image.refresh_rate
     }
 

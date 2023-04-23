@@ -1,4 +1,13 @@
 #![cfg_attr(not(any(feature = "std", test)), no_std)]
+#![warn(unsafe_code, missing_copy_implementations)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::use_self, clippy::missing_const_for_fn)]
+// Too many false positives.
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::missing_panics_doc,
+    clippy::module_name_repetitions
+)]
 
 use embedded_io::blocking::Read;
 pub use errors::{Error, Result};

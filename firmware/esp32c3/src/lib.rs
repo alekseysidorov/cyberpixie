@@ -1,3 +1,15 @@
+#![warn(unsafe_code, missing_copy_implementations)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::use_self, clippy::missing_const_for_fn)]
+// Too many false positives.
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::missing_panics_doc,
+    clippy::module_name_repetitions,
+    clippy::cast_possible_truncation,
+    clippy::cast_precision_loss
+)]
+
 pub use cyberpixie_core::service::DeviceConfig;
 use cyberpixie_core::{
     proto::types::{DeviceInfo, DeviceRole, PeerInfo},
@@ -31,7 +43,7 @@ where
     R: SmartLedsWrite<Color = RGB8> + Send + 'static,
     R::Error: std::fmt::Debug + std::error::Error + Send + Sync + 'static,
 {
-    pub fn new(storage: ImagesRegistry, render: R) -> anyhow::Result<Self> {
+    pub const fn new(storage: ImagesRegistry, render: R) -> anyhow::Result<Self> {
         Ok(Self {
             storage,
             render: Some(render),
