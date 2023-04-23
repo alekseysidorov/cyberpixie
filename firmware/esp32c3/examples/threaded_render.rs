@@ -15,7 +15,7 @@ fn main() -> anyhow::Result<()> {
     // or else some patches to the runtime implemented by esp-idf-sys might not link properly.
     esp_idf_sys::link_patches();
     EspLogger::initialize_default();
-    
+
     // Initialize and clear strip
     let mut strip = Ws2812Esp32Rmt::new(0, LED_PIN)?;
     strip.write(std::iter::repeat(RGB8::default()).take(144))?;
@@ -31,8 +31,8 @@ fn main() -> anyhow::Result<()> {
             storage,
             refresh_rate,
         )?;
-        // Wait for a minute
-        std::thread::sleep(Duration::from_secs(60));
+        // Wait for a half minute
+        std::thread::sleep(Duration::from_secs(30));
         // Finish rendering task and swith to a next stored image.
         render = Some(handle.stop()?.0);
         storage.switch_to_next_image()?;

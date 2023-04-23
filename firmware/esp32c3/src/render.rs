@@ -131,14 +131,12 @@ where
         .name("rendering".to_owned())
         .stack_size(5_000)
         .spawn(move || -> anyhow::Result<R> {
-            let mut total_frames = 0;
-            let mut laggy_frames = 0;
-            let mut max_lag = Duration::default();
-            let mut max_rendering_time = Duration::default();
-
             // Don't start rendering thread immediately
             std::thread::sleep(Duration::from_millis(0));
 
+            let critical_section = esp_idf_hal::task::CriticalSection::new();
+
+            let mut stats = RenderingStats::new(refresh_period);
             loop {
                 if is_cancelled.load(Ordering::Relaxed) {
                     break;
@@ -146,45 +144,36 @@ where
 
                 let now = Instant::now();
                 let line = rx.recv().context("Unable to read a next image line")?;
-                let now2 = Instant::now();
-                render
-                    .write(line.into_iter())
-                    .context("Unable to show image line")?;
-                let rendering_time = now2.elapsed();
-                let total_elapsed = now.elapsed();
+                let rendering_time = {
+                    let _guard = critical_section.enter();
 
-                total_frames += 1;
-                max_lag = std::cmp::max(max_lag, total_elapsed);
-                max_rendering_time = std::cmp::max(max_rendering_time, rendering_time);
-                if total_elapsed > refresh_period {
-                    laggy_frames += 1;
-                }
+                    let now = Instant::now();
+                    render
+                        .write(line.into_iter())
+                        .context("Unable to show image line")?;
+                    now.elapsed()
+                };
+                let total_time = now.elapsed();
 
-                let until_next_frame = refresh_period.saturating_sub(now.elapsed());
+                let until_next_frame = refresh_period.saturating_sub(total_time);
                 std::thread::sleep(until_next_frame);
+
+                // let until_next_frame_ms = until_next_frame.as_millis();
+                // if until_next_frame_ms > 0 {
+                //     esp_idf_hal::delay::Ets::delay_ms(until_next_frame_ms as u32);
+                // }
+                // esp_idf_hal::task::do_yield();
+
+                stats.update(rendering_time, total_time);
+                if stats.total_frames % 10_000 == 0 {
+                    stats.show();
+                }
             }
             // Clear strip after rendering
             render.write(std::iter::repeat(RGB8::default()).take(MAX_STRIP_LEN))?;
 
             log::info!("Image rendering finished");
-            log::info!(
-                "-> Laggy frames {} of {} [{}%]",
-                laggy_frames,
-                total_frames,
-                (laggy_frames / total_frames * 100)
-            );
-            log::info!(
-                "-> Max frame rendering duration is {}ms",
-                max_rendering_time.as_secs_f32() * 1_000_f32
-            );
-            log::info!(
-                "-> Max frame rendering frame rate is {}Hz",
-                1.0_f32 / max_rendering_time.as_secs_f32()
-            );
-            log::info!(
-                "-> Max total frame handling duration is {}ms",
-                max_lag.as_secs_f32() * 1_000_f32
-            );
+            stats.show();
 
             Ok(render)
         })
@@ -195,4 +184,65 @@ where
         rendering_task,
         cancelled,
     })
+}
+
+#[derive(Default)]
+struct RenderingStats {
+    refresh_period: Duration,
+    total_frames: usize,
+    laggy_frames: usize,
+    max_rendering_time: Duration,
+    max_total_time: Duration,
+    total_rendering_time: Duration,
+}
+
+impl RenderingStats {
+    fn new(refresh_period: Duration) -> Self {
+        Self {
+            refresh_period,
+            ..Default::default()
+        }
+    }
+
+    fn update(&mut self, rendering_time: Duration, total_time: Duration) {
+        self.total_frames += 1;
+        self.max_rendering_time = std::cmp::max(self.max_rendering_time, rendering_time);
+        self.max_total_time = std::cmp::max(self.max_total_time, total_time);
+        self.total_rendering_time += rendering_time;
+        if total_time > self.refresh_period {
+            self.laggy_frames += 1;
+        }
+    }
+
+    fn show(&self) {
+        log::info!("Print statistics snapshot");
+        log::info!(
+            "-> Laggy frames {} of {} [{}%]",
+            self.laggy_frames,
+            self.total_frames,
+            (self.laggy_frames as f32 / self.total_frames as f32 * 100_f32)
+        );
+        log::info!(
+            "-> Max frame rendering duration is {}ms",
+            self.max_rendering_time.as_secs_f32() * 1_000_f32
+        );
+        log::info!(
+            "-> Max frame rendering frame rate is {}Hz",
+            1.0_f32 / self.max_rendering_time.as_secs_f32()
+        );
+        log::info!(
+            "-> Max total frame handling duration is {}ms",
+            self.max_total_time.as_secs_f32() * 1_000_f32
+        );
+
+        let average_rendering_time = self.total_rendering_time / self.total_frames as u32;
+        log::info!(
+            "-> Average frame rendering duration is {}ms",
+            average_rendering_time.as_secs_f32() * 1_000_f32
+        );
+        log::info!(
+            "-> Average frame rendering frame rate is {}Hz",
+            1.0_f32 / average_rendering_time.as_secs_f32()
+        );
+    }
 }
