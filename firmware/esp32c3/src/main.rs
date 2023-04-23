@@ -14,7 +14,7 @@ use esp_idf_svc::{eventloop::EspSystemEventLoop, log::EspLogger};
 use esp_idf_sys as _;
 use log::info;
 use smart_leds::{SmartLedsWrite, RGB8};
-use ws2812_esp32_rmt_driver::Ws2812Esp32Rmt; 
+use ws2812_esp32_rmt_driver::Ws2812Esp32Rmt;
 
 fn main() -> anyhow::Result<()> {
     // Temporary. Will disappear once ESP-IDF 4.4 is released, but for now it is necessary to call this function once,

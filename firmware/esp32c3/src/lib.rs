@@ -14,7 +14,9 @@ pub mod wifi;
 /// Default device strip length.
 pub const STRIP_LEN: usize = 24;
 /// Default device configuration.
-pub const DEFAULT_DEVICE_CONFIG: DeviceConfig = DeviceConfig { strip_len: STRIP_LEN as u16 };
+pub const DEFAULT_DEVICE_CONFIG: DeviceConfig = DeviceConfig {
+    strip_len: STRIP_LEN as u16,
+};
 /// LED pin used by the device.
 pub const LED_PIN: u32 = 8;
 

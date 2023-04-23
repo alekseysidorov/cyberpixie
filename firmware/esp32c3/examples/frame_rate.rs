@@ -9,8 +9,10 @@ use smart_leds::{SmartLedsWrite, RGB8};
 use ws2812_esp32_rmt_driver::Ws2812Esp32Rmt;
 
 const ITERS_NUM: usize = 1;
-const STRIP_LEN: usize = 48;
+const STRIP_LEN: usize = 24;
 const LED_PIN: u32 = 8;
+
+const PIXEL_RENDERING_DURATION: Duration = Duration::from_nanos(34722);
 
 fn main() -> anyhow::Result<()> {
     // Temporary. Will disappear once ESP-IDF 4.4 is released, but for now it is necessary to call this function once,
@@ -24,7 +26,8 @@ fn main() -> anyhow::Result<()> {
 
     let splash = WanderingLight::<STRIP_LEN>::new(16);
     let mut refresh_rate = Hertz(100);
-    while refresh_rate.0 <= 1800 {
+    let expected_rendering_time = PIXEL_RENDERING_DURATION * STRIP_LEN as u32;
+    while refresh_rate.0 <= 1200 {
         let mut total_frames = 0;
         let mut laggy_frames = 0;
         let mut max_lag = Duration::default();
@@ -62,6 +65,14 @@ fn main() -> anyhow::Result<()> {
         log::info!(
             "-> Max frame rendering frame rate is {}Hz",
             1.0_f32 / max_lag.as_secs_f32()
+        );
+        log::info!(
+            "-> Expected frame rendering duration is {}ms",
+            expected_rendering_time.as_secs_f32() * 1_000_f32
+        );
+        log::info!(
+            "-> Expected frame rendering frame rate is {}Hz",
+            1.0_f32 / expected_rendering_time.as_secs_f32()
         );
 
         refresh_rate.0 += 50;

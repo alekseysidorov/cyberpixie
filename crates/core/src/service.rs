@@ -5,7 +5,7 @@ use rgb::{FromSlice, RGB8};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    proto::types::{PeerInfo, Hertz, ImageId},
+    proto::types::{Hertz, ImageId, PeerInfo},
     ExactSizeRead,
 };
 

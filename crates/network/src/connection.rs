@@ -213,7 +213,7 @@ mod tests {
     use std::net::{TcpListener, TcpStream};
 
     use cyberpixie_core::proto::{
-        types::{PeerInfo, DeviceRole, DeviceInfo},
+        types::{DeviceInfo, DeviceRole, PeerInfo},
         RequestHeader,
     };
     use nb_utils::{IntoNbResult, NbResultExt};

@@ -47,8 +47,8 @@ pub struct DeviceInfo {
     pub strip_len: u16,
     pub images_count: ImageId,
     pub current_image: Option<ImageId>,
-    /// Indicates whether there is an active image rendering task. 
-    pub active: bool
+    /// Indicates whether there is an active image rendering task.
+    pub active: bool,
 }
 
 impl DeviceInfo {

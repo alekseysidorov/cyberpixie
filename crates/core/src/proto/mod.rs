@@ -12,7 +12,7 @@ use embedded_io::{blocking::Read, Io};
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
-use self::types::{PeerInfo, ImageId, ImageInfo};
+use self::types::{ImageId, ImageInfo, PeerInfo};
 use crate::ExactSizeRead;
 
 pub mod packet;

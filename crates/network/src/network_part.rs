@@ -6,7 +6,7 @@ use std::{
 
 use cyberpixie_core::{
     proto::{
-        types::{PeerInfo, DeviceRole, Hertz, ImageId, ImageInfo},
+        types::{DeviceRole, Hertz, ImageId, ImageInfo, PeerInfo},
         RequestHeader, ResponseHeader,
     },
     service::{DeviceService, DeviceStorage},
