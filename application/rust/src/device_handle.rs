@@ -4,8 +4,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use cyberpixie_proto::{FirmwareInfo, Hertz, Service};
-use cyberpixie_std_network::{display_err, TcpTransport};
+use cyberpixie_core::proto::types::{ImageId, PeerInfo, Hertz};
+use cyberpixie_std_network::{connect_to, display_err, Client};
 use image::{
     imageops::{self, FilterType},
     io::Reader,
@@ -50,8 +50,9 @@ impl DeviceHandle {
         self.invoke(
             move |inner| inner.device_info(),
             move |s, value| {
-                s.stripLen = value.strip_len as usize;
-                s.imagesCount = value.images_count as usize;
+                let device_info = value.device_info.unwrap();
+                s.stripLen = device_info.strip_len as usize;
+                s.imagesCount = device_info.images_count as usize;
 
                 s.stripLenChanged();
                 s.imagesCountChanged();
@@ -81,7 +82,7 @@ impl DeviceHandle {
         let nwidth = self.stripLen as u32;
         self.invoke(
             move |inner| {
-                let refresh_rate = Hertz::from(refresh_rate as u32);
+                let refresh_rate = Hertz::from(refresh_rate as u16);
                 inner.upload_image(&path, nwidth, refresh_rate)
             },
             move |s, index| {
@@ -149,7 +150,7 @@ struct DeviceHandleInner {
 impl Default for DeviceHandleInner {
     fn default() -> Self {
         Self {
-            address: SocketAddr::new([192, 168, 4, 1].into(), 333),
+            address: SocketAddr::new([192, 168, 71, 1].into(), 333),
         }
     }
 }
@@ -177,25 +178,24 @@ impl DeviceHandleInner {
         self.add_image(nwidth as usize, refresh_rate, &raw)
     }
 
-    fn cyberpixie_service(self) -> anyhow::Result<Service<TcpTransport>> {
-        cyberpixie_std_network::create_service(self.address)
+    fn cyberpixie_client(self) -> anyhow::Result<Client> {
+        let stream = connect_to(&self.address)?;
+        Client::connect(stream)
     }
 
-    fn device_info(self) -> anyhow::Result<FirmwareInfo> {
-        self.cyberpixie_service()?
-            .request_firmware_info(self.address)?
-            .map_err(display_err)
+    fn device_info(self) -> anyhow::Result<PeerInfo> {
+        self.cyberpixie_client()?.handshake().map_err(display_err)
     }
 
     fn show_image(self, index: usize) -> anyhow::Result<()> {
-        self.cyberpixie_service()?
-            .show_image(self.address, index)?
+        self.cyberpixie_client()?
+            .show_image(ImageId(index as u16))?
             .map_err(display_err)
     }
 
     fn clear(self) -> anyhow::Result<()> {
-        self.cyberpixie_service()?
-            .clear_images(self.address)?
+        self.cyberpixie_client()?
+            .clear_images()?
             .map_err(display_err)
     }
 
@@ -210,8 +210,8 @@ impl DeviceHandleInner {
             "Bytes amount to read must be a multiple of 3."
         );
 
-        self.cyberpixie_service()?
-            .add_image(self.address, refresh_rate, strip_len, bytes.iter().copied())?
+        self.cyberpixie_client()?
+            .add_image(refresh_rate, strip_len, bytes)?
             .map_err(display_err)
     }
 }

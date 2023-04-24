@@ -1,7 +1,8 @@
 [package]
 name = "cyberpixie-qml"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
+resolver = "2"
 
 [lib]
 crate-type = ["staticlib", "rlib"]
@@ -9,10 +10,9 @@ crate-type = ["staticlib", "rlib"]
 [dependencies]
 anyhow = "1.0"
 cstr = "0.2"
-env_logger = "0.8"
-image = "0.23"
+env_logger = "0.10"
+image = "0.24"
 log = "0.4"
 qmetaobject = "0.2.2"
-
-cyberpixie-proto = { path = "../../crates/proto" }
-cyberpixie-std-transport = { path = "../../crates/std-transport" }
+cyberpixie-core = { workspace = true }
+cyberpixie-std-network = { workspace = true }

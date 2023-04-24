@@ -39,7 +39,7 @@ ios {
     CARGO_BUILD_PATH = aarch64-apple-ios/release
     CARGO_EXTRA_ARGS +=--target aarch64-apple-ios --release
 
-    RUST_BINDING_LIB = $$PWD/rust/target/$$CARGO_BUILD_PATH/libcyberpixie_qml.a
+    RUST_BINDING_LIB = $$PWD/../target/$$CARGO_BUILD_PATH/libcyberpixie_qml.a
     message("-----")
     message("build_path: " $$CARGO_BUILD_PATH)
     message("extra_args: " $$CARGO_EXTRA_ARGS)
@@ -59,7 +59,7 @@ ios {
         }
     }
 
-    RUST_BINDING_LIB = $$PWD/rust/target/$$CARGO_BUILD_TYPE/libcyberpixie_qml.a
+    RUST_BINDING_LIB = $$PWD/../target/$$CARGO_BUILD_TYPE/libcyberpixie_qml.a
 
     rust_binding.target = $$RUST_BINDING_LIB
     rust_binding.commands = cd $$PWD/rust && cargo build $$CARGO_EXTRA_ARGS && cd ..
