@@ -52,7 +52,7 @@ impl DeviceHandle {
             move |s, value| {
                 let device_info = value.device_info.unwrap();
                 s.stripLen = device_info.strip_len as usize;
-                s.imagesCount = device_info.images_count as usize;
+                s.imagesCount = device_info.images_count.0 as usize;
 
                 s.stripLenChanged();
                 s.imagesCountChanged();
@@ -82,7 +82,7 @@ impl DeviceHandle {
         let nwidth = self.stripLen as u32;
         self.invoke(
             move |inner| {
-                let refresh_rate = Hertz::from(refresh_rate as u16);
+                let refresh_rate = Hertz(refresh_rate as u32);
                 inner.upload_image(&path, nwidth, refresh_rate)
             },
             move |s, index| {
@@ -180,7 +180,7 @@ impl DeviceHandleInner {
 
     fn cyberpixie_client(self) -> anyhow::Result<Client> {
         let stream = connect_to(&self.address)?;
-        Client::connect(stream)
+        Client::connect(stream).map_err(From::from)
     }
 
     fn device_info(self) -> anyhow::Result<PeerInfo> {
@@ -189,13 +189,13 @@ impl DeviceHandleInner {
 
     fn show_image(self, index: usize) -> anyhow::Result<()> {
         self.cyberpixie_client()?
-            .show_image(ImageId(index as u16))?
+            .show_image(ImageId(index as u16))
             .map_err(display_err)
     }
 
     fn clear(self) -> anyhow::Result<()> {
         self.cyberpixie_client()?
-            .clear_images()?
+            .clear_images()
             .map_err(display_err)
     }
 
@@ -210,9 +210,10 @@ impl DeviceHandleInner {
             "Bytes amount to read must be a multiple of 3."
         );
 
-        self.cyberpixie_client()?
-            .add_image(refresh_rate, strip_len, bytes)?
-            .map_err(display_err)
+        let id = self.cyberpixie_client()?
+            .add_image(refresh_rate, strip_len as u16, bytes)
+            .map_err(display_err)?;
+        Ok(id.0 as usize)
     }
 }
 

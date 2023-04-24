@@ -47,8 +47,8 @@ ios {
     system(cd $$PWD/rust && cargo build $$CARGO_EXTRA_ARGS && cd ..)
 } else {
     android {
-        CARGO_BUILD_TYPE = armv7-linux-androideabi/release
-        CARGO_EXTRA_ARGS = --release --target armv7-linux-androideabi
+        CARGO_BUILD_TYPE = aarch64-linux-android/release
+        CARGO_EXTRA_ARGS = --release --target aarch64-linux-android
     } else {
         debug {
             CARGO_BUILD_TYPE = debug

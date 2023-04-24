@@ -13,6 +13,7 @@ cstr = "0.2"
 env_logger = "0.10"
 image = "0.24"
 log = "0.4"
-qmetaobject = "0.2.2"
 cyberpixie-core = { workspace = true }
 cyberpixie-std-network = { workspace = true }
+
+qmetaobject = { version = "0.2.7", git = "https://github.com/woboq/qmetaobject-rs.git" }
