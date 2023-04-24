@@ -20,67 +20,82 @@ pub enum Error {
     /// The transmitted message cannot be fitted into the device's memory.
     ImageTooBig = 3,
     /// This image repository on the device is full.
-    ImageRepositoryFull = 4,
+    ImageRepositoryIsFull = 4,
+    /// The images repository is empty.
+    ImageRepositoryIsEmpty = 5,
     /// The specified image index is greater than the total amount of the stored images.
-    ImageNotFound = 5,
+    ImageNotFound = 6,
     /// Unexpected response to the request.
-    UnexpectedResponse = 6,
+    UnexpectedResponse = 7,
     /// Unable to read bytes from storage.
-    StorageRead = 7,
+    StorageRead = 8,
     /// Unable to write bytes to storage.
-    StorageWrite = 8,
+    StorageWrite = 9,
     /// Network read error.
-    Network = 9,
+    Network = 10,
     /// Data decoding error.
-    Decode = 10,
+    Decode = 11,
     /// Data encoding error.
-    Encode = 11,
+    Encode = 12,
+    /// Image render is busy by the another task.
+    ImageRenderIsBusy = 13,
+    /// Internal device error.
+    Internal = 14,
     /// Unspecified or unknown error.
     Unspecified(u16),
 }
 
 impl Error {
-    pub fn from_code(code: u16) -> Self {
+    #[must_use]
+    pub const fn from_code(code: u16) -> Self {
         match code {
             1 => Self::StripLengthMismatch,
             2 => Self::ImageLengthMismatch,
             3 => Self::ImageTooBig,
-            4 => Self::ImageRepositoryFull,
-            5 => Self::ImageNotFound,
-            6 => Self::UnexpectedResponse,
-            7 => Self::StorageRead,
-            8 => Self::StorageWrite,
-            9 => Self::Network,
-            10 => Self::Decode,
-            11 => Self::Encode,
+            4 => Self::ImageRepositoryIsFull,
+            5 => Self::ImageRepositoryIsEmpty,
+            6 => Self::ImageNotFound,
+            7 => Self::UnexpectedResponse,
+            8 => Self::StorageRead,
+            9 => Self::StorageWrite,
+            10 => Self::Network,
+            11 => Self::Decode,
+            12 => Self::Encode,
+            13 => Self::ImageRenderIsBusy,
+            42 => Self::Internal,
 
             other => Self::Unspecified(other),
         }
     }
 
-    pub fn into_code(self) -> u16 {
+    #[must_use]
+    pub const fn into_code(self) -> u16 {
         match self {
-            Error::StripLengthMismatch => 1,
-            Error::ImageLengthMismatch => 2,
-            Error::ImageTooBig => 3,
-            Error::ImageRepositoryFull => 4,
-            Error::ImageNotFound => 5,
-            Error::UnexpectedResponse => 6,
-            Error::StorageRead => 7,
-            Error::StorageWrite => 8,
-            Error::Network => 9,
-            Error::Decode => 10,
-            Error::Encode => 11,
+            Self::StripLengthMismatch => 1,
+            Self::ImageLengthMismatch => 2,
+            Self::ImageTooBig => 3,
+            Self::ImageRepositoryIsFull => 4,
+            Self::ImageRepositoryIsEmpty => 5,
+            Self::ImageNotFound => 6,
+            Self::UnexpectedResponse => 7,
+            Self::StorageRead => 8,
+            Self::StorageWrite => 9,
+            Self::Network => 10,
+            Self::Decode => 11,
+            Self::Encode => 12,
+            Self::ImageRenderIsBusy => 13,
+            Self::Internal => 14,
 
-            Error::Unspecified(other) => other,
+            Self::Unspecified(other) => other,
         }
     }
 
     /// Creates a new storage read error.
-    pub fn storage_read<E>(_: E) -> Self
+    pub fn storage_read<E>(err: E) -> Self
     where
         E: Display,
     {
+        log::warn!("A storage read error occurred: {}", err);
         Self::StorageRead
     }
 
@@ -88,31 +103,45 @@ impl Error {
     where
         E: Display,
     {
-        log::warn!("An error occurred: {}", err);
+        log::warn!("A storage write error occurred: {}", err);
         Self::StorageWrite
     }
 
-    pub fn network<E>(_: E) -> Self
+    pub fn network<E>(err: E) -> Self
     where
         E: Display,
     {
+        log::warn!("A network error occurred: {err}");
         Self::Network
     }
 
     /// Creates a new decode data error.
-    pub fn decode<E>(_: E) -> Self
+    #[must_use]
+    pub fn decode<E>(err: E) -> Self
     where
         E: Display,
     {
+        log::warn!("A decoding error occurred: {err}");
         Self::Decode
     }
 
     /// Creates a new encode data error.
-    pub fn encode<E>(_: E) -> Self
+    #[must_use]
+    pub fn encode<E>(err: E) -> Self
     where
         E: Display,
     {
+        log::warn!("An encoding error occurred: {err}");
         Self::Encode
+    }
+
+    /// Creates a new internal error.
+    pub fn internal<E>(err: E) -> Self
+    where
+        E: Display,
+    {
+        log::warn!("A network error occurred: {err}");
+        Self::Internal
     }
 }
 
@@ -122,6 +151,6 @@ impl std::error::Error for Error {}
 #[cfg(feature = "std")]
 impl From<Error> for std::io::Error {
     fn from(err: Error) -> Self {
-        std::io::Error::new(std::io::ErrorKind::Other, err)
+        Self::new(std::io::ErrorKind::Other, err)
     }
 }

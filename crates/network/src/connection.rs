@@ -54,13 +54,13 @@ pub type OutgoingMessage<R> = Message<R, Headers>;
 
 impl<R: embedded_io::blocking::Read> OutgoingMessage<R> {
     pub fn send<W: Write>(self, mut device: W) -> Result<(), std::io::Error> {
-        let (header, payload_len, reader) = self.into_parts();
+        let (header, payload_len, payload_reader) = self.into_parts();
 
         let mut send_buf = [0_u8; SEND_BUF_LEN];
         let header_buf = header.encode(&mut send_buf, payload_len);
         device.write_all(header_buf)?;
 
-        if let Some(mut reader) = reader {
+        if let Some(mut reader) = payload_reader {
             loop {
                 let bytes_read = reader.read(&mut send_buf)?;
                 if bytes_read == 0 {
@@ -94,7 +94,7 @@ impl Connection {
         stream.set_nonblocking(true).ok();
         Self {
             stream,
-            packet_header_buf: Default::default(),
+            packet_header_buf: heapless::Vec::default(),
             role,
         }
     }
@@ -213,7 +213,7 @@ mod tests {
     use std::net::{TcpListener, TcpStream};
 
     use cyberpixie_core::proto::{
-        types::{DeviceInfo, DeviceRole},
+        types::{DeviceInfo, DeviceRole, PeerInfo},
         RequestHeader,
     };
     use nb_utils::{IntoNbResult, NbResultExt};
@@ -261,10 +261,10 @@ mod tests {
 
         assert!(receiver.poll_next_packet().is_would_block());
 
-        let message = RequestHeader::Handshake(DeviceInfo {
+        let message = RequestHeader::Handshake(PeerInfo {
             role: DeviceRole::Client,
             group_id: None,
-            strip_len: Some(64),
+            device_info: Some(DeviceInfo::empty(64)),
         });
         sender.send_message(message).unwrap();
 

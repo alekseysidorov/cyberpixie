@@ -25,7 +25,7 @@ impl<T, const N: usize> ImageReader<T, [u8; N], N>
 where
     T: BlockReader<N>,
 {
-    pub fn new_in_array(block_reader: T, image_len: usize) -> Self {
+    pub const fn new_in_array(block_reader: T, image_len: usize) -> Self {
         Self {
             block_reader,
             image_len,
@@ -54,7 +54,7 @@ where
         }
     }
 
-    fn current_block(&self) -> usize {
+    const fn current_block(&self) -> usize {
         self.bytes_read / N
     }
 
@@ -90,6 +90,7 @@ where
     fn seek(&mut self, seek: SeekFrom) -> Result<u64, Self::Error> {
         // Compute a new image read position
         self.bytes_read = match seek {
+            #[allow(clippy::cast_possible_truncation)]
             SeekFrom::Start(pos) => pos as usize,
             // In this project, we only have to read an image from the beginning,
             // so we don't need to implement the whole seek functionality

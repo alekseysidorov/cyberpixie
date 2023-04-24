@@ -24,11 +24,13 @@ pub struct Packet {
 }
 
 impl Packet {
-    pub fn header_len(self) -> usize {
+    #[must_use]
+    pub const fn header_len(self) -> usize {
         self.header_len as usize
     }
 
-    pub fn payload_len(self) -> usize {
+    #[must_use]
+    pub const fn payload_len(self) -> usize {
         self.payload_len as usize
     }
 }
@@ -49,7 +51,7 @@ impl<E: Debug> std::error::Error for PacketReadError<E> {}
 #[cfg(feature = "std")]
 impl<E: std::fmt::Display> From<PacketReadError<E>> for std::io::Error {
     fn from(err: PacketReadError<E>) -> Self {
-        std::io::Error::new(std::io::ErrorKind::Other, err.to_string())
+        Self::new(std::io::ErrorKind::Other, err.to_string())
     }
 }
 
@@ -70,9 +72,9 @@ impl<E: embedded_io::Error> From<postcard::Error> for PacketReadError<E> {
 
 impl Packet {
     pub fn read<T: Read>(mut reader: T) -> Result<Self, PacketReadError<T::Error>> {
-        let mut buf = [0_u8; Packet::PACKED_LEN];
+        let mut buf = [0_u8; Self::PACKED_LEN];
         reader.read_exact(&mut buf)?;
-        Ok(Packet::decode_from_le_bytes(&buf))
+        Ok(Self::decode_from_le_bytes(&buf))
     }
 
     pub fn header<R: Read, H: FromPacket>(
@@ -93,13 +95,14 @@ impl FromPacket for RequestHeader {
     fn from_packet<R: Read>(
         packet: Packet,
         mut reader: R,
-    ) -> Result<(RequestHeader, usize), PacketReadError<R::Error>> {
+    ) -> Result<(Self, usize), PacketReadError<R::Error>> {
         let mut buf = [0_u8; MAX_LEN];
-
-        let header_buf = &mut buf[0..packet.header_len()];
-        reader.read_exact(header_buf)?;
-        let header = postcard::from_bytes(header_buf)?;
-        Ok((header, packet.payload_len()))
+        let packet_header = {
+            let header_buf = &mut buf[0..packet.header_len()];
+            reader.read_exact(header_buf)?;
+            postcard::from_bytes(header_buf)?
+        };
+        Ok((packet_header, packet.payload_len()))
     }
 }
 
@@ -113,13 +116,15 @@ impl FromPacket for ResponseHeader {
     fn from_packet<R: Read>(
         packet: Packet,
         mut reader: R,
-    ) -> Result<(ResponseHeader, usize), PacketReadError<R::Error>> {
+    ) -> Result<(Self, usize), PacketReadError<R::Error>> {
         let mut buf = [0_u8; MAX_LEN];
 
-        let header_buf = &mut buf[0..packet.header_len()];
-        reader.read_exact(header_buf)?;
-        let header = postcard::from_bytes(header_buf)?;
-        Ok((header, packet.payload_len()))
+        let packet_header = {
+            let header_buf = &mut buf[0..packet.header_len()];
+            reader.read_exact(header_buf)?;
+            postcard::from_bytes(header_buf)?
+        };
+        Ok((packet_header, packet.payload_len()))
     }
 }
 
@@ -130,6 +135,9 @@ impl Headers {
         let message_buf = &mut buf[Packet::PACKED_LEN..];
         let header_len = postcard::to_slice(self, message_buf).unwrap().len();
 
+        // We control the entire parts of the project, so we can be sure that the length
+        // will be lesser than the u32::MAX.
+        #[allow(clippy::cast_possible_truncation)]
         let packet = Packet {
             header_len: header_len as u32,
             payload_len: payload_len as u32,

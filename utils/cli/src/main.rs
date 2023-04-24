@@ -2,7 +2,7 @@ use std::{net::SocketAddr, path::PathBuf};
 
 use clap::{CommandFactory, Parser, Subcommand};
 use cyberpixie_cli::convert_image_to_raw;
-use cyberpixie_core::proto::types::Hertz;
+use cyberpixie_core::proto::types::{Hertz, ImageId};
 use cyberpixie_std_network::create_client;
 
 /// Cyberpixie device manipulation utility
@@ -13,7 +13,7 @@ use cyberpixie_std_network::create_client;
 #[command(propagate_version = false)]
 struct Cli {
     /// Device socket address
-    #[arg(short, long, default_value = "127.0.0.1:80")]
+    #[arg(short, long, default_value = "192.168.71.1:80")]
     address: SocketAddr,
     /// Actual command
     #[command(subcommand)]
@@ -23,7 +23,7 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Command {
     /// Get information about device firmware
-    FirmwareInfo,
+    DeviceInfo,
     /// Add a new image to device memory
     AddImage {
         /// Image path
@@ -36,8 +36,10 @@ enum Command {
     /// Show image
     ShowImage {
         /// Image index
-        index: usize,
+        image_id: u16,
     },
+    /// Hide currently showing image
+    HideImage,
     /// Clear all images stored in the device memory
     ClearImages,
     /// Generate shell completions
@@ -54,13 +56,14 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     let address = cli.address;
     match cli.command {
-        Command::FirmwareInfo => {
+        Command::DeviceInfo => {
             log::info!("Sending firmare info request to {}", address);
 
             let client = create_client(address)?;
             // TODO replace by the full firmware info.
-            log::info!("Got {:#?} from the {}", client.device_info, address);
+            log::info!("Got {:#?} from the {}", client.peer_info, address);
         }
+
         Command::AddImage { path, refresh_rate } => {
             let (strip_len, raw) = convert_image_to_raw(&path)?;
 
@@ -72,12 +75,24 @@ fn main() -> anyhow::Result<()> {
                 index
             );
         }
-        Command::ShowImage { .. } => {}
+
+        Command::ShowImage { image_id } => {
+            log::info!("Sending show image command to {address}");
+            create_client(address)?.show_image(ImageId(image_id))?;
+            log::info!("Showing image with id {image_id}");
+        }
+
+        Command::HideImage => {
+            log::info!("Sending hide image command to {address}");
+            create_client(address)?.hide_image()?;
+            log::info!("Hide a currently showing image");
+        }
+
         Command::ClearImages => {
-            log::info!("Sending clear images command to {}", address);
+            log::info!("Sending clear images command to {address}");
 
             create_client(address)?.clear_images()?;
-            log::trace!("Sent images clear command to {}", address);
+            log::trace!("Sent images clear command to {address}");
         }
 
         Command::Completions { shell } => {

@@ -31,8 +31,8 @@ fn main() -> anyhow::Result<()> {
             storage,
             refresh_rate,
         )?;
-        // Wait for a minute
-        std::thread::sleep(Duration::from_secs(60));
+        // Wait for a half minute
+        std::thread::sleep(Duration::from_secs(30));
         // Finish rendering task and swith to a next stored image.
         render = Some(handle.stop()?.0);
         storage.switch_to_next_image()?;

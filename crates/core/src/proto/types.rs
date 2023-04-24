@@ -18,36 +18,50 @@ pub enum DeviceRole {
 impl Display for DeviceRole {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            DeviceRole::Client => f.write_str("client"),
-            DeviceRole::Main => f.write_str("main"),
-            DeviceRole::Secondary => f.write_str("secondary"),
+            Self::Client => f.write_str("client"),
+            Self::Main => f.write_str("main"),
+            Self::Secondary => f.write_str("secondary"),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, MaxSize, PartialEq, Eq, Clone, Copy, Debug)]
+pub struct PeerInfo {
+    pub role: DeviceRole,
+    pub group_id: Option<u32>,
+    pub device_info: Option<DeviceInfo>,
+}
+
+impl PeerInfo {
+    #[must_use]
+    pub const fn client() -> Self {
+        Self {
+            role: DeviceRole::Client,
+            group_id: None,
+            device_info: None,
         }
     }
 }
 
 #[derive(Serialize, Deserialize, MaxSize, PartialEq, Eq, Clone, Copy, Debug)]
 pub struct DeviceInfo {
-    pub role: DeviceRole,
-    pub group_id: Option<u32>,
-    pub strip_len: Option<u16>,
+    pub strip_len: u16,
+    pub images_count: ImageId,
+    pub current_image: Option<ImageId>,
+    /// Indicates whether there is an active image rendering task.
+    pub active: bool,
 }
 
 impl DeviceInfo {
-    pub fn client() -> Self {
+    #[must_use]
+    pub const fn empty(strip_len: u16) -> Self {
         Self {
-            role: DeviceRole::Client,
-            group_id: None,
-            strip_len: None,
+            strip_len,
+            images_count: ImageId(0),
+            current_image: None,
+            active: false,
         }
     }
-}
-
-#[derive(Serialize, Deserialize, MaxSize, PartialEq, Eq, Clone, Copy, Debug)]
-pub struct FirmwareInfo {
-    pub version: [u8; 4],
-    pub role: DeviceRole,
-    pub strip_len: u16,
-    pub images_count: u16,
 }
 
 #[derive(Serialize, Deserialize, MaxSize, PartialEq, Eq, Clone, Copy, Debug)]
@@ -104,7 +118,7 @@ impl From<u32> for Hertz {
 
 impl From<Hertz> for Duration {
     fn from(value: Hertz) -> Self {
-        Duration::from_secs_f64(1.0_f64 / value.0 as f64)
+        Self::from_secs_f64(1.0_f64 / f64::from(value.0))
     }
 }
 

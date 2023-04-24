@@ -16,46 +16,10 @@ use cyberpixie_core::{
 };
 use smart_leds::{SmartLedsWrite, RGB8};
 
-const RENDERING_QUEUE_LEN: usize = 10;
+const RENDERING_QUEUE_LEN: usize = 30;
 
-// #[derive(Debug)]
-// pub struct Render<R, D> {
-//     state: State<R, D>,
-// }
-
-// impl<R, D> Render<R, D> {
-//     pub fn new(render: R) -> Self {
-//         Self {
-//             state: State::Idle { render },
-//         }
-//     }
-// }
-
-// impl<R, D> Render<R, D>
-// where
-//     R: SmartLedsWrite<Color = RGB8> + Send + 'static,
-//     D: DeviceStorage + Send + 'static,
-//     R::Error: std::fmt::Debug,
-// {
-//     pub fn start(&mut self, device: D) -> anyhow::Result<()> {
-//         // let render = match self.state {
-//         //     State::Idle { render } => render,
-//         //     State::Running { handle } => bail!("An error in the program logic: image rendering already started."),
-//         // };
-
-//         todo!()
-//     }
-
-//     pub fn stop(&mut self) -> anyhow::Result<D> {
-//         todo!()
-//     }
-// }
-
-// #[derive(Debug)]
-// enum State<R, D> {
-//     Idle { render: R },
-//     Running { handle: Handle<R, D> },
-// }
+/// Approximated duration of single pixel rendering.
+const PIXEL_RENDERING_DURATION: Duration = Duration::from_nanos(34722);
 
 #[derive(Debug)]
 pub struct Handle<R, D> {
@@ -93,10 +57,10 @@ where
     // <D::ImageRead as Io>::Error: std::fmt::Debug + std::error::Error + Send + Sync + 'static,
 {
     let refresh_period = Duration::from(refresh_rate);
+    let strip_len = storage.config()?.strip_len;
 
     let cancelled = Arc::new(AtomicBool::new(false));
-    let (tx, rx) =
-        std::sync::mpsc::sync_channel::<heapless::Vec<RGB8, MAX_STRIP_LEN>>(RENDERING_QUEUE_LEN);
+    let (tx, rx) = std::sync::mpsc::sync_channel::<Vec<RGB8>>(RENDERING_QUEUE_LEN);
 
     // Create a reading task
     let is_cancelled = cancelled.clone();
@@ -107,7 +71,7 @@ where
             {
                 // Get the current image ID
                 let image_id = storage
-                    .current_image()?
+                    .current_image_id()?
                     .context("There is no images in storage")?;
                 // Create image reader
                 let image = storage.read_image(image_id)?;
@@ -171,55 +135,45 @@ where
         .name("rendering".to_owned())
         .stack_size(5_000)
         .spawn(move || -> anyhow::Result<R> {
-            let mut total_frames = 0;
-            let mut laggy_frames = 0;
-            let mut max_lag = Duration::default();
-            let mut max_rendering_time = Duration::default();
-
             // Don't start rendering thread immediately
             std::thread::sleep(Duration::from_millis(0));
 
+            let critical_section = esp_idf_hal::task::CriticalSection::new();
+            let expected_rendering_time = PIXEL_RENDERING_DURATION * u32::from(strip_len);
+
+            let mut stats = RenderingStats::new(refresh_period, expected_rendering_time);
             loop {
                 if is_cancelled.load(Ordering::Relaxed) {
                     break;
                 }
 
-                let now = Instant::now();
-                let line = rx.recv().context("Unable to read a next image line")?;
-                let now2 = Instant::now();
-                render
-                    .write(line.into_iter())
-                    .context("Unable to show image line")?;
-                let rendering_time = now2.elapsed();
-                let total_elapsed = now.elapsed();
+                let rendering_time = {
+                    let _guard = critical_section.enter();
 
-                total_frames += 1;
-                max_lag = std::cmp::max(max_lag, total_elapsed);
-                max_rendering_time = std::cmp::max(max_rendering_time, rendering_time);
-                if total_elapsed > refresh_period {
-                    laggy_frames += 1;
+                    let now = Instant::now();
+                    let line = rx.recv().context("Unable to read a next image line")?;
+                    render
+                        .write(line.into_iter())
+                        .context("Unable to show image line")?;
+                    now.elapsed()
+                };
+
+                // FIXME Don't rely on the inaccurate FreeRTOS system timer.
+                // let remaining_delay = refresh_period - rendering_time;
+                // Rely just on the theoretical expected rendering duration.
+                let remaining_delay = refresh_period - expected_rendering_time;
+                esp_idf_hal::delay::Ets::delay_ms(remaining_delay.as_millis() as u32);
+
+                stats.update(rendering_time);
+                if stats.total_frames % 10_000 == 0 {
+                    stats.show();
                 }
-
-                let until_next_frame = refresh_period.saturating_sub(now.elapsed());
-                std::thread::sleep(until_next_frame);
             }
             // Clear strip after rendering
             render.write(std::iter::repeat(RGB8::default()).take(MAX_STRIP_LEN))?;
 
             log::info!("Image rendering finished");
-            log::info!("-> Laggy frames {} of {}", laggy_frames, total_frames);
-            log::info!(
-                "-> Max frame rendering duration is {}ms",
-                max_rendering_time.as_secs_f32() * 1_000_f32
-            );
-            log::info!(
-                "-> Max frame rendering frame rate is {}Hz",
-                1.0_f32 / max_rendering_time.as_secs_f32()
-            );
-            log::info!(
-                "-> Max total frame handling duration is {}ms",
-                max_lag.as_secs_f32() * 1_000_f32
-            );
+            stats.show();
 
             Ok(render)
         })
@@ -230,4 +184,71 @@ where
         rendering_task,
         cancelled,
     })
+}
+
+#[derive(Default)]
+struct RenderingStats {
+    refresh_period: Duration,
+    expected_rendering_time: Duration,
+
+    total_frames: usize,
+    laggy_frames: usize,
+    max_rendering_time: Duration,
+    total_rendering_time: Duration,
+}
+
+impl RenderingStats {
+    fn new(refresh_period: Duration, expected_rendering_time: Duration) -> Self {
+        Self {
+            refresh_period,
+            expected_rendering_time,
+            ..Default::default()
+        }
+    }
+
+    fn show(&self) {
+        log::info!("Print statistics snapshot");
+        log::info!(
+            "-> Laggy frames {} of {} [{}%]",
+            self.laggy_frames,
+            self.total_frames,
+            (self.laggy_frames as f64 / self.total_frames as f64 * 100_f64)
+        );
+        log::info!(
+            "-> Max frame rendering duration is {}ms",
+            self.max_rendering_time.as_secs_f32() * 1_000_f32
+        );
+        log::info!(
+            "-> Max frame rendering frame rate is {}Hz",
+            1.0_f32 / self.max_rendering_time.as_secs_f32()
+        );
+
+        let average_rendering_time = self.total_rendering_time / self.total_frames as u32;
+        log::info!(
+            "-> Average frame rendering duration is {}ms",
+            average_rendering_time.as_secs_f32() * 1_000_f32
+        );
+        log::info!(
+            "-> Average frame rendering frame rate is {}Hz",
+            1.0_f32 / average_rendering_time.as_secs_f32()
+        );
+
+        log::info!(
+            "-> Expected frame rendering duration is {}ms",
+            self.expected_rendering_time.as_secs_f32() * 1_000_f32
+        );
+        log::info!(
+            "-> Expected frame rendering frame rate is {}Hz",
+            1.0_f32 / self.expected_rendering_time.as_secs_f32()
+        );
+    }
+
+    fn update(&mut self, rendering_time: Duration) {
+        self.total_frames += 1;
+        self.max_rendering_time = std::cmp::max(self.max_rendering_time, rendering_time);
+        self.total_rendering_time += rendering_time;
+        if rendering_time > self.refresh_period {
+            self.laggy_frames += 1;
+        }
+    }
 }

@@ -5,7 +5,7 @@ use std::{
 };
 
 use cyberpixie_core::{
-    proto::types::{DeviceInfo, DeviceRole, Hertz, ImageId},
+    proto::types::{DeviceInfo, DeviceRole, Hertz, ImageId, PeerInfo},
     service::{DeviceConfig, DeviceImage, DeviceService, DeviceStorage},
     ExactSizeRead,
 };
@@ -43,20 +43,24 @@ impl DeviceService for DeviceStub {
     type Storage = StorageStub;
     type ImageRender = ();
 
-    fn device_info(&self) -> DeviceInfo {
-        DeviceInfo {
+    fn peer_info(&self) -> cyberpixie_core::Result<PeerInfo> {
+        Ok(PeerInfo {
             role: DeviceRole::Main,
             group_id: None,
-            strip_len: Some(36),
-        }
+            device_info: Some(DeviceInfo::empty(36)),
+        })
     }
 
     fn storage(&self) -> Self::Storage {
-        todo!()
+        unimplemented!()
     }
 
-    fn show_current_image(&mut self) -> Self::ImageRender {
-        todo!()
+    fn show_current_image(&mut self) -> cyberpixie_core::Result<Self::ImageRender> {
+        unimplemented!()
+    }
+
+    fn hide_current_image(&mut self, _task: Self::ImageRender) -> cyberpixie_core::Result<()> {
+        unimplemented!()
     }
 }
 
@@ -113,11 +117,11 @@ impl DeviceStorage for StorageStub {
         unimplemented!()
     }
 
-    fn set_current_image(&self, _id: ImageId) -> cyberpixie_core::Result<()> {
+    fn set_current_image_id(&self, _id: ImageId) -> cyberpixie_core::Result<()> {
         unimplemented!()
     }
 
-    fn current_image(&self) -> cyberpixie_core::Result<Option<ImageId>> {
+    fn current_image_id(&self) -> cyberpixie_core::Result<Option<ImageId>> {
         unimplemented!()
     }
 }
@@ -127,16 +131,16 @@ impl DeviceStorage for StorageStub {
 fn test_simple_handshake() {
     let (mut client, _device) = create_loopback(DeviceStub).unwrap();
     assert_eq!(
-        client.device_info,
-        DeviceInfo {
+        client.peer_info,
+        PeerInfo {
             role: DeviceRole::Main,
             group_id: None,
-            strip_len: Some(36),
+            device_info: Some(DeviceInfo::empty(36)),
         }
     );
 
     let info = client.handshake().unwrap();
-    assert_eq!(info, client.device_info);
+    assert_eq!(info, client.peer_info);
 
     client.debug("Hello debug").unwrap();
     client.debug("Hello debug 2").unwrap();
