@@ -63,7 +63,7 @@ ApplicationWindow {
         }
 
         function prevImage() {
-            let prev = (cyberpixie.currentImage + cyberpixie.imagesCount) % (cyberpixie.imagesCount)
+            let prev = (cyberpixie.currentImage + cyberpixie.imagesCount + 1) % (cyberpixie.imagesCount)
             cyberpixie.setImage(prev)
         }
 
