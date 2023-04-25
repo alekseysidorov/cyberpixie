@@ -1,7 +1,7 @@
 use std::time::{Duration, Instant};
 
 use cyberpixie_core::proto::types::Hertz;
-use cyberpixie_esp32c3::splash::WanderingLight;
+use cyberpixie_esp32_idf::splash::WanderingLight;
 use esp_idf_svc::log::EspLogger;
 // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 use esp_idf_sys as _;

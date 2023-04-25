@@ -7,8 +7,6 @@ let
 in
 pkgs.mkShell {
   nativeBuildInputs = with pkgs; [
-    rustToolchain
-    rustBuildHostDependencies
     # For compiling the esp-idf library
     python310Packages.virtualenv
     python310Packages.pip

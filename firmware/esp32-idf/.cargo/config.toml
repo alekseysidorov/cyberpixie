@@ -1,15 +1,16 @@
 [build]
-target = "riscv32imc-esp-espidf"
+# target = "riscv32imc-esp-espidf"
+target = "xtensa-esp32s3-espidf"
 
 # Profile section
 [profile.release]
 opt-level = "s"
-lto = true
+lto = false
 
 [profile.dev]
 debug = true # Symbols are nice and they don't increase the size on Flash
 opt-level = "z"
-lto = true
+lto = false
 
 [target.riscv32imc-esp-espidf]
 linker = "ldproxy"
@@ -18,6 +19,10 @@ runner = "espflash flash --monitor --partition-table partitions.csv"
 # For ESP-IDF 5 add `espidf_time64` and for earlier versions - remove this flag: https://github.com/esp-rs/rust/issues/110
 rustflags = ["-C", "default-linker-libraries"]
 
+[target.xtensa-esp32s3-espidf]
+linker = "ldproxy"
+runner = "espflash flash --monitor --partition-table partitions.csv"
+
 [unstable]
 build-std = ["std", "panic_abort"]
 
@@ -25,12 +30,3 @@ build-std = ["std", "panic_abort"]
 # Note: these variables are not used when using pio builder (`cargo build --features pio`)
 # Builds against ESP-IDF stable (v4.4)
 ESP_IDF_VERSION = "release/v4.4"
-# Builds against ESP-IDF master (mainline)
-# ESP_IDF_VERSION = "master"
-
-# These configurations will pick up your custom "sdkconfig.release", "sdkconfig.debug" or "sdkconfig.defaults[.*]" files
-# that you might put in the root of the project
-# The easiest way to generate a full "sdkconfig" configuration (as opposed to manually enabling only the necessary flags via "sdkconfig.defaults[.*]"
-# is by running "cargo pio espidf menuconfig" (that is, if using the pio builder)
-# ESP_IDF_SDKCONFIG = "sdkconfig.release;sdkconfig.debug"
-ESP_IDF_SDKCONFIG_DEFAULTS = "sdkconfig.defaults;sdkconfig.defaults.esp32;sdkconfig.defaults.esp32s2"

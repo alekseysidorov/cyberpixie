@@ -4,8 +4,6 @@
 }:
 pkgs.mkShell {
   nativeBuildInputs = with pkgs; [
-    rustToolchain
-    rustBuildHostDependencies
     # Dependencies for the code formatting utility
     dprint
     nixpkgs-fmt

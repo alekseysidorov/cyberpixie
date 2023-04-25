@@ -1,5 +1,5 @@
 use cyberpixie_core::{proto::types::Hertz, service::DeviceStorage};
-use cyberpixie_esp32c3::{storage::ImagesRegistry, DEFAULT_DEVICE_CONFIG};
+use cyberpixie_esp32_idf::{storage::ImagesRegistry, DEFAULT_DEVICE_CONFIG};
 use esp_idf_svc::log::EspLogger;
 // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
 use esp_idf_sys as _;
