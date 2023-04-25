@@ -29,7 +29,7 @@ fn main() -> anyhow::Result<()> {
     let mut wifi = Wifi::new(peripherals.modem, sysloop)?;
     wifi.establish_softap(Config::default())?;
 
-    let listener = TcpListener::bind("0.0.0.0:80")?;
+    let listener = TcpListener::bind("0.0.0.0:1800")?;
     info!("Bound TCP on: {:?}", listener.local_addr());
 
     // Initialize and clear strip.

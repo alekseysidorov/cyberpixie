@@ -1,6 +1,6 @@
-import QtQuick 2.12
-import QtQuick.Controls 2.5
-import QtQuick.Layouts 1.12
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
 
 Page {
    header: Label {
@@ -66,6 +66,12 @@ Page {
                 text: qsTr("Prev image")
 
                 onClicked: cyberpixie.prevImage()
+            }
+
+            Button {
+                text: qsTr("Stop")
+
+                onClicked: cyberpixie.stop()
             }
 
             Button {

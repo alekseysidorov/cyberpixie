@@ -1,14 +1,9 @@
-use std::{
-    net::SocketAddr,
-    ops::DerefMut,
-    path::{Path, PathBuf},
-};
+use std::{net::SocketAddr, ops::DerefMut};
 
-use cyberpixie_core::proto::types::{ImageId, PeerInfo, Hertz};
+use cyberpixie_core::proto::types::{Hertz, ImageId, PeerInfo};
 use cyberpixie_std_network::{connect_to, display_err, Client};
 use image::{
     imageops::{self, FilterType},
-    io::Reader,
     RgbImage,
 };
 use qmetaobject::prelude::*;
@@ -40,7 +35,8 @@ pub struct DeviceHandle {
     // Qt methods
     deviceInfo: qt_method!(fn(&mut self)),
     setImage: qt_method!(fn(&mut self, index: usize)),
-    uploadImage: qt_method!(fn(&mut self, path: QString, refresh_rate: usize)),
+    uploadImage: qt_method!(fn(&mut self, content: QByteArray, refresh_rate: usize)),
+    stop: qt_method!(fn(&mut self)),
     clearImages: qt_method!(fn(&mut self)),
 }
 
@@ -71,19 +67,13 @@ impl DeviceHandle {
         );
     }
 
-    fn uploadImage(&mut self, image: QString, refresh_rate: usize) {
-        let image_url = image.to_string();
-
-        let image_path = image_url
-            .strip_prefix("file://")
-            .unwrap_or_else(|| image_url.as_str());
-
-        let path = PathBuf::from(image_path);
+    fn uploadImage(&mut self, image: QByteArray, refresh_rate: usize) {
+        let image_bytes = image.to_slice().to_owned();
         let nwidth = self.stripLen as u32;
         self.invoke(
             move |inner| {
                 let refresh_rate = Hertz(refresh_rate as u32);
-                inner.upload_image(&path, nwidth, refresh_rate)
+                inner.upload_image(&image_bytes, nwidth, refresh_rate)
             },
             move |s, index| {
                 s.imagesCount += 1;
@@ -105,6 +95,10 @@ impl DeviceHandle {
                 s.imagesCountChanged();
             },
         );
+    }
+
+    fn stop(&mut self) {
+        self.invoke(move |inner| inner.stop(), move |_, _| {});
     }
 
     fn invoke<F, R, T>(&mut self, method: F, then: T)
@@ -150,7 +144,7 @@ struct DeviceHandleInner {
 impl Default for DeviceHandleInner {
     fn default() -> Self {
         Self {
-            address: SocketAddr::new([192, 168, 71, 1].into(), 333),
+            address: SocketAddr::new([192, 168, 71, 1].into(), 1800),
         }
     }
 }
@@ -158,11 +152,11 @@ impl Default for DeviceHandleInner {
 impl DeviceHandleInner {
     fn upload_image(
         self,
-        image_path: &Path,
+        buffer: &[u8],
         nwidth: u32,
         refresh_rate: Hertz,
     ) -> anyhow::Result<usize> {
-        let origin = open_image(image_path)?;
+        let origin = image::load_from_memory(buffer)?.to_rgb8();
 
         let nheight = origin.height() * nwidth / origin.width();
         let resized = imageops::resize(&origin, nwidth, nheight, FilterType::Lanczos3);
@@ -193,6 +187,10 @@ impl DeviceHandleInner {
             .map_err(display_err)
     }
 
+    fn stop(self) -> anyhow::Result<()> {
+        self.cyberpixie_client()?.hide_image().map_err(display_err)
+    }
+
     fn clear(self) -> anyhow::Result<()> {
         self.cyberpixie_client()?
             .clear_images()
@@ -210,15 +208,12 @@ impl DeviceHandleInner {
             "Bytes amount to read must be a multiple of 3."
         );
 
-        let id = self.cyberpixie_client()?
+        let id = self
+            .cyberpixie_client()?
             .add_image(refresh_rate, strip_len as u16, bytes)
             .map_err(display_err)?;
         Ok(id.0 as usize)
     }
-}
-
-fn open_image(path: impl AsRef<Path>) -> anyhow::Result<RgbImage> {
-    Ok(Reader::open(path)?.decode()?.to_rgb8())
 }
 
 fn image_to_raw(image: &RgbImage) -> Vec<u8> {

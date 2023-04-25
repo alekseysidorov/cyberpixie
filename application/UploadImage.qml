@@ -1,8 +1,8 @@
-import QtQuick 2.12
-import QtQuick.Controls 2.5
-import QtQuick.Layouts 1.12
-import QtQuick.Dialogs 1.2
-import Qt.labs.platform 1.1
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import QtQuick.Dialogs
+import Qt.labs.platform as Platform
 
 Page {
     header: Label {
@@ -39,11 +39,10 @@ Page {
             }
         }
 
-        FileDialog {
+        Platform.FileDialog {
             id: openImage
 
-            folder: StandardPaths.writableLocation(StandardPaths.ImagesLocation)
-            nameFilters: ["Images (*.png *jpg *jpeg)"]
+            folder: Platform.StandardPaths.writableLocation(Platform.StandardPaths.ImagesLocation)
             file: ""
         }
 
@@ -81,7 +80,8 @@ Page {
                 text: qsTr("Upload")
 
                 onClicked: {
-                    cyberpixie.uploadImage(openImage.file.toString(), rateInput.text * cyberpixie.stripLen);
+                    const content = fileReader.readFile(openImage.file);
+                    cyberpixie.uploadImage(content, rateInput.text * cyberpixie.stripLen);
                 }
 
             }

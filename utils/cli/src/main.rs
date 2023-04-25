@@ -13,7 +13,7 @@ use cyberpixie_std_network::create_client;
 #[command(propagate_version = false)]
 struct Cli {
     /// Device socket address
-    #[arg(short, long, default_value = "192.168.71.1:80")]
+    #[arg(short, long, default_value = "192.168.71.1:1800")]
     address: SocketAddr,
     /// Actual command
     #[command(subcommand)]

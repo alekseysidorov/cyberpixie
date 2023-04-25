@@ -1,7 +1,11 @@
-import QtQuick 2.12
-import QtQuick.Controls 2.5
+import QtQuick
+import QtCore
+import QtQuick.Controls
+import QtQuick.Window
+import QtQuick.Dialogs
+import Qt.labs.platform as Platform
 
-import cyberpixie 1.0
+import cyberpixie;
 
 ApplicationWindow {
     id: app
@@ -54,16 +58,16 @@ ApplicationWindow {
         id: cyberpixie
 
         function nextImage() {
-            let next = (cyberpixie.currentImage + 1) % (cyberpixie.imagesCount + 1)
+            let next = (cyberpixie.currentImage + 1) % (cyberpixie.imagesCount)
             cyberpixie.setImage(next)
         }
 
         function prevImage() {
-            let prev = (cyberpixie.currentImage + cyberpixie.imagesCount) % (cyberpixie.imagesCount + 1)
+            let prev = (cyberpixie.currentImage + cyberpixie.imagesCount) % (cyberpixie.imagesCount)
             cyberpixie.setImage(prev)
         }
 
-        onError: {
+        onError: function(message) {
             balloon.show("An error occurred", message)
             app.deviceConnected = false
         }
