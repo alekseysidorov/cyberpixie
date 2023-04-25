@@ -1,0 +1,22 @@
+[package]
+name = "cyberpixie-qml"
+version = "0.2.0"
+edition = "2021"
+resolver = "2"
+
+[lib]
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+anyhow = "1.0"
+cstr = "0.2"
+cyberpixie-core = { workspace = true }
+cyberpixie-std-network = { workspace = true }
+env_logger = "0.10"
+image = "0.24"
+log = "0.4"
+
+qmetaobject = { version = "0.2.7", git = "https://github.com/woboq/qmetaobject-rs.git", features = ["log"] }
+
+[target.'cfg(target_os = "android")'.dependencies]
+android_logger = "0.13"
