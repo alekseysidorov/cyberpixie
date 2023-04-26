@@ -2,16 +2,16 @@
 resolver = "2"
 
 members = [
+  "application/rust",
   "crates/core",
   "crates/network",
   "firmware/esp32-idf",
   "utils/cli",
-  "application/rust",
 ]
 
 default-members = ["crates/core", "crates/network"]
 
-exclude = ["firmware/esp32-idf", "utils/image_sender", "application/rust"]
+exclude = ["application/rust", "firmware/esp32-idf", "utils/image_sender"]
 
 [workspace.dependencies]
 # Workspace crates

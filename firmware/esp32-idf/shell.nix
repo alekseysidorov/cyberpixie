@@ -25,6 +25,7 @@ let
         # but we have to provide the path to the libclang anyway.
         LIBCLANG_PATH = "${pkgs.llvmPackages_14.libclang.lib}/lib";
       };
+      nativeBuildInputs = [ pkgs.rustToolchain ];
     };
 
     esp32s3 = {
@@ -37,10 +38,11 @@ let
       '';
       env = {
         CARGO_BUILD_TARGET = "xtensa-esp32s3-espidf";
-        CARGO_TARGET_XTENSA-ESP32S3_LINKER = "ldproxy";
-        CARGO_TARGET_XTENSA-ESP32S3_RUNNER = firmwareRunner;
-        RUSTUP_TOOLCHAIN="esp";
+        CARGO_TARGET_XTENSA_ESP32S3_ESPIDF_LINKER = "ldproxy";
+        CARGO_TARGET_XTENSA_ESP32S3_ESPIDF_RUNNER = firmwareRunner;
+        RUSTUP_TOOLCHAIN = "esp";
       };
+      nativeBuildInputs = [ ];
     };
   };
 
@@ -56,7 +58,7 @@ pkgs.mkShell {
     # Utilites to flash firmware to the device
     espflash
     cargo-espflash
-  ];
+  ] ++ targetConfig.${target}.nativeBuildInputs;
 
   env = {
     # Enable unstable cargo features
