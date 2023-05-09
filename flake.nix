@@ -4,7 +4,7 @@
       url = "github:numtide/flake-utils";
     };
     nixpkgs-cross-overlay = {
-      url = "github:alekseysidorov/nixpkgs-cross-overlay";
+      url = "github:alekseysidorov/nixpkgs-cross-overlay/dev";
     };
   };
 
@@ -13,7 +13,12 @@
       {
         devShells = {
           default = import ./shell.nix { inherit localSystem; };
-          esp32c3 = import ./firmware/esp32c3/shell.nix { inherit localSystem; };
+          esp32c3 = import ./firmware/esp32-idf/shell.nix {
+            inherit localSystem; target = "esp32c3";
+          };
+          esp32s3 = import ./firmware/esp32-idf/shell.nix {
+            inherit localSystem; target = "esp32s3";
+          };
         };
       }
     );

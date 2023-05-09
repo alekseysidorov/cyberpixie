@@ -1,5 +1,5 @@
 [package]
-name = "cyberpixie-esp32c3"
+name = "cyberpixie-esp32-idf"
 version = "0.2.0"
 authors = ["Aleksey Sidorov <sauron1987@gmail.com>"]
 edition = "2021"

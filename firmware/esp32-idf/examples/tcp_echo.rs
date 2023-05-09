@@ -3,7 +3,7 @@ use std::{
     net::{TcpListener, TcpStream},
 };
 
-use cyberpixie_esp32c3::wifi::{Config, Wifi};
+use cyberpixie_esp32_idf::wifi::{Config, Wifi};
 use esp_idf_hal::prelude::*;
 use esp_idf_svc::{eventloop::EspSystemEventLoop, log::EspLogger};
 // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
