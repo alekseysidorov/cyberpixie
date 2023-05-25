@@ -5,6 +5,7 @@ members = [
   "application/rust",
   "crates/core",
   "crates/network",
+  "crates/network-nal",
   "firmware/esp32-idf",
   "utils/cli",
 ]

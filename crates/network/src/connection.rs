@@ -54,6 +54,8 @@ pub type OutgoingMessage<R> = Message<R, Headers>;
 
 impl<R: embedded_io::blocking::Read> OutgoingMessage<R> {
     pub fn send<W: Write>(self, mut device: W) -> Result<(), std::io::Error> {
+        use embedded_io::blocking::Read;
+
         let (header, payload_len, payload_reader) = self.into_parts();
 
         let mut send_buf = [0_u8; SEND_BUF_LEN];
@@ -62,7 +64,12 @@ impl<R: embedded_io::blocking::Read> OutgoingMessage<R> {
 
         if let Some(mut reader) = payload_reader {
             loop {
-                let bytes_read = reader.read(&mut send_buf)?;
+                let bytes_read = reader.read(&mut send_buf).map_err(|error| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("Unable to read message: {:?}", error),
+                    )
+                })?;
                 if bytes_read == 0 {
                     break;
                 }
@@ -72,9 +79,9 @@ impl<R: embedded_io::blocking::Read> OutgoingMessage<R> {
         Ok(())
     }
 
-    pub fn into_parts(self) -> (Headers, usize, Option<ToStd<PayloadReader<R>>>) {
+    pub fn into_parts(self) -> (Headers, usize, Option<PayloadReader<R>>) {
         if let Some(reader) = self.payload {
-            (self.header, reader.len(), Some(ToStd::new(reader)))
+            (self.header, reader.len(), Some(reader))
         } else {
             (self.header, 0, None)
         }
