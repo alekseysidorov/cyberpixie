@@ -1,0 +1,15 @@
+[package]
+name = "cyberpixie-app"
+version = "0.2.0"
+edition = "2021"
+
+[dependencies]
+cyberpixie-core = { workspace = true }
+cyberpixie-network = { workspace = true }
+embedded-io = "0.4"
+embedded-nal = "0.6"
+heapless = { workspace = true }
+nb-utils = { workspace = true }
+serde = { version = "1", default-features = false, features = ["derive"] }
+nb = "1.0"
+log = "0.4"

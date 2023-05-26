@@ -3,6 +3,7 @@ resolver = "2"
 
 members = [
   "application/rust",
+  "crates/app",
   "crates/core",
   "crates/network",
   "crates/network-nal",
@@ -18,6 +19,7 @@ exclude = ["application/rust", "firmware/esp32-idf", "utils/image_sender"]
 # Workspace crates
 cyberpixie-core = { path = "crates/core", features = ["std"] }
 cyberpixie-std-network = { path = "crates/network" }
+cyberpixie-network = { path = "crates/network-nal" }
 
 # Common dependencies
 heapless = { version = "0.7" }

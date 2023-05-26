@@ -8,8 +8,9 @@ anyhow = "1"
 clap = { version = "4.0", features = ["derive"] }
 clap_complete_command = "0.5.0"
 cyberpixie-core = { workspace = true }
-cyberpixie-std-network = { workspace = true }
+cyberpixie-network = { workspace = true }
 env_logger = "0.10"
 image = "0.24"
 log = "0.4"
 nb = "1.0"
+std-embedded-nal = "0.1.3"

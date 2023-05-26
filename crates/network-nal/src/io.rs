@@ -1,4 +1,4 @@
-//! Adapters between embedded-io and embedded-nal 
+//! Adapters between embedded-io and embedded-nal
 
 use embedded_io::blocking::{Read, Write};
 use embedded_nal::TcpClientStack;
@@ -30,9 +30,9 @@ impl<S: TcpClientStack> embedded_io::Error for NetworkError<S> {
     }
 }
 
-/// A wrapper around the [`TcpClientStack::TcpSocket`] type which provides 
-/// a blocking [`Read`]/[`Write`] traits implementation. 
-/// 
+/// A wrapper around the [`TcpClientStack::TcpSocket`] type which provides
+/// a blocking [`Read`]/[`Write`] traits implementation.
+///
 /// This wrapper is blocking, so it can be used in the polling scenarios.
 pub struct TcpStream<'a, S: TcpClientStack> {
     stack: &'a mut S,

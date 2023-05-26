@@ -15,7 +15,7 @@
     clippy::missing_const_for_fn
 )]
 
-use connection::Connection;
+pub use connection::{Connection, IncomingMessage, Message};
 use cyberpixie_core::{
     proto::{
         types::{Hertz, ImageId, ImageInfo, PeerInfo},
@@ -24,7 +24,7 @@ use cyberpixie_core::{
     Error as CyberpixieError, Result as CyberpixieResult,
 };
 pub use embedded_nal::SocketAddr;
-use embedded_nal::TcpClientStack;
+use embedded_nal::{TcpClientStack, TcpFullStack};
 
 mod connection;
 pub mod io;
@@ -60,13 +60,9 @@ where
         Ok(client)
     }
 
-    /// Performs handshake between peers and returns the information about the connected peer.
-    fn handshake(&mut self, stack: &mut S, host_info: PeerInfo) -> CyberpixieResult<PeerInfo> {
-        let message = RequestHeader::Handshake(host_info);
-        self.inner.send_message(stack, message)?;
-
-        let response = nb::block!(self.inner.poll_next_response(stack))?;
-        response.header.handshake()
+    /// Requests an actual information about the connected peer.
+    pub fn peer_info(&mut self, stack: &mut S) -> CyberpixieResult<PeerInfo> {
+        self.handshake(stack, PeerInfo::client())
     }
 
     /// Sends a new picture to the device and returns a resulting ID.
@@ -126,5 +122,53 @@ where
 
         let response = nb::block!(self.inner.poll_next_response(stack))?;
         response.header.empty()
+    }
+
+    /// Performs handshake between peers and returns the information about the connected peer.
+    fn handshake(&mut self, stack: &mut S, host_info: PeerInfo) -> CyberpixieResult<PeerInfo> {
+        let message = RequestHeader::Handshake(host_info);
+        self.inner.send_message(stack, message)?;
+
+        let response = nb::block!(self.inner.poll_next_response(stack))?;
+        response.header.handshake()
+    }
+}
+
+pub struct Listener<S>
+where
+    S: TcpFullStack,
+{
+    socket: S::TcpSocket,
+}
+
+impl<S> Listener<S>
+where
+    S: TcpFullStack,
+{
+    pub fn new(stack: &mut S, local_port: u16) -> CyberpixieResult<Self> {
+        let mut socket = stack.socket().map_err(CyberpixieError::network)?;
+        stack
+            .bind(&mut socket, local_port)
+            .map_err(CyberpixieError::network)?;
+        stack
+            .listen(&mut socket)
+            .map_err(CyberpixieError::network)?;
+
+        Ok(Self { socket })
+    }
+
+    /// Accepts a new active incoming connection.
+    ///
+    /// If no pending connections are available, this function will return [`nb::Error::WouldBlock`]
+    pub fn accept(
+        &mut self,
+        stack: &mut S,
+    ) -> nb::Result<(SocketAddr, Connection<S>), CyberpixieError> {
+        let (socket, address) = stack
+            .accept(&mut self.socket)
+            .map_err(|x| x.map(CyberpixieError::network))?;
+
+        log::info!("Accepted incoming connection with the {address}");
+        Ok((address, Connection::new(socket)))
     }
 }

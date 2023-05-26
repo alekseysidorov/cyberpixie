@@ -7,13 +7,13 @@ edition = "2021"
 [dependencies]
 anyhow = "1"
 cyberpixie-core = { workspace = true }
-heapless = { workspace = true }
-embedded-nal = "0.6"
 embedded-io = "0.4"
+embedded-nal = "0.6"
+heapless = { workspace = true }
 log = "0.4"
 nb = "1"
 
 [dev-dependencies]
 env_logger = "0.10"
-std-embedded-nal = "0.1.3"
 nb-utils = { workspace = true, features = ["std"] }
+std-embedded-nal = "0.1.3"

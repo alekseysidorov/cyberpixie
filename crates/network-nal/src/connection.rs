@@ -14,7 +14,7 @@ use crate::io::TcpStream;
 
 pub type IncomingMessage<'a, S, H> = Message<TcpStream<'a, S>, H>;
 
-// FIXME? 
+// FIXME?
 const SEND_BUF_LEN: usize = 256;
 
 pub struct Message<R: Read, H> {
@@ -73,7 +73,8 @@ impl<S> Connection<S>
 where
     S: TcpClientStack,
 {
-    pub fn new(socket: S::TcpSocket) -> Self {
+    /// Creates a new connection on top of the given socket.
+    pub(crate) fn new(socket: S::TcpSocket) -> Self {
         Self {
             socket,
             packet_header_buf: heapless::Vec::default(),
