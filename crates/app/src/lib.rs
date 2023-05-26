@@ -14,6 +14,9 @@ pub use crate::app::App;
 
 mod app;
 
+/// Default application network port.
+pub const NETWORK_PORT: u16 = 1800;
+
 /// Board-specific components
 ///
 /// Including the network stack, image and other data storage and LED strip rendering task.
