@@ -1,6 +1,6 @@
-use std::{convert::Infallible, thread::JoinHandle, time::Duration};
+use std::{convert::Infallible, thread::JoinHandle};
 
-use cyberpixie_app::{App, Board, Configuration, CyberpixieResult, Storage, NETWORK_PORT};
+use cyberpixie_app::{App, Board, Configuration, CyberpixieResult, Storage};
 use cyberpixie_core::{
     proto::types::{DeviceRole, FirmwareInfo, ImageId},
     ExactSizeRead,
@@ -101,21 +101,15 @@ impl Board for BoardStub {
     }
 }
 
-fn create_loopback(stack: &mut Stack) -> (JoinHandle<CyberpixieResult<()>>, Client<Stack>) {
-    let address = std::net::SocketAddr::new(std::net::Ipv6Addr::LOCALHOST.into(), NETWORK_PORT);
-    // Wait until the application address will be free
-    while std::net::TcpListener::bind(address).is_err() {
-        std::thread::sleep(Duration::from_millis(100));
-    }
-
+fn create_loopback(stack: &mut Stack, port: u16) -> (JoinHandle<CyberpixieResult<()>>, Client<Stack>) {
     // Create a thread with an application instance
-    let app = App::new(BoardStub).unwrap();
+    let app = App::with_port(BoardStub, port).unwrap();
     let app_handle = std::thread::spawn(move || app.run());
 
     // Create a Cyberpixie client and connect with an application.
     let client = Client::connect(
         stack,
-        embedded_nal::SocketAddr::new(embedded_nal::Ipv6Addr::localhost().into(), NETWORK_PORT),
+        embedded_nal::SocketAddr::new(embedded_nal::Ipv6Addr::localhost().into(), port),
     )
     .unwrap();
     (app_handle, client)
@@ -123,10 +117,8 @@ fn create_loopback(stack: &mut Stack) -> (JoinHandle<CyberpixieResult<()>>, Clie
 
 #[test]
 fn test_simple_handshake() {
-    let _ = env_logger::try_init();
-
     let mut stack = Stack::default();
-    let (_app, mut client) = create_loopback(&mut stack);
+    let (_app, mut client) = create_loopback(&mut stack, 1234);
 
     let info = client.peer_info(&mut stack).unwrap();
     assert_eq!(info.role, DeviceRole::Main);

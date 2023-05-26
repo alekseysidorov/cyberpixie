@@ -1,9 +1,12 @@
 //! Cybeprixie application business-logic implementation
 
-use cyberpixie_core::{proto::{
-    types::{DeviceInfo, DeviceRole, ImageInfo, PeerInfo},
-    RequestHeader, ResponseHeader,
-}, ExactSizeRead};
+use cyberpixie_core::{
+    proto::{
+        types::{DeviceInfo, DeviceRole, ImageInfo, PeerInfo},
+        RequestHeader, ResponseHeader,
+    },
+    ExactSizeRead,
+};
 use cyberpixie_network::{Connection, Listener, SocketAddr};
 use embedded_io::blocking::Read;
 use nb_utils::NbResultExt;
@@ -29,13 +32,13 @@ pub struct App<B: Board> {
 }
 
 impl<B: Board> App<B> {
-    /// Creates a new application instance for the given board.
-    pub fn new(mut board: B) -> CyberpixieResult<Self> {
+    /// Creates a new application instance for the given board on a specified network port.
+    pub fn with_port(mut board: B, port: u16) -> CyberpixieResult<Self> {
         let (storage, mut network) = board
             .take_components()
             .expect("Board components has been already taken");
 
-        let listener = Listener::new(&mut network, NETWORK_PORT)?;
+        let listener = Listener::new(&mut network, port)?;
         let device_info = read_device_info(&storage)?;
 
         Ok(Self {
@@ -47,6 +50,11 @@ impl<B: Board> App<B> {
             render: None,
             device_info,
         })
+    }
+
+    /// Creates a new application instance for the given board.
+    pub fn new(board: B) -> CyberpixieResult<Self> {
+        Self::with_port(board, NETWORK_PORT)
     }
 
     /// Runs an Cyberpixie application
@@ -140,7 +148,7 @@ impl<B: Board> App<B> {
             }
 
             RequestHeader::Debug => {
-                // FIXME find the way to put message to debug log level instead of eprintln 
+                // FIXME find the way to put message to debug log level instead of eprintln
                 // and support for unicode
                 if let Some(mut payload) = request.payload {
                     while payload.bytes_remaining() != 0 {

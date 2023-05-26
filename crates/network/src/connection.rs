@@ -186,7 +186,7 @@ impl Connection {
         let bytes_read = match self.stream.read(&mut buf[0..bytes_remaining]) {
             // Successfuly read bytes.
             Ok(bytes_read) if bytes_read > 0 => Ok(bytes_read),
-            // Various blocking situations
+            // There is no more bytes at the moment
             Ok(_) => Err(nb::Error::WouldBlock),
             Err(err) if err.kind() == ErrorKind::WouldBlock => Err(nb::Error::WouldBlock),
             // Something went wrong
