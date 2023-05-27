@@ -51,4 +51,4 @@ jobs:
             .embuild/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - run: nix develop .#esp32c3 --command cargo clippy -p cyberpixie-esp32-idf
+      - run: nix-shell firmware/esp32-idf/shell.nix --argstr target "esp32c3"  --run "cargo clippy -p cyberpixie-esp32-idf"  
