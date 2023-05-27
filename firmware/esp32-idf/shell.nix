@@ -1,7 +1,7 @@
 # Shell for the platform independent code parts
 { localSystem ? builtins.currentSystem
 , pkgs ? import ./../../nix { inherit localSystem; }
-, target ? "esp32c3"
+, target ? "esp32s3" # "esp32c3"
 }:
 let
   # Partitions file.
