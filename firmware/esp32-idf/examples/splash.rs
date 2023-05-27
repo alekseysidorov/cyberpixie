@@ -8,7 +8,7 @@ use smart_leds::{SmartLedsWrite, RGB8};
 use ws2812_esp32_rmt_driver::Ws2812Esp32Rmt;
 
 const TICK_DELAY: u32 = 3;
-const STRIP_LEN: usize = 144;
+const STRIP_LEN: usize = 24;
 const LED_PIN: u32 = 8;
 
 fn main() -> anyhow::Result<()> {
@@ -23,6 +23,7 @@ fn main() -> anyhow::Result<()> {
     strip.write(std::iter::repeat(RGB8::default()).take(144))?;
 
     for brightness in 16..128 {
+        println!("Printing line with brightness {brightness}");
         let splash = WanderingLight::<STRIP_LEN>::new(brightness);
 
         for (ticks, line) in splash {
