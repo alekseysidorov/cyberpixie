@@ -2,7 +2,7 @@
 
 use embedded_io::Io;
 
-pub use self::image_reader::ImageReader;
+pub use self::image_reader::{ImageReader, ImageLines, Image};
 
 mod image_reader;
 

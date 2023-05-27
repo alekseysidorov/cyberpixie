@@ -1,5 +1,6 @@
 use std::{net::TcpListener, time::Duration};
 
+use cyberpixie_app::{App, Connections};
 use cyberpixie_core::proto::types::Hertz;
 use cyberpixie_esp32_idf::{
     splash::WanderingLight,
@@ -7,7 +8,7 @@ use cyberpixie_esp32_idf::{
     wifi::{Config, Wifi},
     DeviceImpl, DEFAULT_DEVICE_CONFIG, LED_PIN, STRIP_LEN,
 };
-use cyberpixie_std_network::NetworkPart;
+// use cyberpixie_std_network::NetworkPart;
 use esp_idf_hal::prelude::Peripherals;
 use esp_idf_svc::{eventloop::EspSystemEventLoop, log::EspLogger};
 // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
@@ -47,13 +48,13 @@ fn main() -> anyhow::Result<()> {
     let storage = ImagesRegistry::new(DEFAULT_DEVICE_CONFIG);
     let device = DeviceImpl::new(storage, strip)?;
 
-    // Start server.
-    let mut server = NetworkPart::new(device, listener)?;
-    info!("Created Service");
+    // Start application.
+    let mut app = App::new(device).map_err(|err| anyhow::anyhow!("{err:?}"))?;
+    info!("Created application");
+
+    let mut connections = Connections::default();
     loop {
-        if let Err(nb::Error::Other(err)) = server.poll() {
-            panic!("{err}");
-        }
+        app.poll_events(&mut connections).unwrap();
         std::thread::sleep(Duration::from_millis(50));
     }
 }

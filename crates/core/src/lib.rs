@@ -14,7 +14,6 @@ pub use errors::{Error, Result};
 
 pub mod errors;
 pub mod proto;
-pub mod service;
 pub mod storage;
 
 /// The maximum effective length of the pixel strip.

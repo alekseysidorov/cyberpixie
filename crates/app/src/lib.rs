@@ -2,7 +2,7 @@
 
 use cyberpixie_core::{
     proto::types::{FirmwareInfo, Hertz, ImageId},
-    service::Image,
+    storage::Image,
     ExactSizeRead,
 };
 pub use cyberpixie_core::{Error as CyberpixieError, Result as CyberpixieResult};
@@ -10,7 +10,7 @@ use embedded_io::blocking::Seek;
 use embedded_nal::TcpFullStack;
 use serde::{Deserialize, Serialize};
 
-pub use crate::app::App;
+pub use crate::app::{App, Connections};
 
 mod app;
 

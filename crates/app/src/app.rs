@@ -17,7 +17,7 @@ use crate::{Board, CyberpixieError, CyberpixieResult, Storage, NETWORK_PORT};
 const MAX_CONNECTIONS: usize = 4;
 
 /// Incoming connections map.
-type Connections<S> = heapless::LinearMap<SocketAddr, Connection<S>, MAX_CONNECTIONS>;
+pub type Connections<S> = heapless::LinearMap<SocketAddr, Connection<S>, MAX_CONNECTIONS>;
 
 /// Cybeprixie application runner
 pub struct App<B: Board> {
@@ -62,8 +62,16 @@ impl<B: Board> App<B> {
         let mut connections = Connections::default();
         // Start event loop.
         loop {
-            self.poll_network(&mut connections)?;
+            self.poll_events(&mut connections)?;
         }
+    }
+
+    /// Polls all incoming events.
+    pub fn poll_events(
+        &mut self,
+        connections: &mut Connections<B::NetworkStack>,
+    ) -> CyberpixieResult<()> {
+        self.poll_network(connections)
     }
 
     /// Polls a next network event.
