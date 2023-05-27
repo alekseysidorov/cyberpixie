@@ -10,6 +10,7 @@ pio = ["esp-idf-sys/pio"]
 
 [dependencies]
 anyhow = "1"
+cyberpixie-app = { workspace = true }
 cyberpixie-core = { workspace = true }
 cyberpixie-network = { workspace = true }
 embedded-hal = "1.0.0-alpha.10"
