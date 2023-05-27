@@ -19,7 +19,7 @@ let
         # Setup the target specific build configuration.
         CARGO_BUILD_TARGET = "riscv32imc-esp-espidf";
         CARGO_TARGET_RISCV32IMC_ESP_ESPIDF_LINKER = "ldproxy";
-        CARGO_TARGET_RISCV32IMC_ESP_ESPIDF_RUSTFLAGS = "-C default-linker-libraries";
+        CARGO_TARGET_RISCV32IMC_ESP_ESPIDF_RUSTFLAGS = "-C default-linker-libraries --cfg espidf_time64";
         CARGO_TARGET_RISCV32IMC_ESP_ESPIDF_RUNNER = firmwareRunner;
         # It's impossible to use the rustPlatform.bindgenHook, 
         # but we have to provide the path to the libclang anyway.
@@ -33,12 +33,13 @@ let
         # Disable Native compiler in shell
         unset CC; unset CXX
         # Install esp toolchain
-        espup install -f /tmp/export-esh.sh
+        espup install -f /tmp/export-esh.sh -t esp32s3
         . /tmp/export-esh.sh
       '';
       env = {
         CARGO_BUILD_TARGET = "xtensa-esp32s3-espidf";
         CARGO_TARGET_XTENSA_ESP32S3_ESPIDF_LINKER = "ldproxy";
+        CARGO_TARGET_XTENSA_ESP32S3_ESPIDF_RUSTFLAGS = "--cfg espidf_time64";
         CARGO_TARGET_XTENSA_ESP32S3_ESPIDF_RUNNER = firmwareRunner;
         RUSTUP_TOOLCHAIN = "esp";
       };
@@ -64,7 +65,7 @@ pkgs.mkShell {
     # Enable unstable cargo features
     CARGO_UNSTABLE_BUILD_STD = "std,panic_abort";
     # Builds against ESP-IDF stable (v4.4)
-    ESP_IDF_VERSION = "release/v4.4";
+    ESP_IDF_VERSION = "release/v5.0";
   } // targetConfig.${target}.env;
 
   shellHook = ''

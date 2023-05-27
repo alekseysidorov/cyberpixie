@@ -203,7 +203,6 @@ mod tests {
         stack.bind(&mut listener, port).unwrap();
         stack.listen(&mut listener).unwrap();
 
-
         let addr = embedded_nal::SocketAddr::from((embedded_nal::Ipv6Addr::localhost(), port));
         // Connect between two sockets.
         let mut sender = stack.socket().unwrap();

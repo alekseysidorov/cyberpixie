@@ -12,7 +12,8 @@ use anyhow::Context;
 use cyberpixie_app::Storage;
 use cyberpixie_core::{
     proto::types::{Hertz, ImageId},
-    ExactSizeRead, MAX_STRIP_LEN, storage::ImageLines
+    storage::ImageLines,
+    ExactSizeRead, MAX_STRIP_LEN,
 };
 use smart_leds::{SmartLedsWrite, RGB8};
 

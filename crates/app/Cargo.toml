@@ -9,10 +9,10 @@ cyberpixie-network = { workspace = true }
 embedded-io = "0.4"
 embedded-nal = "0.6"
 heapless = { workspace = true }
+log = "0.4"
+nb = "1.0"
 nb-utils = { workspace = true }
 serde = { version = "1", default-features = false, features = ["derive"] }
-nb = "1.0"
-log = "0.4"
 
 [dev-dependencies]
 env_logger = "0.10"

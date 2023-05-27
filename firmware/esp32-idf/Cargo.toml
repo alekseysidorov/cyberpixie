@@ -10,16 +10,14 @@ pio = ["esp-idf-sys/pio"]
 
 [dependencies]
 anyhow = "1"
-cyberpixie-app = { workspace = true }
 cyberpixie-core = { workspace = true }
 cyberpixie-network = { workspace = true }
-embedded-hal = "1.0.0-alpha.9"
+embedded-hal = "1.0.0-alpha.10"
 embedded-io = "0.4"
-embedded-nal = "0.6.0"
-embedded-svc = "0.24"
-esp-idf-hal = "0.40"
-esp-idf-svc = "0.45.0"
-esp-idf-sys = { version = "0.32.1", features = ["binstart"] }
+embedded-svc = "0.25"
+esp-idf-hal = "0.41"
+esp-idf-svc = "0.46"
+esp-idf-sys = { version = "0.33", features = ["binstart"] }
 heapless = "0.7"
 log = "0.4"
 nb = "1.0"

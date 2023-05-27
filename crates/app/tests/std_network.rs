@@ -101,7 +101,10 @@ impl Board for BoardStub {
     }
 }
 
-fn create_loopback(stack: &mut Stack, port: u16) -> (JoinHandle<CyberpixieResult<()>>, Client<Stack>) {
+fn create_loopback(
+    stack: &mut Stack,
+    port: u16,
+) -> (JoinHandle<CyberpixieResult<()>>, Client<Stack>) {
     // Create a thread with an application instance
     let app = App::with_port(BoardStub, port).unwrap();
     let app_handle = std::thread::spawn(move || app.run());

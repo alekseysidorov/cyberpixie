@@ -1,13 +1,13 @@
 //! Image reader wrapper over block reader.
 
 use embedded_io::{
-    blocking::{Read, Seek, ReadExactError},
+    blocking::{Read, ReadExactError, Seek},
     Io, SeekFrom,
 };
-use rgb::{RGB8, FromSlice};
+use rgb::{FromSlice, RGB8};
 
 use super::{BlockReader, DEFAULT_BLOCK_SIZE};
-use crate::{ExactSizeRead, proto::types::Hertz};
+use crate::{proto::types::Hertz, ExactSizeRead};
 
 #[derive(Debug)]
 pub struct ImageReader<T, B, const N: usize = DEFAULT_BLOCK_SIZE>

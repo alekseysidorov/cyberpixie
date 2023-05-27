@@ -10,7 +10,7 @@
     clippy::cast_precision_loss
 )]
 
-use cyberpixie_app::{Board, Storage, Configuration};
+use cyberpixie_app::{Board, Configuration, Storage};
 use cyberpixie_core::proto::types::FirmwareInfo;
 use smart_leds::{SmartLedsWrite, RGB8};
 use storage::ImagesRegistry;
