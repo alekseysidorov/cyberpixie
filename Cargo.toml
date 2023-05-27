@@ -2,7 +2,7 @@
 resolver = "2"
 
 members = [
-  # "application/rust",
+  "application/rust",
   "crates/app",
   "crates/core",
   "crates/network",

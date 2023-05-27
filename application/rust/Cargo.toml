@@ -11,7 +11,7 @@ crate-type = ["staticlib", "rlib"]
 anyhow = "1.0"
 cstr = "0.2"
 cyberpixie-core = { workspace = true }
-cyberpixie-std-network = { workspace = true }
+cyberpixie-network = { workspace = true }
 env_logger = "0.10"
 image = "0.24"
 log = "0.4"

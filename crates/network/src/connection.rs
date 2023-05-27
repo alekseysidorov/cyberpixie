@@ -187,8 +187,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::os::fd::FromRawFd;
-
     use cyberpixie_core::proto::{
         types::{DeviceInfo, DeviceRole, PeerInfo},
         RequestHeader,
@@ -200,34 +198,13 @@ mod tests {
 
     type Connection = super::Connection<Stack>;
 
-    fn create_loopback(stack: &mut Stack) -> (Connection, Connection) {
+    fn create_loopback(stack: &mut Stack, port: u16) -> (Connection, Connection) {
         let mut listener = stack.socket().unwrap();
-        stack.bind(&mut listener, 1024).unwrap();
+        stack.bind(&mut listener, port).unwrap();
         stack.listen(&mut listener).unwrap();
 
-        // Black magic to get bound socker local address.
-        //
-        // Safety: We just have created this socker.
-        #[allow(unsafe_code)]
-        let addr = unsafe {
-            let fake_listener = std::net::TcpListener::from_raw_fd(listener.as_raw_fd().unwrap());
-            let addr = fake_listener.local_addr().unwrap();
-            // We have created a copy of an existing socket and must sure that
-            // `Drop` will not be invoked for it.
-            std::mem::forget(fake_listener);
 
-            addr
-        };
-        // Convert std network address to embedded-nal one
-        let addr = match addr {
-            std::net::SocketAddr::V4(addr) => {
-                embedded_nal::SocketAddr::from((addr.ip().octets(), addr.port()))
-            }
-            std::net::SocketAddr::V6(addr) => {
-                embedded_nal::SocketAddr::from((addr.ip().octets(), addr.port()))
-            }
-        };
-
+        let addr = embedded_nal::SocketAddr::from((embedded_nal::Ipv6Addr::localhost(), port));
         // Connect between two sockets.
         let mut sender = stack.socket().unwrap();
         stack.connect(&mut sender, addr).unwrap();
@@ -240,7 +217,7 @@ mod tests {
     fn test_read_write_without_payload() {
         let mut stack = Stack::default();
 
-        let (mut sender, mut receiver) = create_loopback(&mut stack);
+        let (mut sender, mut receiver) = create_loopback(&mut stack, 13280);
 
         assert!(receiver.poll_next_packet(&mut stack).is_would_block());
 
@@ -262,7 +239,7 @@ mod tests {
     fn test_read_write_with_payload() {
         let mut stack = Stack::default();
 
-        let (mut sender, mut receiver) = create_loopback(&mut stack);
+        let (mut sender, mut receiver) = create_loopback(&mut stack, 13281);
 
         let text = b"Hello cyberpixie".as_slice();
         sender
