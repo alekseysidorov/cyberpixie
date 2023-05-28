@@ -6,13 +6,19 @@ members = [
   "crates/app",
   "crates/core",
   "crates/network",
+  "firmware/esp32c3",
   "firmware/esp32-idf",
   "utils/cli",
 ]
 
 default-members = ["crates/core", "crates/network"]
 
-exclude = ["application/rust", "firmware/esp32-idf", "utils/image_sender"]
+exclude = [
+  "application/rust",
+  "firmware/esp32-idf",
+  "firmware/esp32c3",
+  "utils/image_sender",
+]
 
 [workspace.dependencies]
 # Workspace crates
