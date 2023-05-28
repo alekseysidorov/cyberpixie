@@ -6,8 +6,8 @@ members = [
   "crates/app",
   "crates/core",
   "crates/network",
-  "firmware/esp32c3",
   "firmware/esp32-idf",
+  "firmware/esp32c3",
   "utils/cli",
 ]
 

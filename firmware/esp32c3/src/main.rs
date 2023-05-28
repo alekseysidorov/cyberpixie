@@ -4,6 +4,7 @@
 use esp_backtrace as _;
 use esp_println::println;
 use hal::{clock::ClockControl, peripherals::Peripherals, prelude::*, timer::TimerGroup, Rtc};
+
 #[entry]
 fn main() -> ! {
     let peripherals = Peripherals::take();
@@ -28,6 +29,7 @@ fn main() -> ! {
     rtc.rwdt.disable();
     wdt0.disable();
     wdt1.disable();
+
     println!("Hello world!");
 
     loop {}
