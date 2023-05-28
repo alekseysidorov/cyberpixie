@@ -1,19 +1,19 @@
 [package]
-name = "cyberpixie-network"
-version = "0.1.0"
+name = "cyberpixie-app"
+version = "0.2.0"
 edition = "2021"
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1"
 cyberpixie-core = { workspace = true }
+cyberpixie-network = { workspace = true }
 embedded-io = "0.4"
 embedded-nal = "0.6"
 heapless = { workspace = true }
 log = "0.4"
-nb = "1"
+nb = "1.0"
+nb-utils = { workspace = true }
+serde = { version = "1", default-features = false, features = ["derive"] }
 
 [dev-dependencies]
 env_logger = "0.10"
-nb-utils = { workspace = true, features = ["std"] }
 std-embedded-nal = "0.1.3"

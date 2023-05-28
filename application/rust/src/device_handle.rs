@@ -1,12 +1,19 @@
-use std::{net::SocketAddr, ops::DerefMut};
+use std::{fmt::Display, ops::DerefMut};
 
 use cyberpixie_core::proto::types::{Hertz, ImageId, PeerInfo};
-use cyberpixie_std_network::{connect_to, display_err, Client};
+use cyberpixie_network::SocketAddr;
 use image::{
     imageops::{self, FilterType},
     RgbImage,
 };
 use qmetaobject::prelude::*;
+use std_embedded_nal::Stack;
+
+fn display_err(err: impl Display) -> anyhow::Error {
+    anyhow::format_err!("{}", err)
+}
+
+type Client = cyberpixie_network::Client<Stack>;
 
 #[allow(non_snake_case)]
 #[derive(Default, QObject)]
@@ -136,7 +143,7 @@ impl DeviceHandle {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 struct DeviceHandleInner {
     address: SocketAddr,
 }
@@ -173,27 +180,30 @@ impl DeviceHandleInner {
     }
 
     fn cyberpixie_client(self) -> anyhow::Result<Client> {
-        let stream = connect_to(&self.address)?;
-        Client::connect(stream).map_err(From::from)
+        Client::connect(&mut Stack::default(), self.address).map_err(display_err)
     }
 
     fn device_info(self) -> anyhow::Result<PeerInfo> {
-        self.cyberpixie_client()?.handshake().map_err(display_err)
+        self.cyberpixie_client()?
+            .peer_info(&mut Stack::default())
+            .map_err(display_err)
     }
 
     fn show_image(self, index: usize) -> anyhow::Result<()> {
         self.cyberpixie_client()?
-            .show_image(ImageId(index as u16))
+            .start(&mut Stack::default(), ImageId(index as u16))
             .map_err(display_err)
     }
 
     fn stop(self) -> anyhow::Result<()> {
-        self.cyberpixie_client()?.hide_image().map_err(display_err)
+        self.cyberpixie_client()?
+            .stop(&mut Stack::default())
+            .map_err(display_err)
     }
 
     fn clear(self) -> anyhow::Result<()> {
         self.cyberpixie_client()?
-            .clear_images()
+            .clear_images(&mut Stack::default())
             .map_err(display_err)
     }
 
@@ -210,7 +220,7 @@ impl DeviceHandleInner {
 
         let id = self
             .cyberpixie_client()?
-            .add_image(refresh_rate, strip_len as u16, bytes)
+            .add_image(&mut Stack::default(), refresh_rate, strip_len as u16, bytes)
             .map_err(display_err)?;
         Ok(id.0 as usize)
     }

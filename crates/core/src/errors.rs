@@ -1,4 +1,4 @@
-use core::fmt::Display;
+use core::fmt::Debug;
 
 use displaydoc::Display;
 use postcard::experimental::max_size::MaxSize;
@@ -93,25 +93,25 @@ impl Error {
     /// Creates a new storage read error.
     pub fn storage_read<E>(err: E) -> Self
     where
-        E: Display,
+        E: Debug,
     {
-        log::warn!("A storage read error occurred: {}", err);
+        log::warn!("A storage read error occurred: {err:?}");
         Self::StorageRead
     }
 
     pub fn storage_write<E>(err: E) -> Self
     where
-        E: Display,
+        E: Debug,
     {
-        log::warn!("A storage write error occurred: {}", err);
+        log::warn!("A storage write error occurred: {err:?}");
         Self::StorageWrite
     }
 
     pub fn network<E>(err: E) -> Self
     where
-        E: Display,
+        E: Debug,
     {
-        log::warn!("A network error occurred: {err}");
+        log::warn!("A network error occurred: {err:?}");
         Self::Network
     }
 
@@ -119,9 +119,9 @@ impl Error {
     #[must_use]
     pub fn decode<E>(err: E) -> Self
     where
-        E: Display,
+        E: Debug,
     {
-        log::warn!("A decoding error occurred: {err}");
+        log::warn!("A decoding error occurred: {err:?}");
         Self::Decode
     }
 
@@ -129,18 +129,18 @@ impl Error {
     #[must_use]
     pub fn encode<E>(err: E) -> Self
     where
-        E: Display,
+        E: Debug,
     {
-        log::warn!("An encoding error occurred: {err}");
+        log::warn!("An encoding error occurred: {err:?}");
         Self::Encode
     }
 
     /// Creates a new internal error.
     pub fn internal<E>(err: E) -> Self
     where
-        E: Display,
+        E: Debug,
     {
-        log::warn!("A network error occurred: {err}");
+        log::warn!("A network error occurred: {err:?}");
         Self::Internal
     }
 }

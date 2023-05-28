@@ -1,7 +1,6 @@
 use cyberpixie_core::{
     proto::types::Hertz,
-    service::{Image, ImageLines},
-    storage::ImageReader,
+    storage::{Image, ImageLines, ImageReader},
     ExactSizeRead,
 };
 use embedded_io::{

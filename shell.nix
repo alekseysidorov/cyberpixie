@@ -9,6 +9,12 @@ pkgs.mkShell {
     # Dependencies for the code formatting utility
     dprint
     nixpkgs-fmt
+  ]
+  # Additional frameworks for the Qt application
+  ++ lib.optionals stdenv.isDarwin [
+    darwin.apple_sdk.frameworks.AppKit
+    darwin.apple_sdk.frameworks.OpenGL
+    darwin.apple_sdk.frameworks.AGL
   ];
 
   shellHook = "${pkgs.crossBashPrompt}";

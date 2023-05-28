@@ -70,6 +70,9 @@ pub struct ImageInfo {
     pub strip_len: u16,
 }
 
+#[derive(Serialize, Deserialize, MaxSize, PartialEq, Eq, Clone, Copy, Debug)]
+pub struct FirmwareInfo;
+
 #[derive(
     Serialize,
     Deserialize,

@@ -10,8 +10,9 @@ pio = ["esp-idf-sys/pio"]
 
 [dependencies]
 anyhow = "1"
-cyberpixie-core = { path = "../../crates/core" }
-cyberpixie-std-network = { path = "../../crates/network" }
+cyberpixie-app = { workspace = true }
+cyberpixie-core = { workspace = true }
+cyberpixie-network = { workspace = true }
 embedded-hal = "1.0.0-alpha.10"
 embedded-io = "0.4"
 embedded-svc = "0.25"
@@ -25,6 +26,7 @@ once_cell = "1.16"
 postcard = { version = "1", default-features = false, features = ["use-std"] }
 serde = { version = "1.0", features = ["derive"] }
 smart-leds = "0.3"
+std-embedded-nal = "0.1"
 ws2812-esp32-rmt-driver = "0.5"
 
 [build-dependencies]

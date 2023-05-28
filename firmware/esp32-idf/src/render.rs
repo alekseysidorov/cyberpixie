@@ -9,9 +9,10 @@ use std::{
 };
 
 use anyhow::Context;
+use cyberpixie_app::Storage;
 use cyberpixie_core::{
-    proto::types::Hertz,
-    service::{DeviceStorage, ImageLines},
+    proto::types::{Hertz, ImageId},
+    storage::ImageLines,
     ExactSizeRead, MAX_STRIP_LEN,
 };
 use smart_leds::{SmartLedsWrite, RGB8};
@@ -48,11 +49,12 @@ impl<R, D> Handle<R, D> {
 pub fn start_rendering<R, D>(
     mut render: R,
     storage: D,
+    image_id: ImageId,
     refresh_rate: Hertz,
 ) -> anyhow::Result<Handle<R, D>>
 where
     R: SmartLedsWrite<Color = RGB8> + Send + 'static,
-    D: DeviceStorage + Send + 'static,
+    D: Storage + Send + 'static,
     R::Error: std::fmt::Debug + std::error::Error + Send + Sync + 'static,
     // <D::ImageRead as Io>::Error: std::fmt::Debug + std::error::Error + Send + Sync + 'static,
 {
@@ -69,10 +71,6 @@ where
         .stack_size(7_000)
         .spawn(move || -> anyhow::Result<D> {
             {
-                // Get the current image ID
-                let image_id = storage
-                    .current_image_id()?
-                    .context("There is no images in storage")?;
                 // Create image reader
                 let image = storage.read_image(image_id)?;
                 log::info!("Rendering image with index: {image_id}");

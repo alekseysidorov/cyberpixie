@@ -1,9 +1,10 @@
-use std::{net::SocketAddr, path::PathBuf};
+use std::path::PathBuf;
 
 use clap::{CommandFactory, Parser, Subcommand};
-use cyberpixie_cli::convert_image_to_raw;
+use cyberpixie_cli::{convert_image_to_raw, display_err};
 use cyberpixie_core::proto::types::{Hertz, ImageId};
-use cyberpixie_std_network::create_client;
+use cyberpixie_network::{Client, SocketAddr};
+use std_embedded_nal::Stack;
 
 /// Cyberpixie device manipulation utility
 ///
@@ -14,7 +15,7 @@ use cyberpixie_std_network::create_client;
 struct Cli {
     /// Device socket address
     #[arg(short, long, default_value = "192.168.71.1:1800")]
-    address: SocketAddr,
+    address: String,
     /// Actual command
     #[command(subcommand)]
     command: Command,
@@ -34,12 +35,12 @@ enum Command {
         refresh_rate: Hertz,
     },
     /// Show image
-    ShowImage {
+    Start {
         /// Image index
         image_id: u16,
     },
     /// Hide currently showing image
-    HideImage,
+    Stop,
     /// Clear all images stored in the device memory
     ClearImages,
     /// Generate shell completions
@@ -54,21 +55,28 @@ fn main() -> anyhow::Result<()> {
     env_logger::init();
 
     let cli = Cli::parse();
-    let address = cli.address;
+    let address: SocketAddr = cli.address.parse().map_err(display_err)?;
+
+    let mut stack = Stack::default();
     match cli.command {
         Command::DeviceInfo => {
             log::info!("Sending firmare info request to {}", address);
 
-            let client = create_client(address)?;
+            let peer_info = Client::connect(&mut stack, address)?.peer_info(&mut stack)?;
             // TODO replace by the full firmware info.
-            log::info!("Got {:#?} from the {}", client.peer_info, address);
+            log::info!("Got {:#?} from the {}", peer_info, address);
         }
 
         Command::AddImage { path, refresh_rate } => {
             let (strip_len, raw) = convert_image_to_raw(&path)?;
 
             log::info!("Sending image {:?}[{}] to {}", path, strip_len, address);
-            let index = create_client(address)?.add_image(refresh_rate, strip_len as u16, &raw)?;
+            let index = Client::connect(&mut stack, address)?.add_image(
+                &mut stack,
+                refresh_rate,
+                strip_len as u16,
+                &raw,
+            )?;
             log::info!(
                 "Image loaded into the device {} with index {}",
                 address,
@@ -76,22 +84,22 @@ fn main() -> anyhow::Result<()> {
             );
         }
 
-        Command::ShowImage { image_id } => {
+        Command::Start { image_id } => {
             log::info!("Sending show image command to {address}");
-            create_client(address)?.show_image(ImageId(image_id))?;
+            Client::connect(&mut stack, address)?.start(&mut stack, ImageId(image_id))?;
             log::info!("Showing image with id {image_id}");
         }
 
-        Command::HideImage => {
+        Command::Stop => {
             log::info!("Sending hide image command to {address}");
-            create_client(address)?.hide_image()?;
+            Client::connect(&mut stack, address)?.stop(&mut stack)?;
             log::info!("Hide a currently showing image");
         }
 
         Command::ClearImages => {
             log::info!("Sending clear images command to {address}");
 
-            create_client(address)?.clear_images()?;
+            Client::connect(&mut stack, address)?.clear_images(&mut stack)?;
             log::trace!("Sent images clear command to {address}");
         }
 
