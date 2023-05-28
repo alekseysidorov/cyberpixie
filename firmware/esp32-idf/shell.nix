@@ -1,53 +1,28 @@
 # Shell for the platform independent code parts
 { localSystem ? builtins.currentSystem
 , pkgs ? import ./../../nix { inherit localSystem; }
-, target ? "esp32s3" # "esp32c3"
+, target ? null
 }:
 let
-  # Partitions file.
-  partitions = ./partitions.csv;
-  # Firmware runner command.
-  firmwareRunner = "espflash flash --monitor --partition-table ${partitions}";
-  # Target specific variables and shell hooks.
-  targetConfig = {
-    esp32c3 = {
-      shellHook = ''
-        # Disable Native compiler in shell
-        unset CC; unset CXX
-      '';
-      env = {
-        # Setup the target specific build configuration.
-        CARGO_BUILD_TARGET = "riscv32imc-esp-espidf";
-        CARGO_TARGET_RISCV32IMC_ESP_ESPIDF_LINKER = "ldproxy";
-        CARGO_TARGET_RISCV32IMC_ESP_ESPIDF_RUSTFLAGS = "-C default-linker-libraries --cfg espidf_time64";
-        CARGO_TARGET_RISCV32IMC_ESP_ESPIDF_RUNNER = firmwareRunner;
-        # It's impossible to use the rustPlatform.bindgenHook, 
-        # but we have to provide the path to the libclang anyway.
-        LIBCLANG_PATH = "${pkgs.llvmPackages_14.libclang.lib}/lib";
-      };
-      nativeBuildInputs = [ pkgs.rustToolchain ];
-    };
+  # Read a cargo build configuration toml
+  cargoConfigUtils = pkgs.cargoConfigUtils.fromFile ./.cargo/config.toml;
+  # Set a cargo build target
+  cargoTarget =
+    if target == null then cargoConfigUtils.target
+    else target;
 
-    esp32s3 = {
-      shellHook = ''
-        # Disable Native compiler in shell
-        unset CC; unset CXX
+  # Extra shell hook for the xtensa targets
+  extraShellHook =
+    if target == "xtensa-esp32s3-espidf"
+    then
+      ''
         # Install esp toolchain
         espup install -f /tmp/export-esh.sh -t esp32s3
         . /tmp/export-esh.sh
-      '';
-      env = {
-        CARGO_BUILD_TARGET = "xtensa-esp32s3-espidf";
-        CARGO_TARGET_XTENSA_ESP32S3_ESPIDF_LINKER = "ldproxy";
-        CARGO_TARGET_XTENSA_ESP32S3_ESPIDF_RUSTFLAGS = "--cfg espidf_time64";
-        CARGO_TARGET_XTENSA_ESP32S3_ESPIDF_RUNNER = firmwareRunner;
-        RUSTUP_TOOLCHAIN = "esp";
-      };
-      nativeBuildInputs = [ ];
-    };
-  };
-
-  shellPrompt = pkgs.mkBashPrompt target;
+        # Override rustup toolchain to esp
+        export RUSTUP_TOOLCHAIN=esp
+      ''
+    else '''';
 in
 pkgs.mkShell {
   nativeBuildInputs = with pkgs; [
@@ -59,21 +34,17 @@ pkgs.mkShell {
     # Utilites to flash firmware to the device
     espflash
     cargo-espflash
-  ] ++ targetConfig.${target}.nativeBuildInputs;
-
-  env = {
-    # Enable unstable cargo features
-    CARGO_UNSTABLE_BUILD_STD = "std,panic_abort";
-    # Builds against ESP-IDF stable (v4.4)
-    ESP_IDF_VERSION = "release/v5.0";
-  } // targetConfig.${target}.env;
-
+  ];
+  env = cargoConfigUtils.env // {
+    # Override cargo build target
+    CARGO_BUILD_TARGET = cargoTarget;
+  };
   shellHook = ''
     # Disable Native compiler in shell
     unset CC; unset CXX
     # Invoke target specific shell hook
-    ${targetConfig.${target}.shellHook}
+    ${extraShellHook}
     # Setup nice bash prompt
-    ${shellPrompt}
+    ${pkgs.mkBashPrompt cargoTarget}
   '';
 }
