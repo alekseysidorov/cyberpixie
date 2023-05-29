@@ -9,7 +9,7 @@ use ws2812_esp32_rmt_driver::Ws2812Esp32Rmt;
 
 const TICK_DELAY: u32 = 3;
 const STRIP_LEN: usize = 24;
-const LED_PIN: u32 = 8;
+const LED_PIN: u32 = 7;
 
 fn main() -> anyhow::Result<()> {
     // Temporary. Will disappear once ESP-IDF 4.4 is released, but for now it is necessary to call this function once,
@@ -21,6 +21,7 @@ fn main() -> anyhow::Result<()> {
 
     // Clear strip
     strip.write(std::iter::repeat(RGB8::default()).take(144))?;
+    return Ok(());
 
     for brightness in 16..128 {
         println!("Printing line with brightness {brightness}");

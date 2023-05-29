@@ -24,9 +24,9 @@ let
         export RUSTUP_TOOLCHAIN=esp
       ''
     else ''
-        # It's impossible to use the rustPlatform.bindgenHook, 
-        # but we have to provide the path to the libclang anyway.
-        export LIBCLANG_PATH="${pkgs.llvmPackages.libclang.lib}/lib";
+      # It's impossible to use the rustPlatform.bindgenHook, 
+      # but we have to provide the path to the libclang anyway.
+      export LIBCLANG_PATH="${pkgs.llvmPackages.libclang.lib}/lib";
     '';
   # Extra native build inputs
   extraNativeBuildInputs = with pkgs;

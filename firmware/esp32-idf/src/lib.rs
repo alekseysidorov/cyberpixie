@@ -11,7 +11,13 @@
 )]
 
 use cyberpixie_app::{
-    core::{proto::{types::{FirmwareInfo, ImageId}, PayloadReader}, ExactSizeRead},
+    core::{
+        proto::{
+            types::{FirmwareInfo, ImageId},
+            PayloadReader,
+        },
+        ExactSizeRead,
+    },
     Board, Configuration, CyberpixieError, CyberpixieResult, Storage,
 };
 use embedded_io::blocking::Read;
@@ -92,7 +98,9 @@ where
 
     fn show_debug_message<P: Read>(&self, mut payload: PayloadReader<P>) -> CyberpixieResult<()> {
         let mut buf = vec![0_u8; payload.bytes_remaining()];
-        payload.read_exact(&mut buf).map_err(CyberpixieError::network)?;
+        payload
+            .read_exact(&mut buf)
+            .map_err(CyberpixieError::network)?;
         log::debug!("{}", String::from_utf8_lossy(&buf));
         Ok(())
     }

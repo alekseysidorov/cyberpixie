@@ -16,6 +16,7 @@
 )]
 
 pub use connection::{Connection, IncomingMessage, Message};
+pub use cyberpixie_core as core;
 use cyberpixie_core::{
     proto::{
         types::{Hertz, ImageId, ImageInfo, PeerInfo},
@@ -23,7 +24,6 @@ use cyberpixie_core::{
     },
     Error as CyberpixieError, Result as CyberpixieResult,
 };
-pub use cyberpixie_core as core;
 pub use embedded_nal::SocketAddr;
 use embedded_nal::{TcpClientStack, TcpFullStack};
 

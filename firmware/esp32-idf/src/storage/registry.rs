@@ -6,7 +6,7 @@ use cyberpixie_app::{
         storage::{BlockReader, Image},
         Error as CyberpixieError, ExactSizeRead,
     },
-    Configuration, Storage, CyberpixieResult,
+    Configuration, CyberpixieResult, Storage,
 };
 use esp_idf_sys::EspError;
 use log::info;
