@@ -15,3 +15,6 @@ hal = { package = "esp32c3-hal", version = "0.9.0" }
 # Common
 heapless = { workspace = true }
 smart-leds = "0.3"
+
+# Cyberpixie
+# cyberpixie-app = { workspace = true }

@@ -23,7 +23,7 @@ exclude = [
 [workspace.dependencies]
 # Workspace crates
 cyberpixie-app = { path = "crates/app" }
-cyberpixie-core = { path = "crates/core", features = ["std"] }
+cyberpixie-core = { path = "crates/core" }
 cyberpixie-network = { path = "crates/network" }
 
 # Common dependencies

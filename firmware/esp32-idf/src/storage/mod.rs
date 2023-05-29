@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use cyberpixie_core::storage::DEFAULT_BLOCK_SIZE;
+use cyberpixie_app::core::storage::DEFAULT_BLOCK_SIZE;
 use esp_idf_svc::nvs::{EspNvs, EspNvsPartition, NvsDefault};
 use once_cell::sync::Lazy;
 

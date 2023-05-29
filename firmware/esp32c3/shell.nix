@@ -8,8 +8,15 @@ let
   shellPrompt = pkgs.mkBashPrompt cargoConfigUtils.target;
 in
 pkgs.mkShell {
+  nativeBuildInputs = with pkgs; [
+    rustBuildHostDependencies
+    # Utilites to flash firmware to the device
+    espflash
+    cargo-espflash
+  ];
 
   env = cargoConfigUtils.env;
+
   shellHook = ''
       # Setup nice bash prompt
     ${shellPrompt}

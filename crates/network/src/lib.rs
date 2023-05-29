@@ -23,6 +23,7 @@ use cyberpixie_core::{
     },
     Error as CyberpixieError, Result as CyberpixieResult,
 };
+pub use cyberpixie_core as core;
 pub use embedded_nal::SocketAddr;
 use embedded_nal::{TcpClientStack, TcpFullStack};
 

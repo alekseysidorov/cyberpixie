@@ -9,11 +9,13 @@ use std::{
 };
 
 use anyhow::Context;
-use cyberpixie_app::Storage;
-use cyberpixie_core::{
-    proto::types::{Hertz, ImageId},
-    storage::ImageLines,
-    ExactSizeRead, MAX_STRIP_LEN,
+use cyberpixie_app::{
+    core::{
+        proto::types::{Hertz, ImageId},
+        storage::ImageLines,
+        ExactSizeRead, MAX_STRIP_LEN,
+    },
+    Storage,
 };
 use smart_leds::{SmartLedsWrite, RGB8};
 

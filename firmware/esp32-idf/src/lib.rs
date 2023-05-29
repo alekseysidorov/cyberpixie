@@ -10,8 +10,10 @@
     clippy::cast_precision_loss
 )]
 
-use cyberpixie_app::{Board, Configuration, Storage};
-use cyberpixie_core::proto::types::FirmwareInfo;
+use cyberpixie_app::{
+    core::proto::types::{FirmwareInfo, ImageId},
+    Board, Configuration, CyberpixieError, CyberpixieResult, Storage,
+};
 use smart_leds::{SmartLedsWrite, RGB8};
 use storage::ImagesRegistry;
 
@@ -65,23 +67,20 @@ where
     fn start_rendering(
         &mut self,
         storage: Self::Storage,
-        image_id: cyberpixie_core::proto::types::ImageId,
-    ) -> cyberpixie_core::Result<Self::RenderTask> {
+        image_id: ImageId,
+    ) -> CyberpixieResult<Self::RenderTask> {
         let Some(render) = self.render.take() else {
-            return Err(cyberpixie_core::Error::ImageRenderIsBusy)
+            return Err(CyberpixieError::ImageRenderIsBusy)
         };
 
         let refresh_rate = storage.read_image(image_id)?.refresh_rate;
         let handle = render::start_rendering(render, self.storage, image_id, refresh_rate)
-            .map_err(cyberpixie_core::Error::internal)?;
+            .map_err(CyberpixieError::internal)?;
         Ok(handle)
     }
 
-    fn stop_rendering(
-        &mut self,
-        handle: Self::RenderTask,
-    ) -> cyberpixie_core::Result<Self::Storage> {
-        let (render, storage) = handle.stop().map_err(cyberpixie_core::Error::internal)?;
+    fn stop_rendering(&mut self, handle: Self::RenderTask) -> CyberpixieResult<Self::Storage> {
+        let (render, storage) = handle.stop().map_err(CyberpixieError::internal)?;
         self.render = Some(render);
         Ok(storage)
     }

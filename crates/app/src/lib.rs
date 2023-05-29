@@ -1,11 +1,13 @@
 //! Cyberpixie application
 
+pub use cyberpixie_core as core;
 use cyberpixie_core::{
     proto::types::{FirmwareInfo, Hertz, ImageId},
     storage::Image,
     ExactSizeRead,
 };
 pub use cyberpixie_core::{Error as CyberpixieError, Result as CyberpixieResult};
+pub use cyberpixie_network as network;
 use embedded_io::blocking::Seek;
 use embedded_nal::TcpFullStack;
 use serde::{Deserialize, Serialize};

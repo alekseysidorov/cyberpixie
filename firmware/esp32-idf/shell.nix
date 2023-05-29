@@ -10,10 +10,11 @@ let
   cargoTarget =
     if target == null then cargoConfigUtils.target
     else target;
+  isXtensa = target == "xtensa-esp32s3-espidf";
 
   # Extra shell hook for the xtensa targets
   extraShellHook =
-    if target == "xtensa-esp32s3-espidf"
+    if isXtensa
     then
       ''
         # Install esp toolchain
@@ -22,7 +23,18 @@ let
         # Override rustup toolchain to esp
         export RUSTUP_TOOLCHAIN=esp
       ''
-    else '''';
+    else ''
+        # It's impossible to use the rustPlatform.bindgenHook, 
+        # but we have to provide the path to the libclang anyway.
+        export LIBCLANG_PATH="${pkgs.llvmPackages.libclang.lib}/lib";
+    '';
+  # Extra native build inputs
+  extraNativeBuildInputs = with pkgs;
+    if isXtensa then [
+      espup
+    ] else [
+      rustToolchain
+    ];
 in
 pkgs.mkShell {
   nativeBuildInputs = with pkgs; [
@@ -34,7 +46,7 @@ pkgs.mkShell {
     # Utilites to flash firmware to the device
     espflash
     cargo-espflash
-  ];
+  ] ++ extraNativeBuildInputs;
   env = cargoConfigUtils.env // {
     # Override cargo build target
     CARGO_BUILD_TARGET = cargoTarget;

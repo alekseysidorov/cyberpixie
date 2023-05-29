@@ -32,5 +32,7 @@ fn main() -> ! {
 
     println!("Hello world!");
 
-    loop {}
+    loop {
+        core::hint::spin_loop();
+    }
 }

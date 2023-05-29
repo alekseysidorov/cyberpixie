@@ -10,9 +10,7 @@ pio = ["esp-idf-sys/pio"]
 
 [dependencies]
 anyhow = "1"
-cyberpixie-app = { workspace = true }
-cyberpixie-core = { workspace = true }
-cyberpixie-network = { workspace = true }
+cyberpixie-app = { workspace = true, features = ["std"] }
 embedded-hal = "1.0.0-alpha.10"
 embedded-io = "0.4"
 embedded-svc = "0.25"

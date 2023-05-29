@@ -1,12 +1,13 @@
 use std::fmt::Display;
 
-use cyberpixie_app::{Configuration, Storage};
-use cyberpixie_core::{
-    proto::types::{Hertz, ImageId},
-    storage::{BlockReader, Image},
-    Error as CyberpixieError, ExactSizeRead,
+use cyberpixie_app::{
+    core::{
+        proto::types::{Hertz, ImageId},
+        storage::{BlockReader, Image},
+        Error as CyberpixieError, ExactSizeRead,
+    },
+    Configuration, Storage, CyberpixieResult,
 };
-use embedded_svc::storage::RawStorage;
 use esp_idf_sys::EspError;
 use log::info;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -46,7 +47,7 @@ impl ImagesRegistry {
         }
     }
 
-    fn set<T>(name: &str, value: &T) -> cyberpixie_core::Result<()>
+    fn set<T>(name: &str, value: &T) -> CyberpixieResult<()>
     where
         T: Serialize,
     {
@@ -71,7 +72,7 @@ impl ImagesRegistry {
             .map_err(CyberpixieError::decode)
     }
 
-    fn set_raw(name: &str, buf: &[u8]) -> cyberpixie_core::Result<bool> {
+    fn set_raw(name: &str, buf: &[u8]) -> CyberpixieResult<bool> {
         STORAGE
             .lock()
             .unwrap()
@@ -83,7 +84,7 @@ impl ImagesRegistry {
         STORAGE.lock().unwrap().get_raw(name, buf)
     }
 
-    fn remove(name: &str) -> cyberpixie_core::Result<bool> {
+    fn remove(name: &str) -> CyberpixieResult<bool> {
         info!("Removing '{name}' entry...");
         STORAGE
             .lock()
@@ -96,12 +97,12 @@ impl ImagesRegistry {
         Self::set("img.count", &count).map_err(CyberpixieError::storage_write)
     }
 
-    fn read_image_header(image_index: ImageId) -> cyberpixie_core::Result<ImageHeader> {
+    fn read_image_header(image_index: ImageId) -> CyberpixieResult<ImageHeader> {
         Self::get(&format!("img.{image_index}.header"))?.ok_or(CyberpixieError::StorageRead)
     }
 }
 
-pub type ImageReader<'a> = cyberpixie_core::storage::ImageReader<BlockReaderImpl<'a>, Vec<u8>>;
+pub type ImageReader<'a> = cyberpixie_app::core::storage::ImageReader<BlockReaderImpl<'a>, Vec<u8>>;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct BlockReadError(pub EspError);
@@ -161,12 +162,12 @@ impl Storage for ImagesRegistry {
     where
         Self: 'a;
 
-    fn config(&self) -> cyberpixie_core::Result<Configuration> {
+    fn config(&self) -> CyberpixieResult<Configuration> {
         let config = Self::get("config")?;
         Ok(config.unwrap_or(self.default_config))
     }
 
-    fn set_config(&mut self, new: Configuration) -> cyberpixie_core::Result<()> {
+    fn set_config(&mut self, new: Configuration) -> CyberpixieResult<()> {
         // TODO Implement checks.
         Self::set("config", &new).map_err(CyberpixieError::storage_write)
     }
@@ -175,7 +176,7 @@ impl Storage for ImagesRegistry {
         &mut self,
         refresh_rate: Hertz,
         mut image: R,
-    ) -> cyberpixie_core::Result<ImageId> {
+    ) -> CyberpixieResult<ImageId> {
         let image_index = self.images_count()?;
 
         // Save image header.
@@ -209,7 +210,7 @@ impl Storage for ImagesRegistry {
     fn read_image(
         &self,
         image_id: ImageId,
-    ) -> cyberpixie_core::Result<cyberpixie_app::ImageReader<'_, Self>> {
+    ) -> CyberpixieResult<cyberpixie_app::ImageReader<'_, Self>> {
         let images_count = self.images_count()?;
 
         if image_id >= images_count {
@@ -228,13 +229,13 @@ impl Storage for ImagesRegistry {
         Ok(image)
     }
 
-    fn images_count(&self) -> cyberpixie_core::Result<ImageId> {
+    fn images_count(&self) -> CyberpixieResult<ImageId> {
         Self::get("img.count")
             .map(Option::unwrap_or_default)
             .map_err(CyberpixieError::storage_read)
     }
 
-    fn clear_images(&mut self) -> cyberpixie_core::Result<()> {
+    fn clear_images(&mut self) -> CyberpixieResult<()> {
         let images_count = self.images_count()?;
 
         info!("Deleting {images_count} images...");

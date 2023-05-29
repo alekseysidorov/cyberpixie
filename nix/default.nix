@@ -60,16 +60,16 @@ let
               targetConfig = config.target.${target};
               targetInfix = "_" + (final.toEnvInfix target);
               # Combine the entire env variables
-              env = { 
+              env = {
                 # Set the cargo build target
-                CARGO_BUILD_TARGET = target; 
-                }
-                # Append target specific variables
-                // (mkEnvFromTargetConfig targetConfig targetInfix)
-                # Append unstable features
-                // lib.optionalAttrs (builtins.hasAttr "unstable" config) (final.unstableFlagsToEnv config.unstable target)
-                // lib.optionalAttrs (builtins.hasAttr "env" config) config.env
-                ;
+                CARGO_BUILD_TARGET = target;
+              }
+              # Append target specific variables
+              // (mkEnvFromTargetConfig targetConfig targetInfix)
+              # Append unstable features
+              // lib.optionalAttrs (builtins.hasAttr "unstable" config) (final.unstableFlagsToEnv config.unstable target)
+              // lib.optionalAttrs (builtins.hasAttr "env" config) config.env
+              ;
             in
             {
               inherit target config env;
