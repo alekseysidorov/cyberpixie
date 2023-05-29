@@ -3,7 +3,7 @@
 //! This crate provides a implementation agnostic network layer for the cyberpixie project.
 
 #![cfg_attr(not(any(feature = "std", test)), no_std)]
-// Linters configuration
+// Linter configuration
 #![warn(unsafe_code, missing_copy_implementations)]
 #![warn(clippy::pedantic)]
 #![warn(clippy::use_self)]

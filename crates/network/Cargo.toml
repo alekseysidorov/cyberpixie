@@ -5,7 +5,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1"
 cyberpixie-core = { workspace = true }
 embedded-io = "0.4"
 embedded-nal = "0.6"

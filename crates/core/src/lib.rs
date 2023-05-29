@@ -1,4 +1,5 @@
 #![cfg_attr(not(any(feature = "std", test)), no_std)]
+// Linter configuration
 #![warn(unsafe_code, missing_copy_implementations)]
 #![warn(clippy::pedantic)]
 #![warn(clippy::use_self, clippy::missing_const_for_fn)]

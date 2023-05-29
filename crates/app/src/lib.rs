@@ -1,14 +1,20 @@
 //! Cyberpixie application
 
+#![cfg_attr(not(any(feature = "std", test)), no_std)]
+// Linter configuration
+
 pub use cyberpixie_core as core;
 use cyberpixie_core::{
-    proto::types::{FirmwareInfo, Hertz, ImageId},
+    proto::{
+        types::{FirmwareInfo, Hertz, ImageId},
+        PayloadReader,
+    },
     storage::Image,
     ExactSizeRead,
 };
 pub use cyberpixie_core::{Error as CyberpixieError, Result as CyberpixieResult};
 pub use cyberpixie_network as network;
-use embedded_io::blocking::Seek;
+use embedded_io::blocking::{Read, Seek};
 use embedded_nal::TcpFullStack;
 use serde::{Deserialize, Serialize};
 
@@ -46,6 +52,17 @@ pub trait Board {
     fn stop_rendering(&mut self, handle: Self::RenderTask) -> CyberpixieResult<Self::Storage>;
     /// Returns a board firmware information.
     fn firmware_info(&self) -> FirmwareInfo;
+
+    /// Shows a debug message.
+    ///
+    /// Default implementation just do nothing.
+    fn show_debug_message<R: Read>(&self, mut payload: PayloadReader<R>) -> CyberpixieResult<()> {
+        while payload.bytes_remaining() != 0 {
+            let mut byte = [0_u8];
+            payload.read(&mut byte).map_err(CyberpixieError::network)?;
+        }
+        Ok(())
+    }
 }
 
 /// A global application configuration.

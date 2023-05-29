@@ -1,14 +1,10 @@
 //! Cybeprixie application business-logic implementation
 
-use cyberpixie_core::{
-    proto::{
-        types::{DeviceInfo, DeviceRole, ImageInfo, PeerInfo},
-        RequestHeader, ResponseHeader,
-    },
-    ExactSizeRead,
+use cyberpixie_core::proto::{
+    types::{DeviceInfo, DeviceRole, ImageInfo, PeerInfo},
+    RequestHeader, ResponseHeader,
 };
 use cyberpixie_network::{Connection, Listener, SocketAddr};
-use embedded_io::blocking::Read;
 use nb_utils::NbResultExt;
 
 use crate::{Board, CyberpixieError, CyberpixieResult, Storage, NETWORK_PORT};
@@ -83,12 +79,9 @@ impl<B: Board> App<B> {
         self.listener
             .accept(&mut self.network)
             .if_ready(|(address, connection)| {
-                connections.insert(address, connection).map_err(|_| {
-                    CyberpixieError::internal(format!(
-                        "Too many peers, the device cannot handle more than the {} peers",
-                        MAX_CONNECTIONS
-                    ))
-                })?;
+                connections
+                    .insert(address, connection)
+                    .map_err(|_| CyberpixieError::internal("Too many peers"))?;
                 Ok(())
             })?;
         // Poll the entire incoming connections.
@@ -156,15 +149,8 @@ impl<B: Board> App<B> {
             }
 
             RequestHeader::Debug => {
-                // FIXME find the way to put message to debug log level instead of eprintln
-                // and support for unicode
-                if let Some(mut payload) = request.payload {
-                    while payload.bytes_remaining() != 0 {
-                        let mut byte = [0_u8];
-                        payload.read(&mut byte).map_err(CyberpixieError::network)?;
-                        eprint!("{}", byte[0] as char);
-                    }
-                    eprintln!();
+                if let Some(payload) = request.payload {
+                    self.board.show_debug_message(payload)?;
                 }
                 Ok(ResponseHeader::Empty)
             }

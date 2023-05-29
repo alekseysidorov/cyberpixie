@@ -17,4 +17,4 @@ heapless = { workspace = true }
 smart-leds = "0.3"
 
 # Cyberpixie
-# cyberpixie-app = { workspace = true }
+cyberpixie-app = { workspace = true }
