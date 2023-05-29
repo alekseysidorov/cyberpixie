@@ -18,7 +18,7 @@ use embassy_time::{Duration, Instant, Timer};
 use esp_backtrace as _;
 use esp_println::println;
 use hal::{
-    clock::ClockControl,
+    clock::{ClockControl, CpuClock},
     dma::DmaPriority,
     embassy,
     gdma::*,
@@ -29,12 +29,9 @@ use hal::{
     Rtc, IO,
 };
 use smart_leds::{brightness, RGB8};
-use static_cell::StaticCell;
 use ws2812_async::Ws2812;
 
 const NUM_LEDS: usize = 24;
-
-static EXECUTOR: StaticCell<Executor> = StaticCell::new();
 
 #[embassy_executor::task]
 async fn spi_task(spi: &'static mut SpiType<'static>) {
@@ -102,9 +99,11 @@ fn wheel(mut wheel_pos: u8) -> RGB8 {
 #[entry]
 fn main() -> ! {
     esp_println::println!("Init!");
+
     let peripherals = Peripherals::take();
     let mut system = peripherals.SYSTEM.split();
-    let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
+
+    let clocks = ClockControl::configure(system.clock_control, CpuClock::Clock160MHz).freeze();
 
     let mut rtc = Rtc::new(peripherals.RTC_CNTL);
     let timer_group0 = TimerGroup::new(
@@ -126,11 +125,7 @@ fn main() -> ! {
     wdt0.disable();
     wdt1.disable();
 
-    embassy::init(
-        &clocks,
-        hal::systimer::SystemTimer::new(peripherals.SYSTIMER),
-    );
-
+    embassy::init(&clocks, timer_group0.timer0);
     hal::interrupt::enable(
         hal::peripherals::Interrupt::DMA_CH0,
         hal::interrupt::Priority::Priority1,
@@ -169,7 +164,7 @@ fn main() -> ! {
 
     let dummy = singleton!(());
 
-    let executor = EXECUTOR.init(Executor::new());
+    let executor = singleton!(Executor::new());
     executor.run(|spawner| {
         spawner.spawn(spi_task(spi)).ok();
         spawner.spawn(dummy_task(dummy)).ok();
