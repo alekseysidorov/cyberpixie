@@ -2,25 +2,31 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
-use cyberpixie_esp32c3::singleton;
+use cyberpixie_app::core::proto::types::Hertz;
+use cyberpixie_esp32c3::{singleton, wheel, SpiType, NUM_LEDS};
 use embassy_executor::Executor;
 use embassy_net::{
     tcp::TcpSocket, Config, IpListenEndpoint, Ipv4Address, Ipv4Cidr, Stack, StaticConfig,
 };
-use embassy_time::{Duration, Timer};
+use embassy_time::{Duration, Instant, Timer};
 use embedded_svc::wifi::{AccessPointConfiguration, Configuration, Wifi};
 use esp_backtrace as _;
 use esp_println::{logger::init_logger, print, println};
 use esp_wifi::wifi::{WifiController, WifiDevice, WifiEvent, WifiMode, WifiState};
 use hal::{
     clock::{ClockControl, CpuClock},
+    dma::DmaPriority,
     embassy,
+    gdma::Gdma,
     peripherals::Peripherals,
     prelude::*,
+    spi::SpiMode,
     systimer::SystemTimer,
     timer::TimerGroup,
-    Rng, Rtc,
+    Rng, Rtc, Spi, IO,
 };
+use smart_leds::{brightness, RGB8};
+use ws2812_async::Ws2812;
 
 #[entry]
 fn main() -> ! {
@@ -82,20 +88,62 @@ fn main() -> ! {
         1234
     ));
 
+    // Initialize LED strip SPI
+
+    hal::interrupt::enable(
+        hal::peripherals::Interrupt::DMA_CH0,
+        hal::interrupt::Priority::Priority1,
+    )
+    .unwrap();
+
+    let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
+    let sclk = io.pins.gpio6;
+    let miso = io.pins.gpio2;
+    let mosi = io.pins.gpio7;
+    let cs = io.pins.gpio10;
+
+    let dma = Gdma::new(peripherals.DMA, &mut system.peripheral_clock_control);
+    let dma_channel = dma.channel0;
+
+    let descriptors = singleton!([0u32; 8 * 3]);
+    let rx_descriptors = singleton!([0u32; 8 * 3]);
+
+    let spi = singleton!(Spi::new(
+        peripherals.SPI2,
+        sclk,
+        mosi,
+        miso,
+        cs,
+        3800u32.kHz(),
+        SpiMode::Mode0,
+        &mut system.peripheral_clock_control,
+        &clocks,
+    )
+    .with_dma(dma_channel.configure(
+        false,
+        descriptors,
+        rx_descriptors,
+        DmaPriority::Priority0,
+    )));
+
     // Spawn Embassy executor
     let executor = singleton!(Executor::new());
     executor.run(|spawner| {
+        // Wifi Network.
         spawner.spawn(connection(controller)).ok();
-        spawner.spawn(net_task(stack)).ok();
+        spawner.spawn(net_task(stack)).unwrap();
         spawner.spawn(task(stack)).ok();
+        // LED Render.
+        spawner.spawn(led_render_task(spi)).unwrap();
     })
 }
 
 #[embassy_executor::task]
 async fn connection(mut controller: WifiController<'static>) {
-    println!("start connection task");
-    println!("Device capabilities: {:?}", controller.get_capabilities());
+    log::info!("start connection task");
+    log::info!("Device capabilities: {:?}", controller.get_capabilities());
 
+    log::info!("Waiting for a next wifi state!");
     match esp_wifi::wifi::get_wifi_state() {
         WifiState::ApStart => {
             // wait until we're no longer connected
@@ -103,19 +151,22 @@ async fn connection(mut controller: WifiController<'static>) {
             Timer::after(Duration::from_millis(5000)).await
         }
         other => {
-            println!("Wifi state changed to {other:?}")
+            log::info!("Wifi state changed to {other:?}")
         }
     }
+
     if !matches!(controller.is_started(), Ok(true)) {
         let client_config = Configuration::AccessPoint(AccessPointConfiguration {
             ssid: "esp-wifi".into(),
             ..Default::default()
         });
         controller.set_configuration(&client_config).unwrap();
-        println!("Starting wifi");
+        log::info!("Starting wifi");
         controller.start().await.unwrap();
-        println!("Wifi started!");
+        log::info!("Wifi started!");
     }
+
+    log::info!("Wifi connection task finished");
 }
 
 #[embassy_executor::task]
@@ -135,7 +186,7 @@ async fn task(stack: &'static Stack<WifiDevice<'static>>) {
         Timer::after(Duration::from_millis(500)).await;
     }
 
-    println!("Network config is {:?}", stack.config());
+    log::info!("Network config is {:?}", stack.config());
     let mut socket = TcpSocket::new(stack, &mut rx_buffer, &mut tx_buffer);
     socket.set_timeout(Some(embassy_net::SmolDuration::from_secs(10)));
     loop {
@@ -207,5 +258,54 @@ async fn task(stack: &'static Stack<WifiDevice<'static>>) {
         Timer::after(Duration::from_millis(1000)).await;
 
         socket.abort();
+    }
+}
+
+#[embassy_executor::task]
+async fn led_render_task(spi: &'static mut SpiType<'static>) {
+    let rate = Hertz(800);
+    let frame_duration = Duration::from_hz(rate.0 as u64);
+
+    log::info!("Start LED strip rendering task with refresh rate: {rate}hz");
+
+    const LED_BUF_LEN: usize = 12 * NUM_LEDS;
+
+    let mut ws: Ws2812<_, LED_BUF_LEN> = Ws2812::new(spi);
+
+    ws.write(core::iter::repeat(RGB8::default()).take(NUM_LEDS))
+        .await
+        .unwrap();
+    log::info!("LED strip has been cleaned up");
+    loop {
+        let counts = 10_000;
+        let mut total_render_time = 0;
+        let mut dropped_frames = 0;
+
+        for j in 0..counts {
+            let now = Instant::now();
+
+            let data = (0..NUM_LEDS)
+                .map(|i| wheel((((i * 256) as u16 / NUM_LEDS as u16 + j as u16) & 255) as u8));
+            ws.write(brightness(data, 16)).await.unwrap();
+
+            let elapsed = now.elapsed().as_micros();
+            total_render_time += elapsed;
+
+            if now.elapsed() <= frame_duration {
+                let next_frame_time = now + frame_duration;
+                Timer::at(next_frame_time).await;
+            } else {
+                dropped_frames += 1;
+            }
+        }
+
+        let line_render_time = total_render_time as f32 / counts as f32;
+        log::info!("-> Total rendering time {total_render_time}us");
+        log::info!("-> per line: {line_render_time}us");
+        log::info!(
+            "-> Average frame rendering frame rate is {}Hz",
+            1_000_000f32 / line_render_time
+        );
+        log::info!("-> dropped frames: {dropped_frames}");
     }
 }
