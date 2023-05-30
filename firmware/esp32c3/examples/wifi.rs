@@ -9,7 +9,6 @@ use embassy_net::{
 };
 use embassy_time::{Duration, Timer};
 use embedded_svc::wifi::{AccessPointConfiguration, Configuration, Wifi};
-use esp_backtrace as _;
 use esp_println::{logger::init_logger, print, println};
 use esp_wifi::wifi::{WifiController, WifiDevice, WifiEvent, WifiMode, WifiState};
 use hal::{
@@ -22,10 +21,13 @@ use hal::{
     Rng, Rtc,
 };
 
+use esp_backtrace as _;
+
 #[entry]
 fn main() -> ! {
     init_logger(log::LevelFilter::Info);
 
+ // Initialize peripherals
     let peripherals = Peripherals::take();
     let mut system = peripherals.SYSTEM.split();
 

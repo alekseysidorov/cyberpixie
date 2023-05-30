@@ -1,6 +1,6 @@
 //! WS2812b render example on top of the Embassy SPI
 //!
-//! Folowing pins are used:
+//! Following pins are used:
 //! SCLK    GPIO6
 //! MISO    GPIO2
 //! MOSI    GPIO7
@@ -12,7 +12,7 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
-use cyberpixie_esp32c3::{singleton, SpiType, wheel, NUM_LEDS};
+use cyberpixie_esp32c3::{singleton, wheel, SpiType, NUM_LEDS};
 use embassy_executor::Executor;
 use embassy_time::{Duration, Instant, Timer};
 use esp_backtrace as _;
@@ -83,6 +83,7 @@ async fn dummy_task(_nope: &'static mut ()) {
 fn main() -> ! {
     esp_println::println!("Init!");
 
+    // Initialize peripherals
     let peripherals = Peripherals::take();
     let mut system = peripherals.SYSTEM.split();
 

@@ -10,7 +10,7 @@ opt-level = 3
 lto = "fat"
 
 [target.riscv32imc-unknown-none-elf]
-runner = "espflash flash --monitor"
+runner = "espflash flash --monitor --partition-table .cargo/partitions.csv"
 rustflags = [
   "-C",
   "link-arg=-Tlinkall.x",

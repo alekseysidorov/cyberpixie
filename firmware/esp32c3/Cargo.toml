@@ -20,6 +20,10 @@ embedded-io = { version = "0.4", features = ["async"] }
 embedded-svc = { version = "0.25", default-features = false }
 esp-wifi = { git = "https://github.com/esp-rs/esp-wifi.git", rev = "3bb9e8e", features = ["esp32c3", "embedded-svc", "wifi", "embassy-net"] }
 
+# Storage
+embedded-storage = "0.3"
+esp-storage = { version = "0.1.0", features = ["esp32c3"] }
+
 # Common
 heapless = { workspace = true }
 log = "0.4"
