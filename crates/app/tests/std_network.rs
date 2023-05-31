@@ -39,11 +39,9 @@ impl Seek for ImageReadStub {
 }
 
 impl Storage for StorageStub {
-    type ImageReader<'a>     = ImageReadStub
-    where
-        Self: 'a;
+    type ImageRead<'a> = ImageReadStub;
 
-    fn config(&self) -> CyberpixieResult<Configuration> {
+    fn config(&mut self) -> CyberpixieResult<Configuration> {
         Ok(Configuration {
             strip_len: 16,
             current_image: None,
@@ -62,11 +60,14 @@ impl Storage for StorageStub {
         unimplemented!()
     }
 
-    fn read_image(&self, _id: ImageId) -> CyberpixieResult<cyberpixie_app::ImageReader<'_, Self>> {
+    fn read_image(
+        &mut self,
+        _id: ImageId,
+    ) -> CyberpixieResult<cyberpixie_app::ImageReader<'_, Self>> {
         unimplemented!()
     }
 
-    fn images_count(&self) -> CyberpixieResult<ImageId> {
+    fn images_count(&mut self) -> CyberpixieResult<ImageId> {
         Ok(ImageId(0))
     }
 

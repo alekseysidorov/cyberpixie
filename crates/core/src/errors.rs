@@ -154,3 +154,9 @@ impl From<Error> for std::io::Error {
         Self::new(std::io::ErrorKind::Other, err)
     }
 }
+
+impl embedded_io::Error for Error {
+    fn kind(&self) -> embedded_io::ErrorKind {
+        embedded_io::ErrorKind::Other
+    }
+}

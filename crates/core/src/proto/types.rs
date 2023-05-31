@@ -1,5 +1,6 @@
 use core::{fmt::Display, str::FromStr, time::Duration};
 
+use endian_codec::{DecodeLE, EncodeLE, PackedSize};
 use postcard::experimental::max_size::MaxSize;
 use serde::{Deserialize, Serialize};
 
@@ -86,6 +87,7 @@ pub struct FirmwareInfo;
     Ord,
     Hash,
     Default,
+    PackedSize,
 )]
 pub struct Hertz(pub u32);
 
@@ -116,6 +118,18 @@ impl FromStr for Hertz {
 impl From<u32> for Hertz {
     fn from(inner: u32) -> Self {
         Self(inner)
+    }
+}
+
+impl EncodeLE for Hertz {
+    fn encode_as_le_bytes(&self, bytes: &mut [u8]) {
+        self.0.encode_as_le_bytes(bytes);
+    }
+}
+
+impl DecodeLE for Hertz {
+    fn decode_from_le_bytes(bytes: &[u8]) -> Self {
+        Self(u32::decode_from_le_bytes(bytes))
     }
 }
 

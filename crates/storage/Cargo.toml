@@ -1,0 +1,27 @@
+[package]
+name = "cyberpixie-embedded-storage"
+version = "0.3.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cyberpixie-app = { workspace = true }
+embedded-io = "0.4"
+embedded-storage = "0.3"
+endian_codec = "0.1"
+heapless = { workspace = true }
+log = "0.4"
+postcard = { version = "1.0", default-features = false }
+serde = { version = "1", default-features = false, features = ["derive"] }
+
+[dev-dependencies]
+env_logger = "0.10"
+
+[features]
+std = ["embedded-io/std", "cyberpixie-app/std"]
+
+[[test]]
+name = "main"
+path = "tests/main.rs"
+required-features = ["std"]
