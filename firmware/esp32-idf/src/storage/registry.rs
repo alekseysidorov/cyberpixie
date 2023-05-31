@@ -158,11 +158,9 @@ impl<'a, const N: usize> BlockReader<N> for BlockReaderImpl<'a> {
 }
 
 impl Storage for ImagesRegistry {
-    type ImageReader<'a> = ImageReader<'a>
-    where
-        Self: 'a;
+    type ImageRead<'a> = ImageReader<'a>;
 
-    fn config(&self) -> CyberpixieResult<Configuration> {
+    fn config(&mut self) -> CyberpixieResult<Configuration> {
         let config = Self::get("config")?;
         Ok(config.unwrap_or(self.default_config))
     }
@@ -208,7 +206,7 @@ impl Storage for ImagesRegistry {
     }
 
     fn read_image(
-        &self,
+        &mut self,
         image_id: ImageId,
     ) -> CyberpixieResult<cyberpixie_app::ImageReader<'_, Self>> {
         let images_count = self.images_count()?;
@@ -229,7 +227,7 @@ impl Storage for ImagesRegistry {
         Ok(image)
     }
 
-    fn images_count(&self) -> CyberpixieResult<ImageId> {
+    fn images_count(&mut self) -> CyberpixieResult<ImageId> {
         Self::get("img.count")
             .map(Option::unwrap_or_default)
             .map_err(CyberpixieError::storage_read)

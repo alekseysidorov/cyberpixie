@@ -62,9 +62,6 @@ fn main() -> ! {
     .unwrap();
     let (wifi, _bluetooth) = peripherals.RADIO.split();
 
-    // Initialize embassy async reactor.
-    embassy::init(&clocks, timer_group0.timer0);
-
     // Network stack configuration.
     let config = Config::Static(StaticConfig {
         address: Ipv4Cidr::new(Ipv4Address::new(192, 168, 88, 1), 24),
@@ -83,7 +80,8 @@ fn main() -> ! {
         1234
     ));
 
-    // Spawn Embassy executor
+    // Initialize and spawn an Embassy async reactor.
+    embassy::init(&clocks, timer_group0.timer0);
     let executor = singleton!(Executor::new());
     executor.run(|spawner| {
         spawner.spawn(connection(controller)).ok();

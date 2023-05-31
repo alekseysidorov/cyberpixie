@@ -24,6 +24,7 @@ exclude = [
 [workspace.dependencies]
 # Workspace crates
 cyberpixie-app = { path = "crates/app" }
+cyberpixie-embedded-storage = { path = "crates/storage" }
 cyberpixie-core = { path = "crates/core" }
 cyberpixie-network = { path = "crates/network" }
 

@@ -73,7 +73,7 @@ where
 
     fn start_rendering(
         &mut self,
-        storage: Self::Storage,
+        mut storage: Self::Storage,
         image_id: ImageId,
     ) -> CyberpixieResult<Self::RenderTask> {
         let Some(render) = self.render.take() else {

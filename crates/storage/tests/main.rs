@@ -15,6 +15,10 @@ fn init_storage() -> StorageImpl<MemoryBackend> {
     StorageImpl::init(
         Configuration::default(),
         MemoryBackend::default(),
+        MemoryLayout {
+            base: 0x9000,
+            size: 0xFFFFF,
+        },
         leaked_buf(),
     )
     .unwrap()

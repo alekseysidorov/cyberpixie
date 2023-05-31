@@ -39,7 +39,7 @@ impl<R, D> Handle<R, D> {
         let render = self
             .rendering_task
             .join()
-            .expect("Unable to fisish an image rendering thread")?;
+            .expect("Unable to finish an image rendering thread")?;
         let device = self
             .reading_task
             .join()
@@ -50,7 +50,7 @@ impl<R, D> Handle<R, D> {
 
 pub fn start_rendering<R, D>(
     mut render: R,
-    storage: D,
+    mut storage: D,
     image_id: ImageId,
     refresh_rate: Hertz,
 ) -> anyhow::Result<Handle<R, D>>
@@ -73,12 +73,12 @@ where
         .stack_size(7_000)
         .spawn(move || -> anyhow::Result<D> {
             {
+                // Create image lines iterator.
+                let strip_len = storage.config()?.strip_len;
                 // Create image reader
                 let image = storage.read_image(image_id)?;
                 log::info!("Rendering image with index: {image_id}");
                 log::info!("image_len: {}", image.bytes.bytes_remaining());
-                // Create image lines iterator.
-                let strip_len = storage.config()?.strip_len;
                 let buf = vec![0_u8; strip_len as usize * 3];
                 let mut lines = ImageLines::new(image, strip_len, buf);
 

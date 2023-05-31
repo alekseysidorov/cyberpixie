@@ -15,6 +15,7 @@ ws2812-async = { version = "0.1.0", git = "https://github.com/alekseysidorov/ws2
 # Async network
 embassy-executor = { version = "0.2.0", features = ["nightly", "integrated-timers", "arch-riscv32", "executor-thread"] }
 embassy-net = { git = "https://github.com/embassy-rs/embassy", rev = "fb27594", features = ["nightly", "tcp", "dhcpv4", "medium-ethernet", "unstable-traits"] }
+embassy-sync = { version = "0.2.0", features = ["nightly"] }
 embassy-time = { version = "0.1.1", features = ["nightly"] }
 embedded-io = { version = "0.4", features = ["async"] }
 embedded-svc = { version = "0.25", default-features = false }
@@ -32,3 +33,4 @@ static_cell = "1"
 
 # Cyberpixie
 cyberpixie-app = { workspace = true }
+cyberpixie-embedded-storage = { workspace = true }

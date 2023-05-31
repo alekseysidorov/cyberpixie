@@ -3,7 +3,7 @@
 #![feature(type_alias_impl_trait)]
 
 use cyberpixie_app::core::proto::types::Hertz;
-use cyberpixie_esp32c3::{singleton, wheel, SpiType, NUM_LEDS};
+use cyberpixie_esp32c3::{singleton, wheel, SpiType};
 use embassy_executor::Executor;
 use embassy_net::{
     tcp::TcpSocket, Config, IpListenEndpoint, Ipv4Address, Ipv4Cidr, Stack, StaticConfig,
@@ -27,6 +27,8 @@ use hal::{
 };
 use smart_leds::{brightness, RGB8};
 use ws2812_async::Ws2812;
+
+const NUM_LEDS: usize = 24;
 
 #[entry]
 fn main() -> ! {

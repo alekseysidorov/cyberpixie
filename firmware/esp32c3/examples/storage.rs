@@ -1,9 +1,12 @@
 #![no_std]
 #![no_main]
+#![feature(type_alias_impl_trait)]
 
-use embedded_storage::{ReadStorage, Storage};
+use cyberpixie_app::{core::proto::types::Hertz, Configuration, Storage};
+use cyberpixie_embedded_storage::StorageImpl;
+use cyberpixie_esp32c3::{singleton, DEFAULT_MEMORY_LAYOUT};
 use esp_backtrace as _;
-use esp_println::{logger::init_logger, println};
+use esp_println::logger::init_logger;
 use esp_storage::FlashStorage;
 use hal::{
     clock::{ClockControl, CpuClock},
@@ -12,6 +15,8 @@ use hal::{
     timer::TimerGroup,
     Rtc,
 };
+
+const RAW_IMAGE: &[u8] = include_bytes!("../../../assets/nyan_cat_24.raw").as_slice();
 
 #[entry]
 fn main() -> ! {
@@ -43,31 +48,18 @@ fn main() -> ! {
     wdt0.disable();
     wdt1.disable();
 
-    let mut bytes = [0u8; 32];
-
-    let mut flash = FlashStorage::new();
-
-    let flash_addr = 0x9000;
-    println!("Flash size = {}", flash.capacity());
-
-    flash.read(flash_addr, &mut bytes).unwrap();
-    println!("Read from {:x}:  {:02x?}", flash_addr, &bytes[..32]);
-
-    bytes[0x00] = bytes[0x00].wrapping_add(1);
-    bytes[0x01] = bytes[0x01].wrapping_add(2);
-    bytes[0x02] = bytes[0x02].wrapping_add(3);
-    bytes[0x03] = bytes[0x03].wrapping_add(4);
-    bytes[0x04] = bytes[0x04].wrapping_add(1);
-    bytes[0x05] = bytes[0x05].wrapping_add(2);
-    bytes[0x06] = bytes[0x06].wrapping_add(3);
-    bytes[0x07] = bytes[0x07].wrapping_add(4);
-
-    flash.write(flash_addr, &bytes).unwrap();
-    println!("Written to {:x}: {:02x?}", flash_addr, &bytes[..32]);
-
-    let mut reread_bytes = [0u8; 32];
-    flash.read(flash_addr, &mut reread_bytes).unwrap();
-    println!("Read from {:x}:  {:02x?}", flash_addr, &reread_bytes[..32]);
+    let mut storage = StorageImpl::init(
+        Configuration::default(),
+        FlashStorage::new(),
+        DEFAULT_MEMORY_LAYOUT,
+        singleton!([0_u8; 512]),
+    )
+    .unwrap();
+    storage.add_image(Hertz(50), RAW_IMAGE).unwrap();
+    log::info!(
+        "Image written: total count is {}",
+        storage.images_count().unwrap()
+    );
 
     loop {
         core::hint::spin_loop();

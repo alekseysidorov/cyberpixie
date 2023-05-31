@@ -23,6 +23,10 @@ use cyberpixie_app::{
     },
     Configuration, CyberpixieError, CyberpixieResult, ImageReader,
 };
+use embedded_io::{
+    blocking::{Read, Seek},
+    Io, SeekFrom,
+};
 use endian_codec::{DecodeLE, EncodeLE, PackedSize};
 use serde::{Deserialize, Serialize};
 
@@ -96,10 +100,11 @@ impl Header {
     /// Reads and decodes header block.
     fn read<T: embedded_storage::Storage>(
         backend: &mut T,
+        layout: MemoryLayout,
         buf: &mut [u8],
     ) -> CyberpixieResult<Self> {
         backend
-            .read(Self::LOCATION, buf)
+            .read(Self::location_offset(layout), buf)
             .map_err(|_| CyberpixieError::StorageRead)?;
 
         postcard::from_bytes(buf).map_err(CyberpixieError::decode)
@@ -109,13 +114,19 @@ impl Header {
     fn write<T: embedded_storage::Storage>(
         &self,
         backend: &mut T,
+        layout: MemoryLayout,
         buf: &mut [u8],
     ) -> CyberpixieResult<()> {
         postcard::to_slice(self, buf).map_err(CyberpixieError::storage_write)?;
 
         backend
-            .write(Self::LOCATION, &buf[0..Self::BLOCK_SIZE])
+            .write(Self::location_offset(layout), &buf[0..Self::BLOCK_SIZE])
             .map_err(|_| CyberpixieError::StorageWrite)
+    }
+
+    /// Calculates the offset of the header block.
+    fn location_offset(layout: MemoryLayout) -> u32 {
+        layout.base + Self::LOCATION
     }
 }
 
@@ -150,14 +161,15 @@ impl PictureLocation {
     fn read<T: embedded_storage::Storage>(
         image_id: ImageId,
         backend: &mut T,
+        layout: MemoryLayout,
         buf: &mut [u8],
     ) -> CyberpixieResult<Self> {
-        Self::location_offset(image_id);
+        Self::location_offset(layout, image_id);
         // Limit read buffer to the offset pair length
         let bytes = &mut buf[0..OFFSET_LEN * 2];
         // Read picture location from the embedded storage.
         backend
-            .read(Self::location_offset(image_id), bytes)
+            .read(Self::location_offset(layout, image_id), bytes)
             .map_err(|_| CyberpixieError::StorageRead)?;
         Ok(Self::decode_from_le_bytes(bytes))
     }
@@ -171,6 +183,7 @@ impl PictureLocation {
         self,
         image_id: ImageId,
         backend: &mut T,
+        layout: MemoryLayout,
         buf: &mut [u8],
     ) -> CyberpixieResult<()> {
         // Limit write buffer to the offset pair length and write location pair to it.
@@ -178,14 +191,23 @@ impl PictureLocation {
         self.encode_as_le_bytes(bytes);
         // Write picture location to the embedded storage.
         backend
-            .write(Self::location_offset(image_id), bytes)
+            .write(Self::location_offset(layout, image_id), bytes)
             .map_err(|_| CyberpixieError::StorageWrite)
     }
 
     /// Calculates the offset of the picture location with the specified ID.
-    fn location_offset(image_id: ImageId) -> u32 {
-        (Self::LOCATION + OFFSET_LEN * usize::from(image_id.0)) as u32
+    fn location_offset(layout: MemoryLayout, image_id: ImageId) -> u32 {
+        layout.base + (Self::LOCATION + OFFSET_LEN * usize::from(image_id.0)) as u32
     }
+}
+
+/// Storage memory layout
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct MemoryLayout {
+    /// Flash address of The base address of the partition beginning.
+    pub base: u32,
+    /// The partition size.
+    pub size: u32,
 }
 
 /// Cyberpixie storage which contains a device configuration parameters and
@@ -196,6 +218,8 @@ impl PictureLocation {
 /// TBD
 pub struct StorageImpl<T: embedded_storage::Storage> {
     backend: T,
+    // Storage memory layout.
+    layout: MemoryLayout,
     // Internal buffer to read and write data.
     buf: &'static mut [u8],
 }
@@ -210,10 +234,18 @@ impl<T: embedded_storage::Storage> StorageImpl<T> {
     /// # Panics
     ///
     /// - if the given buffer length less that the 512 bytes.
-    pub fn open(backend: T, buf: &'static mut [u8]) -> CyberpixieResult<Self> {
+    pub fn open(
+        backend: T,
+        layout: MemoryLayout,
+        buf: &'static mut [u8],
+    ) -> CyberpixieResult<Self> {
         assert!(buf.len() >= Header::BLOCK_SIZE);
 
-        Ok(Self { backend, buf })
+        Ok(Self {
+            backend,
+            layout,
+            buf,
+        })
     }
 
     /// Initializes a new Cyberpixie storage
@@ -226,6 +258,7 @@ impl<T: embedded_storage::Storage> StorageImpl<T> {
     pub fn init(
         config: Configuration,
         mut backend: T,
+        layout: MemoryLayout,
         buf: &'static mut [u8],
     ) -> CyberpixieResult<Self> {
         // Initialize storage memory with a new header block.
@@ -233,9 +266,9 @@ impl<T: embedded_storage::Storage> StorageImpl<T> {
             strip_len: config.strip_len,
             ..Header::default()
         };
-        new_header.write(&mut backend, buf)?;
+        new_header.write(&mut backend, layout, buf)?;
 
-        Self::open(backend, buf)
+        Self::open(backend, layout, buf)
     }
 
     /// Returns a vacant location for a new picture.
@@ -244,11 +277,12 @@ impl<T: embedded_storage::Storage> StorageImpl<T> {
             Ok(PictureLocation::first())
         } else {
             let last_image = ImageId(images_count.0 - 1);
-            PictureLocation::read(last_image, &mut self.backend, self.buf)
+            PictureLocation::read(last_image, &mut self.backend, self.layout, self.buf)
         }
     }
 }
 
+/// Picture file content.
 pub struct PictureFile<'a, T: embedded_storage::ReadStorage> {
     backend: &'a mut T,
     // Begin of file offset
@@ -259,11 +293,11 @@ pub struct PictureFile<'a, T: embedded_storage::ReadStorage> {
     read_pos: u32,
 }
 
-impl<'a, T: embedded_storage::ReadStorage> embedded_io::Io for PictureFile<'a, T> {
+impl<'a, T: embedded_storage::ReadStorage> Io for PictureFile<'a, T> {
     type Error = CyberpixieError;
 }
 
-impl<'a, T: embedded_storage::ReadStorage> embedded_io::blocking::Read for PictureFile<'a, T> {
+impl<'a, T: embedded_storage::ReadStorage> Read for PictureFile<'a, T> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
         let amount = core::cmp::min(buf.len(), self.bytes_remaining());
         // Read amount of bytes from the storage backend to the given buffer.
@@ -278,23 +312,21 @@ impl<'a, T: embedded_storage::ReadStorage> embedded_io::blocking::Read for Pictu
     }
 }
 
-impl<'a, T: embedded_storage::ReadStorage> embedded_io::blocking::Seek for PictureFile<'a, T> {
-    fn seek(&mut self, pos: embedded_io::SeekFrom) -> Result<u64, Self::Error> {
+impl<'a, T: embedded_storage::ReadStorage> Seek for PictureFile<'a, T> {
+    fn seek(&mut self, pos: SeekFrom) -> Result<u64, Self::Error> {
         // Compute a new image read position
-        let new_read_pos = match pos {
-            embedded_io::SeekFrom::Start(pos) => pos,
+        self.read_pos = match pos {
+            SeekFrom::Start(pos) => self.begin_offset + pos as u32,
             // In this project, we only have to read an image from the beginning,
             // so we don't need to implement the whole seek functionality
-            embedded_io::SeekFrom::Current(_) | embedded_io::SeekFrom::End(_) => unimplemented!(),
+            SeekFrom::Current(pos) => self.read_pos.saturating_add_signed(pos as i32),
+            SeekFrom::End(pos) => self.end_offset.saturating_add_signed(pos as i32),
         };
-        self.read_pos = self.begin_offset + new_read_pos as u32;
-        Ok(new_read_pos)
+        Ok(u64::from(self.read_pos))
     }
 }
 
-impl<'a, T: embedded_storage::ReadStorage> cyberpixie_app::core::ExactSizeRead
-    for PictureFile<'a, T>
-{
+impl<'a, T: embedded_storage::ReadStorage> ExactSizeRead for PictureFile<'a, T> {
     fn bytes_remaining(&self) -> usize {
         (self.end_offset - self.read_pos) as usize
     }
@@ -304,14 +336,14 @@ impl<T: embedded_storage::Storage + Send + 'static> cyberpixie_app::Storage for 
     type ImageRead<'a> = PictureFile<'a, T>;
 
     fn config(&mut self) -> CyberpixieResult<Configuration> {
-        let header = Header::read(&mut self.backend, self.buf)?;
+        let header = Header::read(&mut self.backend, self.layout, self.buf)?;
         Ok(header.into())
     }
 
     fn set_config(&mut self, config: Configuration) -> CyberpixieResult<()> {
-        let mut header = Header::read(&mut self.backend, self.buf)?;
+        let mut header = Header::read(&mut self.backend, self.layout, self.buf)?;
         let has_breaking_changes = header.update(config);
-        header.write(&mut self.backend, self.buf)?;
+        header.write(&mut self.backend, self.layout, self.buf)?;
         // Clear images if configuration has breaking changes.
         if has_breaking_changes {
             self.clear_images()?;
@@ -319,12 +351,12 @@ impl<T: embedded_storage::Storage + Send + 'static> cyberpixie_app::Storage for 
         Ok(())
     }
 
-    fn add_image<R: cyberpixie_app::core::ExactSizeRead>(
+    fn add_image<R: ExactSizeRead>(
         &mut self,
         refresh_rate: Hertz,
         mut image: R,
     ) -> CyberpixieResult<ImageId> {
-        let mut header = Header::read(&mut self.backend, self.buf)?;
+        let mut header = Header::read(&mut self.backend, self.layout, self.buf)?;
 
         // Check preconditions
         if header.images_count.0 >= Self::MAX_PICTURES_NUM {
@@ -361,11 +393,11 @@ impl<T: embedded_storage::Storage + Send + 'static> cyberpixie_app::Storage for 
             current: last_picture.next,
             next: offset,
         }
-        .write(image_id, &mut self.backend, self.buf)?;
+        .write(image_id, &mut self.backend, self.layout, self.buf)?;
 
         // Update storage header.
         header.images_count.0 += 1;
-        header.write(&mut self.backend, self.buf)?;
+        header.write(&mut self.backend, self.layout, self.buf)?;
 
         Ok(image_id)
     }
@@ -377,7 +409,7 @@ impl<T: embedded_storage::Storage + Send + 'static> cyberpixie_app::Storage for 
         }
 
         // Get picture location
-        let location = PictureLocation::read(image_id, &mut self.backend, self.buf)?;
+        let location = PictureLocation::read(image_id, &mut self.backend, self.layout, self.buf)?;
 
         // Calculate picture file offsets.
         let mut begin_offset = location.current;
@@ -406,15 +438,15 @@ impl<T: embedded_storage::Storage + Send + 'static> cyberpixie_app::Storage for 
     }
 
     fn images_count(&mut self) -> CyberpixieResult<ImageId> {
-        let header = Header::read(&mut self.backend, self.buf)?;
+        let header = Header::read(&mut self.backend, self.layout, self.buf)?;
         Ok(header.images_count)
     }
 
     fn clear_images(&mut self) -> CyberpixieResult<()> {
-        let mut header = Header::read(&mut self.backend, self.buf)?;
+        let mut header = Header::read(&mut self.backend, self.layout, self.buf)?;
         header.images_count = ImageId(0);
         header.metadata.current_image = None;
-        header.write(&mut self.backend, self.buf)
+        header.write(&mut self.backend, self.layout, self.buf)
     }
 }
 
@@ -424,7 +456,7 @@ mod tests {
 
     use crate::{
         test_utils::{leaked_buf, MemoryBackend},
-        Header, Metadata, PictureLocation, StorageImpl,
+        Header, MemoryLayout, Metadata, PictureLocation, StorageImpl,
     };
 
     impl PictureLocation {
@@ -441,6 +473,10 @@ mod tests {
         StorageImpl::init(
             Configuration::default(),
             MemoryBackend::default(),
+            MemoryLayout {
+                base: 0x9000,
+                size: 0xFFFFF,
+            },
             leaked_buf(),
         )
         .unwrap()
@@ -454,6 +490,10 @@ mod tests {
     #[test]
     fn test_header_read_write() {
         let mut backend = MemoryBackend::default();
+        let layout = MemoryLayout {
+            base: 0,
+            size: 0xFFFFF,
+        };
         let buf = leaked_buf();
 
         let expected_header = Header {
@@ -464,37 +504,45 @@ mod tests {
             },
             ..Header::default()
         };
-        expected_header.write(&mut backend, buf).unwrap();
+        expected_header.write(&mut backend, layout, buf).unwrap();
 
-        let actual_header = Header::read(&mut backend, buf).unwrap();
+        let actual_header = Header::read(&mut backend, layout, buf).unwrap();
         assert_eq!(actual_header, expected_header);
     }
 
     #[test]
     fn test_picture_location_read_write() {
         let mut backend = MemoryBackend::default();
+        let layout = MemoryLayout {
+            base: 0x8000,
+            size: 0xFFFFF,
+        };
         let buf = leaked_buf();
 
         let first_location = PictureLocation {
             current: 0,
             next: 1024,
         };
-        first_location.write(ImageId(0), &mut backend, buf).unwrap();
+        first_location
+            .write(ImageId(0), &mut backend, layout, buf)
+            .unwrap();
         assert_eq!(
             first_location,
-            PictureLocation::read(ImageId(0), &mut backend, buf).unwrap()
+            PictureLocation::read(ImageId(0), &mut backend, layout, buf).unwrap()
         );
 
         let next_location = first_location.next_image(3072);
-        next_location.write(ImageId(1), &mut backend, buf).unwrap();
+        next_location
+            .write(ImageId(1), &mut backend, layout, buf)
+            .unwrap();
 
         assert_eq!(
             first_location,
-            PictureLocation::read(ImageId(0), &mut backend, buf).unwrap()
+            PictureLocation::read(ImageId(0), &mut backend, layout, buf).unwrap()
         );
         assert_eq!(
             next_location,
-            PictureLocation::read(ImageId(1), &mut backend, buf).unwrap()
+            PictureLocation::read(ImageId(1), &mut backend, layout, buf).unwrap()
         );
     }
 }

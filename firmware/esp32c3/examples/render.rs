@@ -1,87 +1,109 @@
-//! WS2812b render example on top of the Embassy SPI
-//!
-//! Following pins are used:
-//! SCLK    GPIO6
-//! MISO    GPIO2
-//! MOSI    GPIO7
-//! CS      GPIO10
-//!
-//! This example demonstrates the overhead of additional load on a frame rendering time.
-
 #![no_std]
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
-use cyberpixie_esp32c3::{singleton, wheel, SpiType, NUM_LEDS};
+use cyberpixie_app::{
+    core::{
+        proto::types::{Hertz, ImageId},
+        storage::ImageLines,
+        MAX_STRIP_LEN,
+    },
+    Configuration, Storage,
+};
+use cyberpixie_embedded_storage::StorageImpl;
+use cyberpixie_esp32c3::{singleton, ws2812_spi, SpiType, DEFAULT_MEMORY_LAYOUT};
 use embassy_executor::Executor;
+use embassy_sync::{
+    blocking_mutex::raw::CriticalSectionRawMutex,
+    channel::{Channel, Receiver, Sender},
+};
 use embassy_time::{Duration, Instant, Timer};
 use esp_backtrace as _;
-use esp_println::println;
+use esp_println::logger::init_logger;
+use esp_storage::FlashStorage;
 use hal::{
     clock::{ClockControl, CpuClock},
-    dma::DmaPriority,
     embassy,
-    gdma::*,
     peripherals::Peripherals,
     prelude::*,
-    spi::{Spi, SpiMode},
     timer::TimerGroup,
-    Rtc, IO,
+    Rtc,
 };
-use smart_leds::{brightness, RGB8};
+use smart_leds::RGB8;
 use ws2812_async::Ws2812;
 
+const RAW_IMAGE: &[u8] = include_bytes!("../../../assets/nyan_cat_24.raw").as_slice();
+
+type RGB8Line = heapless::Vec<RGB8, MAX_STRIP_LEN>;
+type FramesChannel = Channel<CriticalSectionRawMutex, RGB8Line, 2>;
+type FramesSender<'a> = Sender<'a, CriticalSectionRawMutex, RGB8Line, 2>;
+type FramesReceiver<'a> = Receiver<'a, CriticalSectionRawMutex, RGB8Line, 2>;
+
 #[embassy_executor::task]
-async fn spi_task(spi: &'static mut SpiType<'static>) {
-    const LED_BUF_LEN: usize = 12 * NUM_LEDS;
+async fn render_task(spi: &'static mut SpiType<'static>, receiver: FramesReceiver<'static>) {
+    const LED_BUF_LEN: usize = 12 * MAX_STRIP_LEN;
 
     let mut ws: Ws2812<_, LED_BUF_LEN> = Ws2812::new(spi);
-
-    ws.write(core::iter::repeat(RGB8::default()).take(NUM_LEDS))
+    // Cleanup strip
+    ws.write(core::iter::repeat(RGB8::default()).take(MAX_STRIP_LEN))
         .await
         .unwrap();
+
+    let rate = Hertz(600);
+    let frame_duration = Duration::from_hz(rate.0 as u64);
+
+    log::info!("Start LED strip rendering task with refresh rate: {rate}hz");
+
+    let mut total_render_time = 0;
+    let mut dropped_frames = 0;
+    let mut counts = 0;
     loop {
-        let counts = 1024;
-        let mut total_render_time = 0;
+        let now = Instant::now();
+        let line = receiver.recv().await;
+        ws.write(line.into_iter()).await.unwrap();
+        let elapsed = now.elapsed().as_micros();
 
-        for j in 0..counts {
-            let now = Instant::now();
-
-            let data = (0..NUM_LEDS)
-                .map(|i| wheel((((i * 256) as u16 / NUM_LEDS as u16 + j as u16) & 255) as u8));
-            ws.write(brightness(data, 16)).await.unwrap();
-
-            let elapsed = now.elapsed().as_micros();
-            total_render_time += elapsed;
-
-            Timer::after(Duration::from_micros(100)).await;
+        total_render_time += elapsed;
+        if now.elapsed() <= frame_duration {
+            let next_frame_time = now + frame_duration;
+            Timer::at(next_frame_time).await;
+        } else {
+            dropped_frames += 1;
         }
 
-        let line_render_time = total_render_time as f32 / counts as f32;
-        println!("-> Total rendering time {total_render_time}us");
-        println!("-> per line: {line_render_time}us");
-        println!(
-            "-> Average frame rendering frame rate is {}Hz",
-            1_000_000f32 / line_render_time
-        );
+        counts += 1;
+        if counts % 10_000 == 0 {
+            let line_render_time = total_render_time as f32 / counts as f32;
+            log::info!("-> Total rendering time {total_render_time}us");
+            log::info!("-> per line: {line_render_time}us");
+            log::info!(
+                "-> Average frame rendering frame rate is {}Hz",
+                1_000_000f32 / line_render_time
+            );
+            log::info!("-> dropped frames: {dropped_frames}");
+            Timer::after(Duration::from_millis(100)).await;
+        }
     }
 }
 
 #[embassy_executor::task]
-async fn dummy_task(_nope: &'static mut ()) {
-    loop {
-        // Imitate cpu bound task
-        for _ in 0..100500 {
-            core::hint::spin_loop();
-        }
+async fn storage_read_task(
+    storage: &'static mut StorageImpl<FlashStorage>,
+    sender: FramesSender<'static>,
+) {
+    let strip_len = storage.config().unwrap().strip_len;
+    let image = storage.read_image(ImageId(0)).unwrap();
 
-        Timer::after(Duration::from_millis(50)).await;
+    let mut reader = ImageLines::new(image, strip_len, [0_u8; MAX_STRIP_LEN * 3]);
+    loop {
+        let line: RGB8Line = reader.next_line().unwrap().collect();
+        sender.send(line).await;
     }
 }
 
 #[entry]
 fn main() -> ! {
-    esp_println::println!("Init!");
+    init_logger(log::LevelFilter::Info);
 
     // Initialize peripherals
     let peripherals = Peripherals::take();
@@ -109,48 +131,39 @@ fn main() -> ! {
     wdt0.disable();
     wdt1.disable();
 
-    embassy::init(&clocks, timer_group0.timer0);
-    hal::interrupt::enable(
-        hal::peripherals::Interrupt::DMA_CH0,
-        hal::interrupt::Priority::Priority1,
-    )
-    .unwrap();
-
-    let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
-    let sclk = io.pins.gpio6;
-    let miso = io.pins.gpio2;
-    let mosi = io.pins.gpio7;
-    let cs = io.pins.gpio10;
-
-    let dma = Gdma::new(peripherals.DMA, &mut system.peripheral_clock_control);
-    let dma_channel = dma.channel0;
-
-    let descriptors = singleton!([0u32; 8 * 3]);
-    let rx_descriptors = singleton!([0u32; 8 * 3]);
-
-    let spi = singleton!(Spi::new(
+    let spi = singleton!(ws2812_spi(
         peripherals.SPI2,
-        sclk,
-        mosi,
-        miso,
-        cs,
-        3800u32.kHz(),
-        SpiMode::Mode0,
+        peripherals.GPIO,
+        peripherals.IO_MUX,
+        peripherals.DMA,
         &mut system.peripheral_clock_control,
-        &clocks,
+        &clocks
+    ));
+
+    let storage = singleton!(StorageImpl::init(
+        Configuration::default(),
+        FlashStorage::new(),
+        DEFAULT_MEMORY_LAYOUT,
+        singleton!([0_u8; 512]),
     )
-    .with_dma(dma_channel.configure(
-        false,
-        descriptors,
-        rx_descriptors,
-        DmaPriority::Priority0,
-    )));
+    .unwrap());
 
-    let dummy = singleton!(());
+    storage.add_image(Hertz(50), RAW_IMAGE).unwrap();
+    log::info!(
+        "Image written: total count is {}",
+        storage.images_count().unwrap()
+    );
 
+    // Initalize channel between rendering and reading tasks.
+    let channel = singleton!(FramesChannel::new());
+
+    // Initialize and run an Embassy executor.
+    embassy::init(&clocks, timer_group0.timer0);
     let executor = singleton!(Executor::new());
     executor.run(|spawner| {
-        spawner.spawn(spi_task(spi)).ok();
-        spawner.spawn(dummy_task(dummy)).ok();
+        spawner.spawn(render_task(spi, channel.receiver())).unwrap();
+        spawner
+            .spawn(storage_read_task(storage, channel.sender()))
+            .unwrap();
     })
 }
