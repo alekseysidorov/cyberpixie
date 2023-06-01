@@ -12,12 +12,11 @@
 
 use cyberpixie_app::{
     core::{
-        proto::{
-            types::{FirmwareInfo, ImageId},
-        },
+        proto::types::{FirmwareInfo, ImageId},
         ExactSizeRead,
     },
-    Board, Configuration, CyberpixieError, CyberpixieResult, Storage, network::PayloadReader,
+    network::PayloadReader,
+    Board, Configuration, CyberpixieError, CyberpixieResult, Storage,
 };
 use embedded_io::blocking::Read;
 use smart_leds::{SmartLedsWrite, RGB8};

@@ -4,7 +4,10 @@ use cyberpixie_core::proto::{
     types::{DeviceInfo, DeviceRole, ImageInfo, PeerInfo},
     RequestHeader, ResponseHeader,
 };
-use cyberpixie_network::{blocking::{Connection, Listener}, SocketAddr};
+use cyberpixie_network::{
+    blocking::{Connection, Listener},
+    SocketAddr,
+};
 use nb_utils::NbResultExt;
 
 use crate::{Board, CyberpixieError, CyberpixieResult, Storage, NETWORK_PORT};
