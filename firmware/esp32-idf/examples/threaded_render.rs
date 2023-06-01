@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use cyberpixie_app::{core::{proto::types::Hertz}, Storage};
+use cyberpixie_app::{core::proto::types::Hertz, Storage};
 use cyberpixie_esp32_idf::{storage::ImagesRegistry, DEFAULT_DEVICE_CONFIG};
 use esp_idf_svc::log::EspLogger;
 // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
@@ -20,7 +20,7 @@ fn main() -> anyhow::Result<()> {
     let mut strip = Ws2812Esp32Rmt::new(0, LED_PIN)?;
     strip.write(std::iter::repeat(RGB8::default()).take(144))?;
     // Initialize storage
-    let storage = ImagesRegistry::new(DEFAULT_DEVICE_CONFIG);
+    let mut storage = ImagesRegistry::new(DEFAULT_DEVICE_CONFIG);
 
     let mut refresh_rate = Hertz(50);
     let mut render = Some(strip);
@@ -29,7 +29,7 @@ fn main() -> anyhow::Result<()> {
         let handle = cyberpixie_esp32_idf::render::start_rendering(
             render.take().unwrap(),
             storage,
-            storage.current_image_id()?,
+            storage.current_image_id()?.unwrap(),
             refresh_rate,
         )?;
         // Wait for a half minute

@@ -1,10 +1,9 @@
 use std::time::{Duration, Instant};
 
 use anyhow::Context;
-use cyberpixie_core::{
-    proto::types::Hertz,
-    service::{DeviceStorage, ImageLines},
-    ExactSizeRead,
+use cyberpixie_app::{
+    core::{proto::types::Hertz, storage::ImageLines, ExactSizeRead},
+    Storage,
 };
 use cyberpixie_esp32_idf::{storage::ImagesRegistry, DEFAULT_DEVICE_CONFIG};
 use esp_idf_svc::log::EspLogger;
@@ -21,19 +20,11 @@ fn main() -> anyhow::Result<()> {
     esp_idf_sys::link_patches();
     EspLogger::initialize_default();
 
-    unsafe {
-        let mut cfg = esp_idf_sys::rtc_cpu_freq_config_t::default();
-        esp_idf_sys::rtc_clk_cpu_freq_get_config(
-            &mut cfg as *mut esp_idf_sys::rtc_cpu_freq_config_t,
-        );
-        log::info!("CPU cfg {:?}", cfg);
-    }
-
     let mut strip = Ws2812Esp32Rmt::new(0, LED_PIN)?;
     // Clear strip
     strip.write(std::iter::repeat(RGB8::default()).take(144))?;
 
-    let storage = ImagesRegistry::new(DEFAULT_DEVICE_CONFIG);
+    let mut storage = ImagesRegistry::new(DEFAULT_DEVICE_CONFIG);
     log::info!("{:?}", storage.images_count());
     log::info!("{:?}", storage.current_image_id());
     let Some(image_id) = storage.current_image_id()? else {
@@ -41,7 +32,8 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     };
 
-    let image = storage.read_image(image_id)?;
+    let mut storage_2 = storage;
+    let image = storage_2.read_image(image_id)?;
     log::info!("Rendering {} image", image_id);
     log::info!("image_len: {}", image.bytes.bytes_remaining());
 

@@ -68,7 +68,7 @@ where
     type RenderTask = render::Handle<R, ImagesRegistry>;
 
     fn take_components(&mut self) -> Option<(Self::Storage, Self::NetworkStack)> {
-        Some((self.storage, std_embedded_nal::Stack::default()))
+        Some((self.storage, std_embedded_nal::Stack))
     }
 
     fn start_rendering(

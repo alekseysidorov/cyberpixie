@@ -9,6 +9,7 @@ let
 in
 pkgs.mkShell {
   nativeBuildInputs = with pkgs; [
+    rustToolchain
     rustBuildHostDependencies
     # Utilites to flash firmware to the device
     espflash
@@ -18,7 +19,7 @@ pkgs.mkShell {
   env = cargoConfigUtils.env;
 
   shellHook = ''
-      # Setup nice bash prompt
+    # Setup nice bash prompt
     ${shellPrompt}
   '';
 }

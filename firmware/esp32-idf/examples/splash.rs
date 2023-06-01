@@ -21,7 +21,6 @@ fn main() -> anyhow::Result<()> {
 
     // Clear strip
     strip.write(std::iter::repeat(RGB8::default()).take(144))?;
-    return Ok(());
 
     for brightness in 16..128 {
         println!("Printing line with brightness {brightness}");
