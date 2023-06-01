@@ -44,11 +44,11 @@ fn main() -> anyhow::Result<()> {
     let mut refresh_rate = Hertz(1);
     let mut check_max_rate = true;
     loop {
-        let mut refresh_perion = Duration::from(refresh_rate);
+        let mut refresh_period = Duration::from(refresh_rate);
         if check_max_rate {
             log::info!(
                 "Refresh period is {} [{} Hz]",
-                refresh_perion.as_secs_f32(),
+                refresh_period.as_secs_f32(),
                 refresh_rate.0
             );
         }
@@ -59,11 +59,11 @@ fn main() -> anyhow::Result<()> {
             .context("Unable to read next image line")?;
 
         let elapsed = now.elapsed();
-        if elapsed > refresh_perion {
+        if elapsed > refresh_period {
             log::warn!(
                 "Frame reading took too much time: {}, must be lesser than {} [{} Hz]",
                 elapsed.as_secs_f32(),
-                refresh_perion.as_secs_f32(),
+                refresh_period.as_secs_f32(),
                 refresh_rate.0
             );
         }
@@ -72,20 +72,20 @@ fn main() -> anyhow::Result<()> {
         strip.write(line).context("Unable to show image line")?;
 
         let elapsed = now2.elapsed();
-        if elapsed > refresh_perion {
+        if elapsed > refresh_period {
             log::warn!(
                 "Frame rendering took too much time: {}, must be lesser than {} [{} Hz]",
                 elapsed.as_secs_f32(),
-                refresh_perion.as_secs_f32(),
+                refresh_period.as_secs_f32(),
                 refresh_rate.0
             );
         }
 
         if !check_max_rate {
-            refresh_perion = refresh_perion.saturating_sub(now.elapsed());
+            refresh_period = refresh_period.saturating_sub(now.elapsed());
         }
 
-        std::thread::sleep(refresh_perion);
+        std::thread::sleep(refresh_period);
 
         if check_max_rate {
             refresh_rate.0 += 1;

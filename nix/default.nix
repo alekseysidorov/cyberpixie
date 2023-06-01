@@ -47,7 +47,7 @@ let
                     let
                       entrySuffix = final.toEnvInfix name;
 
-                      entryKey = "CARGO${targetInfix}_${entrySuffix}";
+                      entryKey = "CARGO_TARGET${targetInfix}_${entrySuffix}";
                       entryValue = (fn set.${name});
                     in
                     lib.optionalAttrs (builtins.hasAttr name set) { "${entryKey}" = entryValue; }

@@ -174,7 +174,7 @@ where
 impl<R, B> ImageLines<R, B>
 where
     B: AsMut<[u8]>,
-    R: ExactSizeRead + Seek,
+    R: Read + ExactSizeRead + Seek,
 {
     /// Bytes count per single pixel.
     pub const BYTES_PER_PIXEL: usize = 3;

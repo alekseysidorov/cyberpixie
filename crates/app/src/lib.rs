@@ -5,10 +5,7 @@
 
 pub use cyberpixie_core as core;
 use cyberpixie_core::{
-    proto::{
-        types::{FirmwareInfo, Hertz, ImageId},
-        PayloadReader,
-    },
+    proto::types::{FirmwareInfo, Hertz, ImageId},
     storage::Image,
     ExactSizeRead,
 };
@@ -16,6 +13,7 @@ pub use cyberpixie_core::{Error as CyberpixieError, Result as CyberpixieResult};
 pub use cyberpixie_network as network;
 use embedded_io::blocking::{Read, Seek};
 use embedded_nal::TcpFullStack;
+use network::PayloadReader;
 use serde::{Deserialize, Serialize};
 
 pub use crate::app::{App, Connections};
@@ -89,7 +87,7 @@ pub type ImageReader<'a, S> = Image<<S as Storage>::ImageRead<'a>>;
 /// Board internal storage.
 pub trait Storage: Send + 'static {
     /// Image reader type.
-    type ImageRead<'a>: ExactSizeRead + Seek
+    type ImageRead<'a>: Read + ExactSizeRead + Seek
     where
         Self: 'a;
     /// Returns an application configuration.
@@ -102,7 +100,7 @@ pub trait Storage: Send + 'static {
     /// - You must invoke [`Self::clear_images`] method if the strip length changes.
     fn set_config(&mut self, config: Configuration) -> CyberpixieResult<()>;
     /// Adds a new image.
-    fn add_image<R: ExactSizeRead>(
+    fn add_image<R: Read + ExactSizeRead>(
         &mut self,
         refresh_rate: Hertz,
         image: R,

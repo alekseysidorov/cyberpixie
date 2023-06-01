@@ -122,7 +122,7 @@ fn test_image_reader_read_parts_multiple_blocks() {
         bytes: ImageReader::new_in_array(blocks.as_ref(), image_len),
     };
 
-    fn read_image(reader: &mut Image<impl ExactSizeRead + Seek>) -> Vec<u8> {
+    fn read_image(reader: &mut Image<impl Read + ExactSizeRead + Seek>) -> Vec<u8> {
         let mut out = vec![];
         loop {
             let mut buf = [0_u8; 3];

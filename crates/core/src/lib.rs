@@ -10,7 +10,6 @@
     clippy::module_name_repetitions
 )]
 
-use embedded_io::blocking::Read;
 pub use errors::{Error, Result};
 
 pub mod errors;
@@ -24,7 +23,7 @@ pub mod storage;
 pub const MAX_STRIP_LEN: usize = 48;
 
 /// The Blocking reader with the exact number of bytes to read.
-pub trait ExactSizeRead: Read {
+pub trait ExactSizeRead {
     /// Return the total number of bytes, that should be read.
     // fn len(&self) -> usize;
 

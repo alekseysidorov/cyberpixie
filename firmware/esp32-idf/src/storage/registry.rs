@@ -8,6 +8,7 @@ use cyberpixie_app::{
     },
     Configuration, CyberpixieResult, Storage,
 };
+use embedded_io::blocking::Read;
 use esp_idf_sys::EspError;
 use log::info;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -170,7 +171,7 @@ impl Storage for ImagesRegistry {
         Self::set("config", &new).map_err(CyberpixieError::storage_write)
     }
 
-    fn add_image<R: ExactSizeRead>(
+    fn add_image<R: Read + ExactSizeRead>(
         &mut self,
         refresh_rate: Hertz,
         mut image: R,

@@ -11,7 +11,7 @@ use image::{
 use qmetaobject::prelude::*;
 use std_embedded_nal::Stack;
 
-type Client = cyberpixie_network::Client<Stack>;
+type Client = cyberpixie_network::blocking::Client<Stack>;
 
 #[allow(non_snake_case)]
 #[derive(Default, QObject)]

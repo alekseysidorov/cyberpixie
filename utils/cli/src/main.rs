@@ -3,8 +3,9 @@ use std::path::PathBuf;
 use clap::{CommandFactory, Parser, Subcommand};
 use cyberpixie_cli::convert_image_to_raw;
 use cyberpixie_network::{
+    blocking::Client,
     core::proto::types::{Hertz, ImageId},
-    Client, SocketAddr,
+    SocketAddr,
 };
 use std_embedded_nal::Stack;
 
@@ -62,10 +63,10 @@ fn main() -> anyhow::Result<()> {
         .parse()
         .map_err(|err| anyhow::anyhow!("{err}"))?;
 
-    let mut stack = Stack::default();
+    let mut stack = Stack;
     match cli.command {
         Command::DeviceInfo => {
-            log::info!("Sending firmare info request to {}", address);
+            log::info!("Sending firmware info request to {}", address);
 
             let peer_info = Client::connect(&mut stack, address)?.peer_info(&mut stack)?;
             // TODO replace by the full firmware info.

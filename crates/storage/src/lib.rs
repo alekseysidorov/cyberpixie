@@ -355,7 +355,7 @@ impl<T: embedded_storage::Storage + Send + 'static> cyberpixie_app::Storage for 
         Ok(())
     }
 
-    fn add_image<R: ExactSizeRead>(
+    fn add_image<R: Read + ExactSizeRead>(
         &mut self,
         refresh_rate: Hertz,
         mut image: R,
