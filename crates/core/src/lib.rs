@@ -37,12 +37,14 @@ pub trait ExactSizeRead: Read {
 }
 
 impl<T: ?Sized + ExactSizeRead> ExactSizeRead for &mut T {
+    #[inline]
     fn bytes_remaining(&self) -> usize {
         T::bytes_remaining(self)
     }
 }
 
 impl ExactSizeRead for &[u8] {
+    #[inline]
     fn bytes_remaining(&self) -> usize {
         self.len()
     }

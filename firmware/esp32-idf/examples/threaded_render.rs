@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use cyberpixie_core::{proto::types::Hertz, service::DeviceStorage};
+use cyberpixie_app::{core::{proto::types::Hertz}, Storage};
 use cyberpixie_esp32_idf::{storage::ImagesRegistry, DEFAULT_DEVICE_CONFIG};
 use esp_idf_svc::log::EspLogger;
 // If using the `binstart` feature of `esp-idf-sys`, always keep this module imported
@@ -29,6 +29,7 @@ fn main() -> anyhow::Result<()> {
         let handle = cyberpixie_esp32_idf::render::start_rendering(
             render.take().unwrap(),
             storage,
+            storage.current_image_id()?,
             refresh_rate,
         )?;
         // Wait for a half minute

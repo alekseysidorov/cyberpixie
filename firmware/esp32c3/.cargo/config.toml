@@ -1,13 +1,15 @@
 [build]
 target = "riscv32imc-unknown-none-elf"
 
+# The best discovered optimization flags without stability issues.
 [profile.release]
-opt-level = 3
-lto = "fat"
+opt-level = "s"
+lto = "thin"
 
 [profile.dev]
-opt-level = 3
-lto = "fat"
+debug = true # Symbols are nice and they don't increase the size on Flash
+opt-level = "s"
+lto = "thin"
 
 [target.riscv32imc-unknown-none-elf]
 runner = "espflash flash --monitor --partition-table .cargo/partitions.csv"

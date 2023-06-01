@@ -64,8 +64,8 @@ fn main() -> ! {
 
     // Network stack configuration.
     let config = Config::Static(StaticConfig {
-        address: Ipv4Cidr::new(Ipv4Address::new(192, 168, 88, 1), 24),
-        gateway: Some(Ipv4Address::from_bytes(&[192, 168, 88, 1])),
+        address: Ipv4Cidr::new(Ipv4Address::new(192, 168, 2, 1), 24),
+        gateway: Some(Ipv4Address::from_bytes(&[192, 168, 2, 1])),
         dns_servers: Default::default(),
     });
     // FIXME: There is no way to use DHCP in Ap mode at this moment :(

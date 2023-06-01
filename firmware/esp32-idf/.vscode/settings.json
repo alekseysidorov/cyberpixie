@@ -6,6 +6,9 @@
   "rust-analyzer.check.overrideCommand": [
     "cargo",
     "clippy",
+    "--all-features",
+    "--examples",
+    "--bins",
     "--message-format=json-diagnostic-rendered-ansi"
   ]
 }

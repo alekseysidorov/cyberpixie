@@ -19,7 +19,7 @@ embassy-sync = { version = "0.2.0", features = ["nightly"] }
 embassy-time = { version = "0.1.1", features = ["nightly"] }
 embedded-io = { version = "0.4", features = ["async"] }
 embedded-svc = { version = "0.25", default-features = false }
-esp-wifi = { git = "https://github.com/esp-rs/esp-wifi.git", rev = "3bb9e8e", features = ["esp32c3", "embedded-svc", "wifi", "embassy-net"] }
+esp-wifi = { git = "https://github.com/esp-rs/esp-wifi.git", rev = "fb812ca", features = ["esp32c3", "embedded-svc", "wifi", "embassy-net"] }
 
 # Storage
 embedded-storage = "0.3"

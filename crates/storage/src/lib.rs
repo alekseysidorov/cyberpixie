@@ -125,6 +125,7 @@ impl Header {
     }
 
     /// Calculates the offset of the header block.
+    #[inline]
     fn location_offset(layout: MemoryLayout) -> u32 {
         layout.base + Self::LOCATION
     }
@@ -298,6 +299,7 @@ impl<'a, T: embedded_storage::ReadStorage> Io for PictureFile<'a, T> {
 }
 
 impl<'a, T: embedded_storage::ReadStorage> Read for PictureFile<'a, T> {
+    #[inline]
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
         let amount = core::cmp::min(buf.len(), self.bytes_remaining());
         // Read amount of bytes from the storage backend to the given buffer.
@@ -313,6 +315,7 @@ impl<'a, T: embedded_storage::ReadStorage> Read for PictureFile<'a, T> {
 }
 
 impl<'a, T: embedded_storage::ReadStorage> Seek for PictureFile<'a, T> {
+    #[inline]
     fn seek(&mut self, pos: SeekFrom) -> Result<u64, Self::Error> {
         // Compute a new image read position
         self.read_pos = match pos {
@@ -327,6 +330,7 @@ impl<'a, T: embedded_storage::ReadStorage> Seek for PictureFile<'a, T> {
 }
 
 impl<'a, T: embedded_storage::ReadStorage> ExactSizeRead for PictureFile<'a, T> {
+    #[inline]
     fn bytes_remaining(&self) -> usize {
         (self.end_offset - self.read_pos) as usize
     }

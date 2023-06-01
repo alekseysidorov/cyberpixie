@@ -4,6 +4,7 @@
 #![no_std]
 #![feature(type_alias_impl_trait)]
 
+use cyberpixie_app::core::proto::types::Hertz;
 use cyberpixie_embedded_storage::MemoryLayout;
 use hal::{
     clock::Clocks,
@@ -22,6 +23,9 @@ pub const DEFAULT_MEMORY_LAYOUT: MemoryLayout = MemoryLayout {
     base: 0x9000,
     size: 0x199000,
 };
+
+/// Max supported frame rate.
+pub const MAX_FRAME_RATE: Hertz = Hertz(500);
 
 /// Initializes SPI for the ws2812 async driver on the pin 7.
 pub fn ws2812_spi(
