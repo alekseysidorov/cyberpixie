@@ -5,14 +5,22 @@ use postcard::experimental::max_size::MaxSize;
 
 use super::{Headers, RequestHeader, ResponseHeader};
 
-/// Max packet with header lenght.
-const MAX_LEN: usize = Headers::POSTCARD_MAX_SIZE + Packet::PACKED_LEN;
-
 pub trait FromPacket: Sized {
+    fn from_bytes(buf: &[u8]) -> Result<Self, postcard::Error>;
+
     fn from_packet<R: Read>(
         packet: Packet,
-        reader: R,
-    ) -> Result<(Self, usize), PacketReadError<R::Error>>;
+        mut reader: R,
+    ) -> Result<(Self, usize), PacketReadError<R::Error>> {
+        let mut buf = [0_u8; Packet::MAX_LEN];
+
+        let packet_header = {
+            let header_buf = &mut buf[0..packet.header_len()];
+            reader.read_exact(header_buf)?;
+            Self::from_bytes(header_buf)?
+        };
+        Ok((packet_header, packet.payload_len()))
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PackedSize, EncodeLE, DecodeLE)]
@@ -30,6 +38,11 @@ impl Packet {
     #[must_use]
     pub const fn payload_len(self) -> usize {
         self.payload_len as usize
+    }
+
+    #[must_use]
+    pub const fn has_payload(self) -> bool {
+        self.payload_len != 0
     }
 }
 
@@ -69,10 +82,18 @@ impl<E: embedded_io::Error> From<postcard::Error> for PacketReadError<E> {
 }
 
 impl Packet {
+    /// Max packet with header length.
+    pub const MAX_LEN: usize = Headers::POSTCARD_MAX_SIZE + Self::PACKED_LEN;
+
     pub fn read<T: Read>(mut reader: T) -> Result<Self, PacketReadError<T::Error>> {
         let mut buf = [0_u8; Self::PACKED_LEN];
         reader.read_exact(&mut buf)?;
         Ok(Self::decode_from_le_bytes(&buf))
+    }
+
+    #[must_use]
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        Self::decode_from_le_bytes(bytes)
     }
 
     pub fn header<R: Read, H: FromPacket>(
@@ -90,17 +111,8 @@ impl RequestHeader {
 }
 
 impl FromPacket for RequestHeader {
-    fn from_packet<R: Read>(
-        packet: Packet,
-        mut reader: R,
-    ) -> Result<(Self, usize), PacketReadError<R::Error>> {
-        let mut buf = [0_u8; MAX_LEN];
-        let packet_header = {
-            let header_buf = &mut buf[0..packet.header_len()];
-            reader.read_exact(header_buf)?;
-            postcard::from_bytes(header_buf)?
-        };
-        Ok((packet_header, packet.payload_len()))
+    fn from_bytes(buf: &[u8]) -> Result<Self, postcard::Error> {
+        postcard::from_bytes(buf)
     }
 }
 
@@ -111,24 +123,14 @@ impl ResponseHeader {
 }
 
 impl FromPacket for ResponseHeader {
-    fn from_packet<R: Read>(
-        packet: Packet,
-        mut reader: R,
-    ) -> Result<(Self, usize), PacketReadError<R::Error>> {
-        let mut buf = [0_u8; MAX_LEN];
-
-        let packet_header = {
-            let header_buf = &mut buf[0..packet.header_len()];
-            reader.read_exact(header_buf)?;
-            postcard::from_bytes(header_buf)?
-        };
-        Ok((packet_header, packet.payload_len()))
+    fn from_bytes(buf: &[u8]) -> Result<Self, postcard::Error> {
+        postcard::from_bytes(buf)
     }
 }
 
 impl Headers {
     pub fn encode<'a>(&self, buf: &'a mut [u8], payload_len: usize) -> &'a mut [u8] {
-        assert!(buf.len() >= MAX_LEN);
+        assert!(buf.len() >= Packet::MAX_LEN);
 
         let message_buf = &mut buf[Packet::PACKED_LEN..];
         let header_len = postcard::to_slice(self, message_buf).unwrap().len();

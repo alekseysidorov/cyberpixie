@@ -92,8 +92,17 @@ pub struct Message<R, H> {
     pub payload: Option<PayloadReader<R>>,
 }
 
+impl Message<&'static [u8], Headers> {
+    pub(crate) fn new(header: impl Into<Headers>) -> Self {
+        Self {
+            header: header.into(),
+            payload: None,
+        }
+    }
+}
+
 impl<R, H> Message<R, H> {
-    fn into_parts(self) -> (H, usize, Option<PayloadReader<R>>) {
+    pub(crate) fn into_parts(self) -> (H, usize, Option<PayloadReader<R>>) {
         if let Some(reader) = self.payload {
             (self.header, reader.len(), Some(reader))
         } else {
@@ -135,7 +144,7 @@ impl<R: embedded_io::blocking::Read> Message<R, Headers> {
 }
 
 impl<R: embedded_io::blocking::Read> Message<R, Headers> {
-    pub async fn send<W>(self, mut device: W) -> cyberpixie_core::Result<()>
+    pub async fn send_async<W>(self, mut device: W) -> cyberpixie_core::Result<()>
     where
         W: embedded_io::asynch::Write,
     {
