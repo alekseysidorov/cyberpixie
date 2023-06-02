@@ -4,60 +4,18 @@ use core::fmt::Debug;
 
 use cyberpixie_core::proto::{
     packet::{FromPacket, PackedSize, Packet},
-    Headers, PayloadReader, RequestHeader, ResponseHeader,
+    Headers, RequestHeader, ResponseHeader,
 };
-use embedded_io::blocking::{Read, Write};
+use embedded_io::blocking::Read;
 use embedded_nal::TcpClientStack;
 use log::trace;
 
-use crate::io::TcpStream;
+use super::TcpStream;
+use crate::message::{Message, PayloadReader};
 
 pub type IncomingMessage<'a, S, H> = Message<TcpStream<'a, S>, H>;
 
-// FIXME?
-const SEND_BUF_LEN: usize = 256;
-
-pub struct Message<R: Read, H> {
-    pub header: H,
-    pub payload: Option<PayloadReader<R>>,
-}
-
 type OutgoingMessage<R> = Message<R, Headers>;
-
-impl<R: Read> OutgoingMessage<R> {
-    fn send<W: Write>(self, mut device: W) -> cyberpixie_core::Result<()> {
-        let (header, payload_len, payload_reader) = self.into_parts();
-
-        let mut send_buf = [0_u8; SEND_BUF_LEN];
-        let header_buf = header.encode(&mut send_buf, payload_len);
-        device
-            .write_all(header_buf)
-            .map_err(cyberpixie_core::Error::network)?;
-
-        if let Some(mut reader) = payload_reader {
-            loop {
-                let bytes_read = reader
-                    .read(&mut send_buf)
-                    .map_err(cyberpixie_core::Error::storage_read)?;
-                if bytes_read == 0 {
-                    break;
-                }
-                device
-                    .write_all(&send_buf[0..bytes_read])
-                    .map_err(cyberpixie_core::Error::network)?;
-            }
-        }
-        Ok(())
-    }
-
-    fn into_parts(self) -> (Headers, usize, Option<PayloadReader<R>>) {
-        if let Some(reader) = self.payload {
-            (self.header, reader.len(), Some(reader))
-        } else {
-            (self.header, 0, None)
-        }
-    }
-}
 
 /// A connection between Cyberpixie peers.
 pub struct Connection<S>
@@ -108,7 +66,7 @@ where
             header,
             payload: None,
         };
-        message.send(stream)
+        message.send_blocking(stream)
     }
 
     pub fn send_message_with_payload<T, P, I>(
@@ -132,7 +90,7 @@ where
             header,
             payload: Some(payload),
         };
-        message.send(stream)
+        message.send_blocking(stream)
     }
 
     fn poll_next_message<'a, H>(
@@ -214,7 +172,7 @@ mod tests {
 
     #[test]
     fn test_read_write_without_payload() {
-        let mut stack = Stack::default();
+        let mut stack = Stack;
 
         let (mut sender, mut receiver) = create_loopback(&mut stack, 13280);
 
@@ -236,7 +194,7 @@ mod tests {
 
     #[test]
     fn test_read_write_with_payload() {
-        let mut stack = Stack::default();
+        let mut stack = Stack;
 
         let (mut sender, mut receiver) = create_loopback(&mut stack, 13281);
 

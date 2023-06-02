@@ -5,7 +5,7 @@ use cyberpixie_core::{
     proto::types::{DeviceRole, FirmwareInfo, ImageId},
     ExactSizeRead,
 };
-use cyberpixie_network::Client;
+use cyberpixie_network::blocking::Client;
 use embedded_io::{
     blocking::{Read, Seek},
     Io,
@@ -39,11 +39,9 @@ impl Seek for ImageReadStub {
 }
 
 impl Storage for StorageStub {
-    type ImageReader<'a>     = ImageReadStub
-    where
-        Self: 'a;
+    type ImageRead<'a> = ImageReadStub;
 
-    fn config(&self) -> CyberpixieResult<Configuration> {
+    fn config(&mut self) -> CyberpixieResult<Configuration> {
         Ok(Configuration {
             strip_len: 16,
             current_image: None,
@@ -62,11 +60,14 @@ impl Storage for StorageStub {
         unimplemented!()
     }
 
-    fn read_image(&self, _id: ImageId) -> CyberpixieResult<cyberpixie_app::ImageReader<'_, Self>> {
+    fn read_image(
+        &mut self,
+        _id: ImageId,
+    ) -> CyberpixieResult<cyberpixie_app::ImageReader<'_, Self>> {
         unimplemented!()
     }
 
-    fn images_count(&self) -> CyberpixieResult<ImageId> {
+    fn images_count(&mut self) -> CyberpixieResult<ImageId> {
         Ok(ImageId(0))
     }
 
@@ -81,7 +82,7 @@ impl Board for BoardStub {
     type RenderTask = ();
 
     fn take_components(&mut self) -> Option<(Self::Storage, Self::NetworkStack)> {
-        Some((StorageStub, std_embedded_nal::Stack::default()))
+        Some((StorageStub, std_embedded_nal::Stack))
     }
 
     fn start_rendering(
@@ -120,7 +121,7 @@ fn create_loopback(
 
 #[test]
 fn test_simple_handshake() {
-    let mut stack = Stack::default();
+    let mut stack = Stack;
     let (_app, mut client) = create_loopback(&mut stack, 1234);
 
     let info = client.peer_info(&mut stack).unwrap();

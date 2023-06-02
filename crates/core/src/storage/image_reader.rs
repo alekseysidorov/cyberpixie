@@ -153,6 +153,7 @@ where
     R: ExactSizeRead + Seek,
 {
     /// Rewind to the beginning of an image.
+    #[inline]
     pub fn rewind(&mut self) -> Result<(), R::Error> {
         self.bytes.rewind()?;
         Ok(())
@@ -173,7 +174,7 @@ where
 impl<R, B> ImageLines<R, B>
 where
     B: AsMut<[u8]>,
-    R: ExactSizeRead + Seek,
+    R: Read + ExactSizeRead + Seek,
 {
     /// Bytes count per single pixel.
     pub const BYTES_PER_PIXEL: usize = 3;
@@ -215,7 +216,8 @@ where
         self.image.refresh_rate
     }
 
-    /// Reads and returns a next image line
+    /// Reads and returns a next image line.
+    #[inline]
     pub fn next_line(
         &mut self,
     ) -> Result<impl Iterator<Item = RGB8> + '_, ReadExactError<R::Error>> {
@@ -223,6 +225,7 @@ where
         Ok(line)
     }
 
+    #[inline]
     fn fill_next_line(&mut self) -> Result<&[u8], ReadExactError<R::Error>> {
         // In this case we reached the end of file and have to rewind to the beginning
         if self.image.bytes.bytes_remaining() == 0 {

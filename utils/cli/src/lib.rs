@@ -1,10 +1,6 @@
-use std::{fmt::Display, path::Path};
+use std::path::Path;
 
 use image::io::Reader;
-
-pub fn display_err(err: impl Display) -> anyhow::Error {
-    anyhow::format_err!("{}", err)
-}
 
 pub fn convert_image_to_raw(path: impl AsRef<Path>) -> anyhow::Result<(usize, Vec<u8>)> {
     let image = Reader::open(path)?.decode()?.to_rgb8();

@@ -1,4 +1,5 @@
 #![cfg_attr(not(any(feature = "std", test)), no_std)]
+// Linter configuration
 #![warn(unsafe_code, missing_copy_implementations)]
 #![warn(clippy::pedantic)]
 #![warn(clippy::use_self, clippy::missing_const_for_fn)]
@@ -9,7 +10,6 @@
     clippy::module_name_repetitions
 )]
 
-use embedded_io::blocking::Read;
 pub use errors::{Error, Result};
 
 pub mod errors;
@@ -23,7 +23,7 @@ pub mod storage;
 pub const MAX_STRIP_LEN: usize = 48;
 
 /// The Blocking reader with the exact number of bytes to read.
-pub trait ExactSizeRead: Read {
+pub trait ExactSizeRead {
     /// Return the total number of bytes, that should be read.
     // fn len(&self) -> usize;
 
@@ -36,12 +36,14 @@ pub trait ExactSizeRead: Read {
 }
 
 impl<T: ?Sized + ExactSizeRead> ExactSizeRead for &mut T {
+    #[inline]
     fn bytes_remaining(&self) -> usize {
         T::bytes_remaining(self)
     }
 }
 
 impl ExactSizeRead for &[u8] {
+    #[inline]
     fn bytes_remaining(&self) -> usize {
         self.len()
     }

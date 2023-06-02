@@ -47,6 +47,7 @@ pub enum Error {
 
 impl Error {
     #[must_use]
+    #[inline]
     pub const fn from_code(code: u16) -> Self {
         match code {
             1 => Self::StripLengthMismatch,
@@ -69,6 +70,7 @@ impl Error {
     }
 
     #[must_use]
+    #[inline]
     pub const fn into_code(self) -> u16 {
         match self {
             Self::StripLengthMismatch => 1,
@@ -91,6 +93,8 @@ impl Error {
     }
 
     /// Creates a new storage read error.
+    #[must_use]
+    #[inline]
     pub fn storage_read<E>(err: E) -> Self
     where
         E: Debug,
@@ -99,6 +103,8 @@ impl Error {
         Self::StorageRead
     }
 
+    #[must_use]
+    #[inline]
     pub fn storage_write<E>(err: E) -> Self
     where
         E: Debug,
@@ -107,6 +113,8 @@ impl Error {
         Self::StorageWrite
     }
 
+    #[must_use]
+    #[inline]
     pub fn network<E>(err: E) -> Self
     where
         E: Debug,
@@ -117,6 +125,7 @@ impl Error {
 
     /// Creates a new decode data error.
     #[must_use]
+    #[inline]
     pub fn decode<E>(err: E) -> Self
     where
         E: Debug,
@@ -127,6 +136,7 @@ impl Error {
 
     /// Creates a new encode data error.
     #[must_use]
+    #[inline]
     pub fn encode<E>(err: E) -> Self
     where
         E: Debug,
@@ -136,6 +146,7 @@ impl Error {
     }
 
     /// Creates a new internal error.
+    #[inline]
     pub fn internal<E>(err: E) -> Self
     where
         E: Debug,
@@ -152,5 +163,11 @@ impl std::error::Error for Error {}
 impl From<Error> for std::io::Error {
     fn from(err: Error) -> Self {
         Self::new(std::io::ErrorKind::Other, err)
+    }
+}
+
+impl embedded_io::Error for Error {
+    fn kind(&self) -> embedded_io::ErrorKind {
+        embedded_io::ErrorKind::Other
     }
 }

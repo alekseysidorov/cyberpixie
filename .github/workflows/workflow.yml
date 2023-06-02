@@ -33,7 +33,7 @@ jobs:
           path: |
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - run: nix develop --command cargo test
+      - run: nix develop --command cargo test --all-features
 
   # build-firmware:
   #   runs-on: ubuntu-latest

@@ -1,7 +1,6 @@
 use std::{net::TcpListener, time::Duration};
 
-use cyberpixie_app::{App, Connections};
-use cyberpixie_core::proto::types::Hertz;
+use cyberpixie_app::{core::proto::types::Hertz, App, Connections};
 use cyberpixie_esp32_idf::{
     splash::WanderingLight,
     storage::ImagesRegistry,

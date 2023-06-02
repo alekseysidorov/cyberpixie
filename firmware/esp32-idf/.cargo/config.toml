@@ -1,27 +1,28 @@
 [build]
-# target = "riscv32imc-esp-espidf"
-target = "xtensa-esp32s3-espidf"
+target = "riscv32imc-esp-espidf"
+# target = "xtensa-esp32s3-espidf"
 
-# Profile section
+# The best discovered optimization flags without stability issues.
 [profile.release]
 opt-level = "s"
-lto = false
+lto = "thin"
 
 [profile.dev]
 debug = true # Symbols are nice and they don't increase the size on Flash
-opt-level = "z"
-lto = false
+opt-level = "s"
+lto = "thin"
 
 [target.riscv32imc-esp-espidf]
-linker = "ldproxy"
 runner = "espflash flash --monitor --partition-table partitions.csv"
+linker = "ldproxy"
 # Future - necessary for the experimental "native build" of esp-idf-sys with ESP32C3. See also https://github.com/ivmarkov/embuild/issues/16
 # For ESP-IDF 5 add `espidf_time64` and for earlier versions - remove this flag: https://github.com/esp-rs/rust/issues/110
-rustflags = ["-C", "default-linker-libraries"]
+rustflags = ["-C", "default-linker-libraries", "--cfg", "espidf_time64"]
 
 [target.xtensa-esp32s3-espidf]
-linker = "ldproxy"
 runner = "espflash flash --monitor --partition-table partitions.csv"
+linker = "ldproxy"
+rustflags = ["--cfg", "espidf_time64"]
 
 [unstable]
 build-std = ["std", "panic_abort"]
@@ -29,4 +30,4 @@ build-std = ["std", "panic_abort"]
 [env]
 # Note: these variables are not used when using pio builder (`cargo build --features pio`)
 # Builds against ESP-IDF stable (v4.4)
-ESP_IDF_VERSION = "release/v4.4"
+ESP_IDF_VERSION = "release/v5.0"

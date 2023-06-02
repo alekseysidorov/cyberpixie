@@ -1,14 +1,13 @@
 //! Cybeprixie application business-logic implementation
 
-use cyberpixie_core::{
-    proto::{
-        types::{DeviceInfo, DeviceRole, ImageInfo, PeerInfo},
-        RequestHeader, ResponseHeader,
-    },
-    ExactSizeRead,
+use cyberpixie_core::proto::{
+    types::{DeviceInfo, DeviceRole, ImageInfo, PeerInfo},
+    RequestHeader, ResponseHeader,
 };
-use cyberpixie_network::{Connection, Listener, SocketAddr};
-use embedded_io::blocking::Read;
+use cyberpixie_network::{
+    blocking::{Connection, Listener},
+    SocketAddr,
+};
 use nb_utils::NbResultExt;
 
 use crate::{Board, CyberpixieError, CyberpixieResult, Storage, NETWORK_PORT};
@@ -34,12 +33,12 @@ pub struct App<B: Board> {
 impl<B: Board> App<B> {
     /// Creates a new application instance for the given board on a specified network port.
     pub fn with_port(mut board: B, port: u16) -> CyberpixieResult<Self> {
-        let (storage, mut network) = board
+        let (mut storage, mut network) = board
             .take_components()
             .expect("Board components has been already taken");
 
         let listener = Listener::new(&mut network, port)?;
-        let device_info = read_device_info(&storage)?;
+        let device_info = read_device_info(&mut storage)?;
 
         Ok(Self {
             board,
@@ -83,12 +82,9 @@ impl<B: Board> App<B> {
         self.listener
             .accept(&mut self.network)
             .if_ready(|(address, connection)| {
-                connections.insert(address, connection).map_err(|_| {
-                    CyberpixieError::internal(format!(
-                        "Too many peers, the device cannot handle more than the {} peers",
-                        MAX_CONNECTIONS
-                    ))
-                })?;
+                connections
+                    .insert(address, connection)
+                    .map_err(|_| CyberpixieError::internal("Too many peers"))?;
                 Ok(())
             })?;
         // Poll the entire incoming connections.
@@ -109,18 +105,12 @@ impl<B: Board> App<B> {
     }
 
     /// Returns a storage reference.
-    fn storage(&self) -> CyberpixieResult<&B::Storage> {
-        // TODO Handle this situation more properly.
-        self.storage.as_ref().ok_or(CyberpixieError::Internal)
-    }
-
-    /// Returns a mutable storage reference.
     fn storage_mut(storage: &mut Option<B::Storage>) -> CyberpixieResult<&mut B::Storage> {
         // TODO Handle this situation more properly.
         storage.as_mut().ok_or(CyberpixieError::Internal)
     }
 
-    /// Returns a mutable storage reference.
+    /// Stops rendering and returns a mutable storage reference.
     ///
     /// If an image rendering task is being active, then it is interrupted it to get back
     /// a storage instance.
@@ -156,15 +146,8 @@ impl<B: Board> App<B> {
             }
 
             RequestHeader::Debug => {
-                // FIXME find the way to put message to debug log level instead of eprintln
-                // and support for unicode
-                if let Some(mut payload) = request.payload {
-                    while payload.bytes_remaining() != 0 {
-                        let mut byte = [0_u8];
-                        payload.read(&mut byte).map_err(CyberpixieError::network)?;
-                        eprint!("{}", byte[0] as char);
-                    }
-                    eprintln!();
+                if let Some(payload) = request.payload {
+                    self.board.show_debug_message(payload)?;
                 }
                 Ok(ResponseHeader::Empty)
             }
@@ -226,7 +209,7 @@ impl<B: Board> App<B> {
 
     /// Refreshes cached device information
     fn refresh_device_info(&mut self) -> CyberpixieResult<()> {
-        let storage = self.storage()?;
+        let storage = Self::storage_mut(&mut self.storage)?;
         self.device_info = read_device_info(storage)?;
         Ok(())
     }
@@ -244,7 +227,7 @@ impl<B: Board> App<B> {
     }
 }
 
-fn read_device_info<S: Storage>(storage: &S) -> CyberpixieResult<DeviceInfo> {
+fn read_device_info<S: Storage>(storage: &mut S) -> CyberpixieResult<DeviceInfo> {
     let config = storage.config()?;
     Ok(DeviceInfo {
         strip_len: config.strip_len,

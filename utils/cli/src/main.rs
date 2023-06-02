@@ -1,9 +1,12 @@
 use std::path::PathBuf;
 
 use clap::{CommandFactory, Parser, Subcommand};
-use cyberpixie_cli::{convert_image_to_raw, display_err};
-use cyberpixie_core::proto::types::{Hertz, ImageId};
-use cyberpixie_network::{Client, SocketAddr};
+use cyberpixie_cli::convert_image_to_raw;
+use cyberpixie_network::{
+    blocking::Client,
+    core::proto::types::{Hertz, ImageId},
+    SocketAddr,
+};
 use std_embedded_nal::Stack;
 
 /// Cyberpixie device manipulation utility
@@ -55,12 +58,15 @@ fn main() -> anyhow::Result<()> {
     env_logger::init();
 
     let cli = Cli::parse();
-    let address: SocketAddr = cli.address.parse().map_err(display_err)?;
+    let address: SocketAddr = cli
+        .address
+        .parse()
+        .map_err(|err| anyhow::anyhow!("{err}"))?;
 
-    let mut stack = Stack::default();
+    let mut stack = Stack;
     match cli.command {
         Command::DeviceInfo => {
-            log::info!("Sending firmare info request to {}", address);
+            log::info!("Sending firmware info request to {}", address);
 
             let peer_info = Client::connect(&mut stack, address)?.peer_info(&mut stack)?;
             // TODO replace by the full firmware info.

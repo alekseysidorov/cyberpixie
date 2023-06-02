@@ -6,18 +6,26 @@ members = [
   "crates/app",
   "crates/core",
   "crates/network",
+  "crates/storage",
   "firmware/esp32-idf",
+  "firmware/esp32c3",
   "utils/cli",
 ]
 
 default-members = ["crates/core", "crates/network"]
 
-exclude = ["application/rust", "firmware/esp32-idf", "utils/image_sender"]
+exclude = [
+  "application/rust",
+  "firmware/esp32-idf",
+  "firmware/esp32c3",
+  "utils/image_sender",
+]
 
 [workspace.dependencies]
 # Workspace crates
 cyberpixie-app = { path = "crates/app" }
-cyberpixie-core = { path = "crates/core", features = ["std"] }
+cyberpixie-embedded-storage = { path = "crates/storage" }
+cyberpixie-core = { path = "crates/core" }
 cyberpixie-network = { path = "crates/network" }
 
 # Common dependencies

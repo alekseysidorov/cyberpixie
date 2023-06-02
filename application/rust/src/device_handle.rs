@@ -1,7 +1,9 @@
-use std::{fmt::Display, ops::DerefMut};
+use std::ops::DerefMut;
 
-use cyberpixie_core::proto::types::{Hertz, ImageId, PeerInfo};
-use cyberpixie_network::SocketAddr;
+use cyberpixie_network::{
+    core::proto::types::{Hertz, ImageId, PeerInfo},
+    SocketAddr,
+};
 use image::{
     imageops::{self, FilterType},
     RgbImage,
@@ -9,11 +11,7 @@ use image::{
 use qmetaobject::prelude::*;
 use std_embedded_nal::Stack;
 
-fn display_err(err: impl Display) -> anyhow::Error {
-    anyhow::format_err!("{}", err)
-}
-
-type Client = cyberpixie_network::Client<Stack>;
+type Client = cyberpixie_network::blocking::Client<Stack>;
 
 #[allow(non_snake_case)]
 #[derive(Default, QObject)]
@@ -180,31 +178,31 @@ impl DeviceHandleInner {
     }
 
     fn cyberpixie_client(self) -> anyhow::Result<Client> {
-        Client::connect(&mut Stack::default(), self.address).map_err(display_err)
+        Client::connect(&mut Stack::default(), self.address).map_err(anyhow::Error::from)
     }
 
     fn device_info(self) -> anyhow::Result<PeerInfo> {
         self.cyberpixie_client()?
             .peer_info(&mut Stack::default())
-            .map_err(display_err)
+            .map_err(anyhow::Error::from)
     }
 
     fn show_image(self, index: usize) -> anyhow::Result<()> {
         self.cyberpixie_client()?
             .start(&mut Stack::default(), ImageId(index as u16))
-            .map_err(display_err)
+            .map_err(anyhow::Error::from)
     }
 
     fn stop(self) -> anyhow::Result<()> {
         self.cyberpixie_client()?
             .stop(&mut Stack::default())
-            .map_err(display_err)
+            .map_err(anyhow::Error::from)
     }
 
     fn clear(self) -> anyhow::Result<()> {
         self.cyberpixie_client()?
             .clear_images(&mut Stack::default())
-            .map_err(display_err)
+            .map_err(anyhow::Error::from)
     }
 
     fn add_image(
@@ -218,10 +216,12 @@ impl DeviceHandleInner {
             "Bytes amount to read must be a multiple of 3."
         );
 
-        let id = self
-            .cyberpixie_client()?
-            .add_image(&mut Stack::default(), refresh_rate, strip_len as u16, bytes)
-            .map_err(display_err)?;
+        let id = self.cyberpixie_client()?.add_image(
+            &mut Stack::default(),
+            refresh_rate,
+            strip_len as u16,
+            bytes,
+        )?;
         Ok(id.0 as usize)
     }
 }

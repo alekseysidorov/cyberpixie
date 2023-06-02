@@ -10,8 +10,15 @@
     clippy::cast_precision_loss
 )]
 
-use cyberpixie_app::{Board, Configuration, Storage};
-use cyberpixie_core::proto::types::FirmwareInfo;
+use cyberpixie_app::{
+    core::{
+        proto::types::{FirmwareInfo, ImageId},
+        ExactSizeRead,
+    },
+    network::PayloadReader,
+    Board, Configuration, CyberpixieError, CyberpixieResult, Storage,
+};
+use embedded_io::blocking::Read;
 use smart_leds::{SmartLedsWrite, RGB8};
 use storage::ImagesRegistry;
 
@@ -59,34 +66,40 @@ where
     type RenderTask = render::Handle<R, ImagesRegistry>;
 
     fn take_components(&mut self) -> Option<(Self::Storage, Self::NetworkStack)> {
-        Some((self.storage, std_embedded_nal::Stack::default()))
+        Some((self.storage, std_embedded_nal::Stack))
     }
 
     fn start_rendering(
         &mut self,
-        storage: Self::Storage,
-        image_id: cyberpixie_core::proto::types::ImageId,
-    ) -> cyberpixie_core::Result<Self::RenderTask> {
+        mut storage: Self::Storage,
+        image_id: ImageId,
+    ) -> CyberpixieResult<Self::RenderTask> {
         let Some(render) = self.render.take() else {
-            return Err(cyberpixie_core::Error::ImageRenderIsBusy)
+            return Err(CyberpixieError::ImageRenderIsBusy)
         };
 
         let refresh_rate = storage.read_image(image_id)?.refresh_rate;
         let handle = render::start_rendering(render, self.storage, image_id, refresh_rate)
-            .map_err(cyberpixie_core::Error::internal)?;
+            .map_err(CyberpixieError::internal)?;
         Ok(handle)
     }
 
-    fn stop_rendering(
-        &mut self,
-        handle: Self::RenderTask,
-    ) -> cyberpixie_core::Result<Self::Storage> {
-        let (render, storage) = handle.stop().map_err(cyberpixie_core::Error::internal)?;
+    fn stop_rendering(&mut self, handle: Self::RenderTask) -> CyberpixieResult<Self::Storage> {
+        let (render, storage) = handle.stop().map_err(CyberpixieError::internal)?;
         self.render = Some(render);
         Ok(storage)
     }
 
     fn firmware_info(&self) -> FirmwareInfo {
         FirmwareInfo
+    }
+
+    fn show_debug_message<P: Read>(&self, mut payload: PayloadReader<P>) -> CyberpixieResult<()> {
+        let mut buf = vec![0_u8; payload.bytes_remaining()];
+        payload
+            .read_exact(&mut buf)
+            .map_err(CyberpixieError::network)?;
+        log::debug!("{}", String::from_utf8_lossy(&buf));
+        Ok(())
     }
 }
