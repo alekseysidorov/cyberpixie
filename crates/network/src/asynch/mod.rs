@@ -5,61 +5,39 @@ use cyberpixie_core::proto::{
     Headers, RequestHeader, ResponseHeader,
 };
 use embedded_io::asynch::{Read, Write};
-use embedded_nal::SocketAddr;
 
 use crate::{CyberpixieError, CyberpixieResult, Message, PayloadReader};
 
 pub mod client;
 
-/// The trait allows the underlying driver to listen a certain socket address and accepts an
-/// incoming connections that implement the I/O traits from the [`embedded-io`] project.
+/// The trait allows to create a certain TCP sockets which can do the following operations:
 ///
-/// The associated connection type should close the connection when dropped.
-pub trait TcpListener {
-    /// Error type returned on connection failure.
-    type Error: embedded_io::Error;
-    /// Type holding of a TCP connection state. Should close the connection when dropped.
-    type Connection<'a>: Read<Error = Self::Error> + Write<Error = Self::Error>
+/// - Accept an incoming connection on the given port.
+/// - Connect to the given address.
+///
+/// Regardless of the connection method each socket implements an I/O traits from the
+/// [`embedded-io`] project.
+pub trait NetworkStack {
+    /// Type provides a network socket operations.
+    type Socket<'a>: NetworkSocket
     where
         Self: 'a;
-
-    /// Binds listener to the specified local port.
+    /// Creates a new network socket.
     ///
-    /// Returns `Ok` when a listener is successfully bound to the specified local port.
-    /// Otherwise returns an `Err(e)` variant.
-    async fn bind(&mut self, port: u16) -> Result<(), Self::Error>;
-    /// Accepts an active incoming connection
+    /// The socket must be connected before it can be used.
+    fn socket(&mut self) -> Self::Socket<'_>;
+}
+
+/// Trait provides a common operations with the network socket.
+pub trait NetworkSocket {
+    /// Error type returned on connection failure.
+    type ConnectionError: embedded_io::Error;
+    /// Type holding of a TCP connection state. Should close the connection when dropped.
+    type Connection<'a>: Read<Error = Self::ConnectionError> + Write<Error = Self::ConnectionError>;
+    /// Accepts an active incoming connection on the specified local port
     ///
     /// Returns `Ok(connection)` when a new pending connection was created.
-    async fn accept(&mut self) -> Result<(SocketAddr, Self::Connection<'_>), Self::Error>;
-}
-
-/// An incoming Cybeprixie connections listener.
-///
-/// This listener handles an incoming connections from the other Cyberpixie network
-/// peers and receives messages from them. It uses an abstract [`TcpListener`] under the hood.
-pub struct Listener<T> {
-    listener: T,
-}
-
-impl<T> Listener<T> {
-    /// Creates a new Cybeprixie network listener.
-    pub fn new(listener: T) -> Self {
-        Self { listener }
-    }
-}
-
-impl<T: TcpListener> Listener<T> {
-    /// Accepts an active incoming connection.
-    pub async fn accept(&mut self) -> CyberpixieResult<Connection<T::Connection<'_>>> {
-        let (address, socket) = self
-            .listener
-            .accept()
-            .await
-            .map_err(|_| CyberpixieError::Network)?;
-        log::info!("Accepted incoming connection with the {address}");
-        Ok(Connection { socket })
-    }
+    async fn accept(&mut self, port: u16) -> CyberpixieResult<Self::Connection<'_>>;
 }
 
 /// Established connection between Cyberpixie peers.
@@ -73,6 +51,12 @@ impl<T> Connection<T>
 where
     T: Read + Write,
 {
+    /// Creates a new incoming connection handler on the specified raw connection with the other
+    /// Cyberpixie network peers.
+    pub fn incoming(socket: T) -> Self {
+        Self { socket }
+    }
+
     /// Receives a next request from the connected peer.
     pub async fn receive_request(&mut self) -> CyberpixieResult<Message<&mut T, RequestHeader>> {
         self.receive_message().await
