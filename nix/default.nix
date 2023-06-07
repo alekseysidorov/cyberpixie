@@ -20,16 +20,6 @@ let
       (final: prev: {
         # Setup Rust toolchain in according with the toolchain file 
         rustToolchain = prev.rust-bin.fromRustupToolchainFile ./../rust-toolchain.toml;
-        # Extracts cargo target infix from the given target triple
-        toEnvInfix = cargoBuildTarget: builtins.replaceStrings [ "-" "." ] [ "_" "_" ] (final.lib.toUpper cargoBuildTarget);
-        # Converts a flags array to the env variable
-        mkEnvFromFlags = flags: builtins.concatStringsSep " " flags;
-        unstableFlagsToEnv = flags: cargoTarget: final.lib.attrsets.foldlAttrs
-          (a: name: value: {
-            "CARGO_UNSTABLE_${final.toEnvInfix name}" = final.mkEnvFromFlags value;
-          } // a)
-          { }
-          flags;
 
         cargoConfigUtils = {
           fromFile = filePath:
@@ -40,12 +30,23 @@ let
               # Get the build target triple(it should be set)
               target = config.build.target;
 
+              # Extracts cargo target infix from the given target triple
+              toEnvInfix = cargoBuildTarget: builtins.replaceStrings [ "-" "." ] [ "_" "_" ] (final.lib.toUpper cargoBuildTarget);
+              # Converts a flags array to the env variable
+              mkEnvFromFlags = flags: builtins.concatStringsSep " " flags;
+              unstableFlagsToEnv = flags: cargoTarget: final.lib.attrsets.foldlAttrs
+                (a: name: value: {
+                  "CARGO_UNSTABLE_${toEnvInfix name}" = mkEnvFromFlags value;
+                } // a)
+                { }
+                flags;
+
               mkEnvFromTargetConfig = config: targetInfix:
                 let
                   asIs = foo: foo;
                   mkEnvEntry = name: set: fn:
                     let
-                      entrySuffix = final.toEnvInfix name;
+                      entrySuffix = toEnvInfix name;
 
                       entryKey = "CARGO_TARGET${targetInfix}_${entrySuffix}";
                       entryValue = (fn set.${name});
@@ -55,10 +56,10 @@ let
                 in
                 mkEnvEntry "linker" config asIs
                   // mkEnvEntry "runner" config asIs
-                  // mkEnvEntry "rustflags" config final.mkEnvFromFlags;
+                  // mkEnvEntry "rustflags" config mkEnvFromFlags;
 
               targetConfig = config.target.${target};
-              targetInfix = "_" + (final.toEnvInfix target);
+              targetInfix = "_" + (toEnvInfix target);
               # Combine the entire env variables
               env = {
                 # Set the cargo build target
@@ -67,7 +68,7 @@ let
               # Append target specific variables
               // (mkEnvFromTargetConfig targetConfig targetInfix)
               # Append unstable features
-              // lib.optionalAttrs (builtins.hasAttr "unstable" config) (final.unstableFlagsToEnv config.unstable target)
+              // lib.optionalAttrs (builtins.hasAttr "unstable" config) (unstableFlagsToEnv config.unstable target)
               // lib.optionalAttrs (builtins.hasAttr "env" config) config.env
               ;
             in

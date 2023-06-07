@@ -17,6 +17,7 @@ pkgs.mkShell {
   ];
 
   env = cargoConfigUtils.env;
+  # env = cargoConfigUtils.target;
 
   shellHook = ''
     # Setup nice bash prompt

@@ -3,9 +3,12 @@
 #![feature(type_alias_impl_trait)]
 
 use cyberpixie_app::{
-    core::proto::{
-        types::{DeviceInfo, DeviceRole, Hertz, ImageId, PeerInfo},
-        RequestHeader, ResponseHeader,
+    core::{
+        proto::{
+            types::{DeviceInfo, DeviceRole, Hertz, ImageId, PeerInfo},
+            RequestHeader, ResponseHeader,
+        },
+        MAX_STRIP_LEN,
     },
     network::asynch::{Connection, NetworkSocket, NetworkStack},
 };
@@ -15,7 +18,7 @@ use embassy_net::{Config, Ipv4Address, Ipv4Cidr, Stack, StaticConfig};
 use embassy_time::{Duration, Instant, Timer};
 use embedded_svc::wifi::{AccessPointConfiguration, Configuration, Wifi};
 use esp_backtrace as _;
-use esp_println::{logger::init_logger, print, println};
+use esp_println::{logger::init_logger, println};
 use esp_wifi::wifi::{WifiController, WifiDevice, WifiEvent, WifiMode, WifiState};
 use hal::{
     clock::{ClockControl, CpuClock},
@@ -78,8 +81,8 @@ fn main() -> ! {
 
     // Network stack configuration.
     let config = Config::Static(StaticConfig {
-        address: Ipv4Cidr::new(Ipv4Address::new(192, 168, 88, 1), 24),
-        gateway: Some(Ipv4Address::from_bytes(&[192, 168, 88, 1])),
+        address: Ipv4Cidr::new(Ipv4Address::new(192, 168, 1, 1), 24),
+        gateway: Some(Ipv4Address::from_bytes(&[192, 168, 1, 1])),
         dns_servers: Default::default(),
     });
     // FIXME: There is no way to use DHCP in Ap mode at this moment :(
@@ -195,9 +198,8 @@ async fn task(stack: &'static Stack<WifiDevice<'static>>) {
     let mut socket = driver.socket();
 
     loop {
-        println!("Wait for connection...");
-        let res = socket.accept(8080).await;
-        println!("Connected...");
+        log::info!("Wait for connection...");
+        let res = socket.accept(1800).await;
 
         let socket = match res {
             Ok(socket) => socket,
@@ -206,25 +208,35 @@ async fn task(stack: &'static Stack<WifiDevice<'static>>) {
                 continue;
             }
         };
+        log::info!("Connected with {:?}...", socket.remote_endpoint());
 
         let mut connection = Connection::incoming(socket);
+        loop {
+            let Ok(request) = connection.receive_request().await else { break; };
 
-        let request = connection.receive_request().await.unwrap();
-        let header: RequestHeader = request.header;
-        let response = match header {
-            RequestHeader::Handshake(peer_info) => {
-                log::info!("Got a handshake info {:?}", peer_info);
-                Ok(ResponseHeader::Handshake(dummy_peer_info()))
+            let header: RequestHeader = request.header;
+            let response = match header {
+                RequestHeader::Handshake(peer_info) => {
+                    log::info!("Got a handshake info {:?}", peer_info);
+                    Ok(ResponseHeader::Handshake(dummy_peer_info()))
+                }
+
+                _other => todo!(""),
+            };
+
+            log::info!("Sending response {response:?}");
+            let result = match response {
+                Ok(response) => connection.send_message(response).await,
+                Err(err) => connection.send_message(ResponseHeader::Error(err)).await,
+            };
+
+            if result.is_err() {
+                break;
             }
-
-            other => todo!(""),
-        };
-
-        match response {
-            Ok(response) => connection.send_message(response).await,
-            Err(err) => connection.send_message(ResponseHeader::Error(err)).await,
         }
-        .unwrap();
+
+        log::info!("Closing connection...");
+        Timer::after(Duration::from_millis(100)).await;
     }
 }
 
@@ -243,49 +255,64 @@ fn dummy_peer_info() -> PeerInfo {
 
 #[embassy_executor::task]
 async fn led_render_task(spi: &'static mut SpiType<'static>) {
-    let rate = Hertz(800);
-    let frame_duration = Duration::from_hz(rate.0 as u64);
+    const LED_BUF_LEN: usize = 12 * MAX_STRIP_LEN;
 
-    log::info!("Start LED strip rendering task with refresh rate: {rate}hz");
-
-    const LED_BUF_LEN: usize = 12 * NUM_LEDS;
+    let rate = Hertz(500);
 
     let mut ws: Ws2812<_, LED_BUF_LEN> = Ws2812::new(spi);
-
-    ws.write(core::iter::repeat(RGB8::default()).take(NUM_LEDS))
+    // Cleanup strip
+    ws.write(core::iter::repeat(RGB8::default()).take(MAX_STRIP_LEN))
         .await
         .unwrap();
-    log::info!("LED strip has been cleaned up");
+
+    let frame_duration = Duration::from_hz(rate.0 as u64);
+
+    Timer::after(Duration::from_secs(5)).await;
+    log::info!("Start LED strip rendering task with refresh rate: {rate}hz");
+
+    let mut total_render_time = 0;
+    let mut dropped_frames = 0;
+    let mut counts = 0;
+    let mut max_render_time = 0;
     loop {
-        let counts = 10_000;
-        let mut total_render_time = 0;
-        let mut dropped_frames = 0;
+        let now = Instant::now();
 
-        for j in 0..counts {
-            let now = Instant::now();
+        let line = brightness(
+            (0..NUM_LEDS)
+                .map(|i| wheel((((i * 256) as u16 / NUM_LEDS as u16 + counts as u16) & 255) as u8)),
+            16,
+        );
+        ws.write(line).await.unwrap();
+        let elapsed = now.elapsed();
 
-            let data = (0..NUM_LEDS)
-                .map(|i| wheel((((i * 256) as u16 / NUM_LEDS as u16 + j as u16) & 255) as u8));
-            ws.write(brightness(data, 16)).await.unwrap();
-
-            let elapsed = now.elapsed().as_micros();
-            total_render_time += elapsed;
-
-            if now.elapsed() <= frame_duration {
-                let next_frame_time = now + frame_duration;
-                Timer::at(next_frame_time).await;
-            } else {
-                dropped_frames += 1;
-            }
+        total_render_time += elapsed.as_micros();
+        if elapsed <= frame_duration {
+            let next_frame_time = now + frame_duration;
+            Timer::at(next_frame_time).await;
+        } else {
+            dropped_frames += 1;
+            max_render_time = core::cmp::max(max_render_time, elapsed.as_micros());
         }
 
-        let line_render_time = total_render_time as f32 / counts as f32;
-        log::info!("-> Total rendering time {total_render_time}us");
-        log::info!("-> per line: {line_render_time}us");
-        log::info!(
-            "-> Average frame rendering frame rate is {}Hz",
-            1_000_000f32 / line_render_time
-        );
-        log::info!("-> dropped frames: {dropped_frames}");
+        counts += 1;
+        if counts == 10_000 {
+            let line_render_time = total_render_time as f32 / counts as f32;
+            log::info!("-> Refresh rate {rate}hz");
+            log::info!("-> Total rendering time {total_render_time}us");
+            log::info!("-> per line: {line_render_time}us");
+            log::info!("-> max: {max_render_time}us");
+            log::info!(
+                "-> Average frame rendering frame rate is {}Hz",
+                1_000_000f32 / line_render_time
+            );
+            log::info!(
+                "-> dropped frames: {dropped_frames} [{}%]",
+                dropped_frames as f32 * 100_f32 / counts as f32
+            );
+
+            dropped_frames = 0;
+            total_render_time = 0;
+            counts = 0;
+        }
     }
 }
