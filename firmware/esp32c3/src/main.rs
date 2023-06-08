@@ -3,22 +3,16 @@
 #![feature(type_alias_impl_trait)]
 
 use cyberpixie_app::{
-    core::{
-        proto::{
-            types::{DeviceInfo, DeviceRole, Hertz, ImageId, PeerInfo},
-            RequestHeader, ResponseHeader,
-        },
-        MAX_STRIP_LEN,
-    },
-    network::asynch::{Connection, NetworkSocket, NetworkStack},
+    asynch::App,
+    core::{proto::types::Hertz, MAX_STRIP_LEN},
 };
-use cyberpixie_esp32c3::{network::NetworkStackImpl, singleton, wheel, SpiType};
+use cyberpixie_esp32c3::{singleton, wheel, BoardImpl, SpiType};
 use embassy_executor::Executor;
 use embassy_net::{Config, Ipv4Address, Ipv4Cidr, Stack, StaticConfig};
 use embassy_time::{Duration, Instant, Timer};
 use embedded_svc::wifi::{AccessPointConfiguration, Configuration, Wifi};
 use esp_backtrace as _;
-use esp_println::{logger::init_logger, println};
+use esp_println::logger::init_logger;
 use esp_wifi::wifi::{WifiController, WifiDevice, WifiEvent, WifiMode, WifiState};
 use hal::{
     clock::{ClockControl, CpuClock},
@@ -194,63 +188,9 @@ async fn task(stack: &'static Stack<WifiDevice<'static>>) {
 
     log::info!("Network config is {:?}", stack.config());
 
-    let mut driver = NetworkStackImpl::new(stack);
-    let mut socket = driver.socket();
-
-    loop {
-        log::info!("Wait for connection...");
-        let res = socket.accept(1800).await;
-
-        let socket = match res {
-            Ok(socket) => socket,
-            Err(err) => {
-                println!("connect error: {err:?}");
-                continue;
-            }
-        };
-        log::info!("Connected with {:?}...", socket.remote_endpoint());
-
-        let mut connection = Connection::incoming(socket);
-        loop {
-            let Ok(request) = connection.receive_request().await else { break; };
-
-            let header: RequestHeader = request.header;
-            let response = match header {
-                RequestHeader::Handshake(peer_info) => {
-                    log::info!("Got a handshake info {:?}", peer_info);
-                    Ok(ResponseHeader::Handshake(dummy_peer_info()))
-                }
-
-                _other => todo!(""),
-            };
-
-            log::info!("Sending response {response:?}");
-            let result = match response {
-                Ok(response) => connection.send_message(response).await,
-                Err(err) => connection.send_message(ResponseHeader::Error(err)).await,
-            };
-
-            if result.is_err() {
-                break;
-            }
-        }
-
-        log::info!("Closing connection...");
-        Timer::after(Duration::from_millis(100)).await;
-    }
-}
-
-fn dummy_peer_info() -> PeerInfo {
-    PeerInfo {
-        role: DeviceRole::Main,
-        group_id: None,
-        device_info: Some(DeviceInfo {
-            active: false,
-            strip_len: 16,
-            images_count: ImageId(0),
-            current_image: None,
-        }),
-    }
+    let board = BoardImpl::new(stack);
+    let app = App::new(board).expect("Unable to create a cyberpixie application");
+    app.run().await.expect("Application execution failed");
 }
 
 #[embassy_executor::task]

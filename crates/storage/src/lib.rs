@@ -3,6 +3,7 @@
 //! This crate implements generic storage on top of the [`embedded_storage`] traits.
 
 #![cfg_attr(not(any(feature = "std", test)), no_std)]
+#![feature(async_fn_in_trait)]
 // Linter configuration
 #![warn(unsafe_code, missing_copy_implementations)]
 #![warn(clippy::pedantic)]
@@ -386,6 +387,60 @@ impl<T: embedded_storage::Storage + Send + 'static> cyberpixie_app::Storage for 
         // Write image bytes
         while !image.is_empty() {
             let bytes_read = image.read(self.buf).map_err(CyberpixieError::network)?;
+            self.backend
+                .write(offset, &self.buf[0..bytes_read])
+                .map_err(|_| CyberpixieError::StorageWrite)?;
+            offset += bytes_read as u32;
+        }
+
+        // Save new image location.
+        PictureLocation {
+            current: last_picture.next,
+            next: offset,
+        }
+        .write(image_id, &mut self.backend, self.layout, self.buf)?;
+
+        // Update storage header.
+        header.images_count.0 += 1;
+        header.write(&mut self.backend, self.layout, self.buf)?;
+
+        Ok(image_id)
+    }
+
+    async fn add_image_async<R: embedded_io::asynch::Read + ExactSizeRead>(
+        &mut self,
+        refresh_rate: Hertz,
+        mut image: R,
+    ) -> CyberpixieResult<ImageId> {
+        let mut header = Header::read(&mut self.backend, self.layout, self.buf)?;
+
+        // Check preconditions
+        if header.images_count.0 >= Self::MAX_PICTURES_NUM {
+            return Err(CyberpixieError::ImageRepositoryIsFull);
+        }
+        // FIXME check image len
+
+        // Next image start offset
+        let image_id = header.images_count;
+        let last_picture = self.vacant_location(image_id)?;
+        let mut offset = last_picture.next;
+
+        // Write the refresh rate.
+        {
+            let buf = &mut self.buf[0..Hertz::PACKED_LEN];
+            refresh_rate.encode_as_le_bytes(buf);
+            self.backend
+                .write(offset, buf)
+                .map_err(|_| CyberpixieError::StorageWrite)?;
+            offset += buf.len() as u32;
+        }
+
+        // Write image bytes
+        while !image.is_empty() {
+            let bytes_read = image
+                .read(self.buf)
+                .await
+                .map_err(CyberpixieError::network)?;
             self.backend
                 .write(offset, &self.buf[0..bytes_read])
                 .map_err(|_| CyberpixieError::StorageWrite)?;

@@ -1,11 +1,12 @@
 //! Cyberpixie application
 
 #![cfg_attr(not(any(feature = "std", test)), no_std)]
+#![feature(async_fn_in_trait)]
 // Linter configuration
 
 pub use cyberpixie_core as core;
 use cyberpixie_core::{
-    proto::types::{FirmwareInfo, Hertz, ImageId},
+    proto::types::{DeviceInfo, FirmwareInfo, Hertz, ImageId},
     storage::Image,
     ExactSizeRead,
 };
@@ -19,6 +20,7 @@ use serde::{Deserialize, Serialize};
 pub use crate::app::{App, Connections};
 
 mod app;
+pub mod asynch;
 
 /// Default application network port.
 pub const NETWORK_PORT: u16 = 1800;
@@ -116,6 +118,13 @@ pub trait Storage: Send + 'static {
     /// - You should set the current image ID to the `None` in the board configuration.
     fn clear_images(&mut self) -> CyberpixieResult<()>;
 
+    /// Adds a new image.
+    async fn add_image_async<R: embedded_io::asynch::Read + ExactSizeRead>(
+        &mut self,
+        refresh_rate: Hertz,
+        image: R,
+    ) -> CyberpixieResult<ImageId>;
+
     /// Sets an index of image that will be shown.
     fn set_current_image_id<I>(&mut self, id: I) -> CyberpixieResult<()>
     where
@@ -152,4 +161,14 @@ pub trait Storage: Send + 'static {
             .ok_or(CyberpixieError::ImageRepositoryIsEmpty)?;
         self.read_image(image_id)
     }
+}
+
+pub(crate) fn read_device_info<S: Storage>(storage: &mut S) -> CyberpixieResult<DeviceInfo> {
+    let config = storage.config()?;
+    Ok(DeviceInfo {
+        strip_len: config.strip_len,
+        images_count: storage.images_count()?,
+        current_image: config.current_image,
+        active: false,
+    })
 }

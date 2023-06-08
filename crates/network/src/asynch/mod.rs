@@ -112,6 +112,10 @@ where
 
         // Read header
         let header_len = packet.header_len as usize;
+        if header_len >= Packet::MAX_LEN {
+            return Err(CyberpixieError::Decode);
+        }
+
         self.socket
             .read_exact(&mut buf[0..header_len])
             .await

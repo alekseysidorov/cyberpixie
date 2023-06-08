@@ -18,7 +18,13 @@ use hal::{
 };
 use smart_leds::RGB8;
 
-pub mod network;
+pub use crate::{
+    board_impl::BoardImpl,
+    network::{NetworkSocketImpl, NetworkStackImpl},
+};
+
+mod board_impl;
+mod network;
 
 /// Default memory layout of internal Flash storage.
 pub const DEFAULT_MEMORY_LAYOUT: MemoryLayout = MemoryLayout {
