@@ -15,7 +15,6 @@ use embassy_sync::{
     blocking_mutex::raw::CriticalSectionRawMutex,
     channel::{Channel, Receiver, Sender},
 };
-use embassy_time::{Duration, Instant, Timer};
 use smart_leds::RGB8;
 
 use crate::{singleton, StorageImpl};
@@ -28,10 +27,7 @@ pub type StaticSender<T, const N: usize> = Sender<'static, CriticalSectionRawMut
 pub type StaticReceiver<T, const N: usize> = Receiver<'static, CriticalSectionRawMutex, T, N>;
 
 enum Command {
-    Start {
-        storage: StorageImpl,
-        id: ImageId,
-    },
+    Start { storage: StorageImpl, id: ImageId },
     Stop,
 }
 

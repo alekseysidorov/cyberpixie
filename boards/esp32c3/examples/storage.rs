@@ -4,7 +4,7 @@
 
 use cyberpixie_app::{core::proto::types::Hertz, Configuration, Storage};
 use cyberpixie_embedded_storage::StorageImpl;
-use cyberpixie_esp32c3::{DEFAULT_MEMORY_LAYOUT};
+use cyberpixie_esp32c3::DEFAULT_MEMORY_LAYOUT;
 use cyberpixie_esp_common::singleton;
 use esp_backtrace as _;
 use esp_println::logger::init_logger;

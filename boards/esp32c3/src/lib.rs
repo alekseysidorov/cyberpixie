@@ -5,8 +5,13 @@
 #![feature(async_fn_in_trait, type_alias_impl_trait)]
 
 use cyberpixie_app::core::{proto::types::Hertz, MAX_STRIP_LEN};
-use cyberpixie_embedded_storage::MemoryLayout;
-use cyberpixie_esp_common::{singleton, render::{StaticReceiver, QUEUE_LEN, Frame}};
+use cyberpixie_esp_common::{
+    render::{Frame, StaticReceiver, QUEUE_LEN},
+    singleton,
+};
+pub use cyberpixie_esp_common::{
+    BoardImpl, NetworkSocketImpl, NetworkStackImpl, DEFAULT_MEMORY_LAYOUT,
+};
 use embassy_time::{Duration, Instant, Timer};
 use hal::{
     clock::Clocks,
@@ -20,20 +25,6 @@ use hal::{
 };
 use smart_leds::RGB8;
 use ws2812_async::Ws2812;
-
-pub use crate::{
-    board::BoardImpl,
-    network::{NetworkSocketImpl, NetworkStackImpl},
-};
-
-mod board;
-mod network;
-
-/// Default memory layout of internal Flash storage.
-pub const DEFAULT_MEMORY_LAYOUT: MemoryLayout = MemoryLayout {
-    base: 0x9000,
-    size: 0x199000,
-};
 
 /// Max supported frame rate.
 pub const MAX_FRAME_RATE: Hertz = Hertz(500);
@@ -108,7 +99,6 @@ pub type SpiType<'d> = SpiDma<
     SuitablePeripheral0,
     FullDuplexMode,
 >;
-
 
 #[embassy_executor::task]
 pub async fn render_task(
