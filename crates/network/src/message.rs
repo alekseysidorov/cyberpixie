@@ -1,6 +1,10 @@
 //! Cyberpixie protocol messages io adapters
 
-use cyberpixie_core::{proto::Headers, ExactSizeRead};
+use cyberpixie_core::{
+    io::{AsyncRead, AsyncWrite, BlockingRead, BlockingWrite},
+    proto::Headers,
+    ExactSizeRead,
+};
 
 use crate::CyberpixieError;
 
@@ -58,7 +62,7 @@ impl<'a> From<&'a str> for PayloadReader<&'a [u8]> {
     }
 }
 
-impl<T: embedded_io::blocking::Read> embedded_io::blocking::Read for PayloadReader<T> {
+impl<T: BlockingRead> BlockingRead for PayloadReader<T> {
     fn read(&mut self, mut buf: &mut [u8]) -> Result<usize, Self::Error> {
         // Don't read more bytes the from buffer than necessary.
         if buf.len() > self.bytes_remaining {
@@ -71,7 +75,7 @@ impl<T: embedded_io::blocking::Read> embedded_io::blocking::Read for PayloadRead
     }
 }
 
-impl<T: embedded_io::asynch::Read> embedded_io::asynch::Read for PayloadReader<T> {
+impl<T: AsyncRead> AsyncRead for PayloadReader<T> {
     async fn read(&mut self, mut buf: &mut [u8]) -> Result<usize, Self::Error> {
         // Don't read more bytes the from buffer than necessary.
         if buf.len() > self.bytes_remaining {
@@ -113,13 +117,11 @@ impl<R, H> Message<R, H> {
     }
 }
 
-impl<R: embedded_io::blocking::Read> Message<R, Headers> {
+impl<R: BlockingRead> Message<R, Headers> {
     pub fn send_blocking<W>(self, mut device: W) -> cyberpixie_core::Result<()>
     where
-        W: embedded_io::blocking::Write,
+        W: BlockingWrite,
     {
-        use embedded_io::blocking::Read;
-
         let (header, payload_len, payload_reader) = self.into_parts();
 
         let mut send_buf = [0_u8; SEND_BUF_LEN];
@@ -145,13 +147,11 @@ impl<R: embedded_io::blocking::Read> Message<R, Headers> {
     }
 }
 
-impl<R: embedded_io::blocking::Read> Message<R, Headers> {
+impl<R: BlockingRead> Message<R, Headers> {
     pub async fn send_async<W>(self, mut device: W) -> cyberpixie_core::Result<()>
     where
-        W: embedded_io::asynch::Write,
+        W: AsyncWrite,
     {
-        use embedded_io::blocking::Read;
-
         let (header, payload_len, payload_reader) = self.into_parts();
 
         let mut send_buf = [0_u8; SEND_BUF_LEN];

@@ -1,14 +1,15 @@
-use embedded_io::blocking::{Read, ReadExactError};
+use embedded_io::blocking::ReadExactError;
 pub use endian_codec::PackedSize;
 use endian_codec::{DecodeLE, EncodeLE};
 use postcard::experimental::max_size::MaxSize;
 
 use super::{Headers, RequestHeader, ResponseHeader};
+use crate::io::BlockingRead;
 
 pub trait FromPacket: Sized {
     fn from_bytes(buf: &[u8]) -> Result<Self, postcard::Error>;
 
-    fn from_packet<R: Read>(
+    fn from_packet<R: BlockingRead>(
         packet: Packet,
         mut reader: R,
     ) -> Result<(Self, usize), PacketReadError<R::Error>> {
@@ -85,7 +86,7 @@ impl Packet {
     /// Max packet with header length.
     pub const MAX_LEN: usize = Headers::POSTCARD_MAX_SIZE + Self::PACKED_LEN;
 
-    pub fn read<T: Read>(mut reader: T) -> Result<Self, PacketReadError<T::Error>> {
+    pub fn read<T: BlockingRead>(mut reader: T) -> Result<Self, PacketReadError<T::Error>> {
         let mut buf = [0_u8; Self::PACKED_LEN];
         reader.read_exact(&mut buf)?;
         Ok(Self::decode_from_le_bytes(&buf))
@@ -96,7 +97,7 @@ impl Packet {
         Self::decode_from_le_bytes(bytes)
     }
 
-    pub fn header<R: Read, H: FromPacket>(
+    pub fn header<R: BlockingRead, H: FromPacket>(
         self,
         reader: R,
     ) -> Result<(H, usize), PacketReadError<R::Error>> {

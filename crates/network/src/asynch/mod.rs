@@ -1,10 +1,12 @@
 //! An async version of the network abstraction layer
 
-use cyberpixie_core::proto::{
-    packet::{FromPacket, PackedSize, Packet},
-    Headers, RequestHeader, ResponseHeader,
+use cyberpixie_core::{
+    io::{AsyncRead, AsyncWrite},
+    proto::{
+        packet::{FromPacket, PackedSize, Packet},
+        Headers, RequestHeader, ResponseHeader,
+    },
 };
-use embedded_io::asynch::{Read, Write};
 
 use crate::{CyberpixieError, CyberpixieResult, Message, PayloadReader};
 
@@ -33,7 +35,8 @@ pub trait NetworkSocket {
     /// Error type returned on connection failure.
     type ConnectionError: embedded_io::Error;
     /// Type holding of a TCP connection state. Should close the connection when dropped.
-    type Connection<'a>: Read<Error = Self::ConnectionError> + Write<Error = Self::ConnectionError>;
+    type Connection<'a>: AsyncRead<Error = Self::ConnectionError>
+        + AsyncWrite<Error = Self::ConnectionError>;
     /// Accepts an active incoming connection on the specified local port
     ///
     /// Returns `Ok(connection)` when a new pending connection was created.
@@ -49,7 +52,7 @@ pub struct Connection<T> {
 
 impl<T> Connection<T>
 where
-    T: Read + Write,
+    T: AsyncRead + AsyncWrite,
 {
     /// Creates a new incoming connection handler on the specified raw connection with the other
     /// Cyberpixie network peers.

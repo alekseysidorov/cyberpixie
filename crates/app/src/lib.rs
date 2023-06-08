@@ -3,27 +3,32 @@
 #![cfg_attr(not(any(feature = "std", test)), no_std)]
 #![feature(async_fn_in_trait)]
 // Linter configuration
+#![warn(unsafe_code, missing_copy_implementations)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::use_self)]
+// Too many false positives.
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::missing_panics_doc,
+    clippy::module_name_repetitions,
+    clippy::missing_const_for_fn
+)]
 
-pub use cyberpixie_core as core;
+pub use cyberpixie_core::{self as core, Error as CyberpixieError, Result as CyberpixieResult};
 use cyberpixie_core::{
-    io::image_reader::Image,
+    io::{image_reader::Image, AsyncRead, BlockingRead, BlockingSeek},
     proto::types::{DeviceInfo, FirmwareInfo, Hertz, ImageId},
     ExactSizeRead,
 };
-pub use cyberpixie_core::{Error as CyberpixieError, Result as CyberpixieResult};
-pub use cyberpixie_network as network;
-use embedded_io::blocking::{Read, Seek};
-use embedded_nal::TcpFullStack;
-use network::PayloadReader;
+use cyberpixie_network::{asynch::NetworkStack, PayloadReader};
 use serde::{Deserialize, Serialize};
 
-pub use crate::app::{App, Connections};
+pub use self::app::App;
 
 mod app;
-pub mod asynch;
 
-/// Default application network port.
-pub const NETWORK_PORT: u16 = 1800;
+/// Port for the client connection.
+pub const CLIENT_PORT: u16 = 1800;
 
 /// Board-specific components
 ///
@@ -32,7 +37,7 @@ pub trait Board {
     /// Type provides the internal storage functionality.
     type Storage: Storage;
     /// Type provides the network stack.
-    type NetworkStack: TcpFullStack;
+    type NetworkStack: NetworkStack;
     /// Type provides a LED strip pictures rendering task.
     type RenderTask;
     /// Returns all board components.
@@ -43,23 +48,30 @@ pub trait Board {
     ///
     /// To prevent data races, this method takes [`Self::Storage`] the entirely, making
     /// it impossible to modify it while the image rendering task is being executed.
-    fn start_rendering(
+    async fn start_rendering(
         &mut self,
         storage: Self::Storage,
         image_id: ImageId,
     ) -> CyberpixieResult<Self::RenderTask>;
     /// Stops a LED strip rendering task and returns back previously borrowed storage.
-    fn stop_rendering(&mut self, handle: Self::RenderTask) -> CyberpixieResult<Self::Storage>;
+    async fn stop_rendering(&mut self, handle: Self::RenderTask)
+        -> CyberpixieResult<Self::Storage>;
     /// Returns a board firmware information.
     fn firmware_info(&self) -> FirmwareInfo;
 
     /// Shows a debug message.
     ///
     /// Default implementation just do nothing.
-    fn show_debug_message<R: Read>(&self, mut payload: PayloadReader<R>) -> CyberpixieResult<()> {
+    async fn show_debug_message<R: AsyncRead>(
+        &self,
+        mut payload: PayloadReader<R>,
+    ) -> CyberpixieResult<()> {
         while payload.bytes_remaining() != 0 {
             let mut byte = [0_u8];
-            payload.read(&mut byte).map_err(CyberpixieError::network)?;
+            payload
+                .read(&mut byte)
+                .await
+                .map_err(CyberpixieError::network)?;
         }
         Ok(())
     }
@@ -89,7 +101,7 @@ pub type ImageReader<'a, S> = Image<<S as Storage>::ImageRead<'a>>;
 /// Board internal storage.
 pub trait Storage: Send + 'static {
     /// Image reader type.
-    type ImageRead<'a>: Read + ExactSizeRead + Seek
+    type ImageRead<'a>: BlockingRead + BlockingSeek + ExactSizeRead
     where
         Self: 'a;
     /// Returns an application configuration.
@@ -102,11 +114,18 @@ pub trait Storage: Send + 'static {
     /// - You must invoke [`Self::clear_images`] method if the strip length changes.
     fn set_config(&mut self, config: Configuration) -> CyberpixieResult<()>;
     /// Adds a new image.
-    fn add_image<R: Read + ExactSizeRead>(
+    fn add_image<R: BlockingRead + ExactSizeRead>(
         &mut self,
         refresh_rate: Hertz,
         image: R,
     ) -> CyberpixieResult<ImageId>;
+    /// Adds a new image.
+    async fn add_image_async<R: AsyncRead + ExactSizeRead>(
+        &mut self,
+        refresh_rate: Hertz,
+        image: R,
+    ) -> CyberpixieResult<ImageId>;
+
     /// Reads an image with the given identifier.
     fn read_image(&mut self, id: ImageId) -> CyberpixieResult<ImageReader<'_, Self>>;
     /// Returns total saved images count.
@@ -117,13 +136,6 @@ pub trait Storage: Send + 'static {
     ///
     /// - You should set the current image ID to the `None` in the board configuration.
     fn clear_images(&mut self) -> CyberpixieResult<()>;
-
-    /// Adds a new image.
-    async fn add_image_async<R: embedded_io::asynch::Read + ExactSizeRead>(
-        &mut self,
-        refresh_rate: Hertz,
-        image: R,
-    ) -> CyberpixieResult<ImageId>;
 
     /// Sets an index of image that will be shown.
     fn set_current_image_id<I>(&mut self, id: I) -> CyberpixieResult<()>
@@ -180,7 +192,7 @@ impl<T: Storage> Storage for &'static mut T {
         T::set_config(self, config)
     }
 
-    fn add_image<R: Read + ExactSizeRead>(
+    fn add_image<R: BlockingRead + ExactSizeRead>(
         &mut self,
         refresh_rate: Hertz,
         image: R,

@@ -1,5 +1,7 @@
-use cyberpixie_core::proto::{types::PeerInfo, RequestHeader};
-use embedded_io::asynch::{Read, Write};
+use cyberpixie_core::{
+    io::{AsyncRead, AsyncWrite},
+    proto::{types::PeerInfo, RequestHeader},
+};
 
 use super::Connection;
 use crate::CyberpixieResult;
@@ -9,7 +11,7 @@ pub struct Client<S> {
     connection: Connection<S>,
 }
 
-impl<S: Read + Write> Client<S> {
+impl<S: AsyncRead + AsyncWrite> Client<S> {
     /// Creates a new client on top of the given connection.
     pub async fn new(connection: Connection<S>) -> CyberpixieResult<Self> {
         let mut client = Self { connection };

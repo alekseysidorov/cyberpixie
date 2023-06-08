@@ -8,7 +8,7 @@ use cyberpixie_app::{
 };
 use cyberpixie_embedded_storage::{
     test_utils::{leaked_buf, MemoryBackend},
-    StorageImpl, MemoryLayout,
+    MemoryLayout, StorageImpl,
 };
 use embedded_io::blocking::Read;
 
@@ -120,7 +120,7 @@ fn test_image_lines_cycle_nyan_cat() {
     // Read image line by line.
     let image = storage.read_image(ImageId(0)).unwrap();
     let mut lines = ImageLines::new(image, 48, vec![0_u8; 512]);
-    
+
     let first_line: Vec<_> = lines.next_line().unwrap().collect();
     // Render a lot of lines
     for _ in 1..360 {

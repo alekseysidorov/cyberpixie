@@ -1,9 +1,13 @@
 //! Image reader wrapper raw embedded I/O reader.
 
-use embedded_io::blocking::{Read, ReadExactError, Seek};
+use embedded_io::blocking::ReadExactError;
 use rgb::{FromSlice, RGB8};
 
-use crate::{proto::types::Hertz, ExactSizeRead};
+use crate::{
+    io::{BlockingRead, BlockingSeek},
+    proto::types::Hertz,
+    ExactSizeRead,
+};
 
 #[derive(Debug)]
 pub struct Image<R> {
@@ -17,7 +21,7 @@ pub struct Image<R> {
 
 impl<R> Image<R>
 where
-    R: Seek,
+    R: BlockingSeek,
 {
     /// Rewind to the beginning of an image.
     #[inline]
@@ -31,7 +35,6 @@ where
 pub struct ImageLines<R, B>
 where
     B: AsMut<[u8]>,
-    R: ExactSizeRead + Seek,
 {
     image: Image<R>,
     strip_line_len: usize,
@@ -41,7 +44,7 @@ where
 impl<R, B> ImageLines<R, B>
 where
     B: AsMut<[u8]>,
-    R: Read + ExactSizeRead + Seek,
+    R: BlockingRead + BlockingSeek + ExactSizeRead,
 {
     /// Bytes count per single pixel.
     pub const BYTES_PER_PIXEL: usize = 3;

@@ -1,13 +1,15 @@
 //! A connection between Cybeprixie peers.
 
-use embedded_io::blocking::{Read, Write};
 use embedded_nal::{SocketAddr, TcpClientStack, TcpFullStack};
 
 pub use self::{
     client::Client,
     connection::{Connection, IncomingMessage},
 };
-use crate::{CyberpixieError, CyberpixieResult};
+use crate::{
+    core::io::{BlockingRead, BlockingWrite},
+    CyberpixieError, CyberpixieResult,
+};
 
 mod client;
 mod connection;
@@ -59,7 +61,7 @@ impl<'a, S: TcpClientStack> embedded_io::Io for TcpStream<'a, S> {
     type Error = NetworkError<S>;
 }
 
-impl<'a, S: TcpClientStack> Write for TcpStream<'a, S> {
+impl<'a, S: TcpClientStack> BlockingWrite for TcpStream<'a, S> {
     fn write(&mut self, buffer: &[u8]) -> Result<usize, Self::Error> {
         nb::block!(self.stack.send(self.socket, buffer)).map_err(NetworkError::new)
     }
@@ -70,7 +72,7 @@ impl<'a, S: TcpClientStack> Write for TcpStream<'a, S> {
     }
 }
 
-impl<'a, S: TcpClientStack> Read for TcpStream<'a, S> {
+impl<'a, S: TcpClientStack> BlockingRead for TcpStream<'a, S> {
     fn read(&mut self, buffer: &mut [u8]) -> Result<usize, Self::Error> {
         nb::block!(self.stack.receive(self.socket, buffer)).map_err(NetworkError::new)
     }
