@@ -22,9 +22,9 @@ use crate::{singleton, SpiType, StorageImpl};
 /// Pending frames queue length.
 const QUEUE_LEN: usize = 8;
 
-type RGB8Line = heapless::Vec<RGB8, MAX_STRIP_LEN>;
-type StaticSender<T, const N: usize> = Sender<'static, CriticalSectionRawMutex, T, N>;
-type StaticReceiver<T, const N: usize> = Receiver<'static, CriticalSectionRawMutex, T, N>;
+pub type RGB8Line = heapless::Vec<RGB8, MAX_STRIP_LEN>;
+pub type StaticSender<T, const N: usize> = Sender<'static, CriticalSectionRawMutex, T, N>;
+pub type StaticReceiver<T, const N: usize> = Receiver<'static, CriticalSectionRawMutex, T, N>;
 
 enum Command {
     Start { storage: StorageImpl, id: ImageId },
@@ -32,7 +32,7 @@ enum Command {
 }
 
 /// Next frame
-enum Frame {
+pub enum Frame {
     /// Change refresh frame rate.
     UpdateRate(Hertz),
     /// Next line.
@@ -94,7 +94,7 @@ async fn storage_reading_task(
 }
 
 #[embassy_executor::task]
-async fn render_task(
+pub async fn render_task(
     spi: &'static mut SpiType<'static>,
     receiver: StaticReceiver<Frame, QUEUE_LEN>,
 ) {
@@ -195,18 +195,16 @@ impl RenderingHandle {
 }
 
 /// Creates a pictures render tasks set.
-pub fn spawn(spawner: Spawner, spi: &'static mut SpiType<'static>) -> RenderingHandle {
+pub fn spawn(spawner: Spawner, framebuffer: StaticSender<Frame, QUEUE_LEN>) -> RenderingHandle {
     // Create communication channels between tasks.
-    let frames = singleton!(Channel::new());
     let commands = singleton!(Channel::new());
     let responses = singleton!(Channel::new());
     // Spawn Embassy tasks.
     spawner.must_spawn(storage_reading_task(
         commands.receiver(),
         responses.sender(),
-        frames.sender(),
+        framebuffer,
     ));
-    spawner.must_spawn(render_task(spi, frames.receiver()));
     RenderingHandle {
         commands: commands.sender(),
         responses: responses.receiver(),

@@ -15,6 +15,7 @@
 )]
 
 pub use cyberpixie_core::{self as core, Error as CyberpixieError, Result as CyberpixieResult};
+pub use cyberpixie_network as network;
 use cyberpixie_core::{
     io::{image_reader::Image, AsyncRead, BlockingRead, BlockingSeek},
     proto::types::{DeviceInfo, FirmwareInfo, Hertz, ImageId},

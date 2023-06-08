@@ -1,9 +1,8 @@
 //! Board support
 
 use cyberpixie_app::{
-    asynch::Board,
     core::proto::types::{FirmwareInfo, ImageId},
-    Configuration,
+    Board, Configuration,
 };
 use embassy_net::Stack;
 use esp_storage::FlashStorage;
