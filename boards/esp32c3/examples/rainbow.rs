@@ -12,7 +12,8 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
-use cyberpixie_esp32c3::{singleton, wheel, ws2812_spi, SpiType};
+use cyberpixie_esp32c3::{wheel, ws2812_spi, SpiType};
+use cyberpixie_esp_common::singleton;
 use embassy_executor::Executor;
 use embassy_time::{Duration, Instant, Timer};
 use esp_backtrace as _;

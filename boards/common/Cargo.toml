@@ -1,0 +1,24 @@
+[package]
+name = "cyberpixie-esp-common"
+version = "0.3.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+embassy-executor = { version = "0.2.0", features = ["nightly", "integrated-timers", "executor-thread"] }
+embassy-sync = { version = "0.2.0", features = ["nightly"] }
+embassy-time = { version = "0.1.1", features = ["nightly"] }
+embedded-storage = "0.3"
+esp-storage = { version = "0.1.0" }
+heapless = { workspace = true }
+log = "0.4"
+smart-leds = "0.3"
+static_cell = "1"
+
+# Cyberpixie
+cyberpixie-app = { workspace = true }
+cyberpixie-embedded-storage = { workspace = true }
+
+[features]
+esp32c3 = ["esp-storage/esp32c3"]

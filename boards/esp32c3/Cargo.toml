@@ -34,3 +34,4 @@ static_cell = "1"
 # Cyberpixie
 cyberpixie-app = { workspace = true }
 cyberpixie-embedded-storage = { workspace = true }
+cyberpixie-esp-common = { workspace = true, features = ["esp32c3"] }

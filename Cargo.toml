@@ -7,7 +7,8 @@ members = [
   "crates/core",
   "crates/network",
   "crates/storage",
-  "firmware/esp32c3",
+  "boards/common",
+  "boards/esp32c3",
   "utils/cli",
 ]
 
@@ -18,7 +19,7 @@ default-members = [
   "crates/storage",
 ]
 
-exclude = ["application/rust", "firmware/esp32c3", "utils/image_sender"]
+exclude = ["application/rust", "boards/esp32c3", "utils/image_sender"]
 
 [workspace.dependencies]
 # Workspace crates
@@ -26,6 +27,7 @@ cyberpixie-app = { path = "crates/app" }
 cyberpixie-embedded-storage = { path = "crates/storage" }
 cyberpixie-core = { path = "crates/core" }
 cyberpixie-network = { path = "crates/network" }
+cyberpixie-esp-common = { path = "boards/common" }
 
 # Common dependencies
 heapless = { version = "0.7" }

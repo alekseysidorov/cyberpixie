@@ -11,7 +11,8 @@ use cyberpixie_app::{
     Configuration, Storage,
 };
 use cyberpixie_embedded_storage::StorageImpl;
-use cyberpixie_esp32c3::{singleton, ws2812_spi, SpiType, DEFAULT_MEMORY_LAYOUT};
+use cyberpixie_esp32c3::{ws2812_spi, SpiType, DEFAULT_MEMORY_LAYOUT};
+use cyberpixie_esp_common::singleton;
 use embassy_executor::Executor;
 use embassy_net::{
     tcp::TcpSocket, Config, IpListenEndpoint, Ipv4Address, Ipv4Cidr, Stack, StaticConfig,

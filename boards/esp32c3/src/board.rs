@@ -4,14 +4,12 @@ use cyberpixie_app::{
     core::proto::types::{FirmwareInfo, ImageId},
     Board, Configuration,
 };
+use cyberpixie_esp_common::{render::RenderingHandle, StorageImpl};
 use embassy_net::Stack;
 use esp_storage::FlashStorage;
 use esp_wifi::wifi::WifiDevice;
 
-use crate::{
-    network::NetworkStackImpl, render::RenderingHandle, singleton, StorageImpl,
-    DEFAULT_MEMORY_LAYOUT,
-};
+use crate::{network::NetworkStackImpl, singleton, DEFAULT_MEMORY_LAYOUT};
 
 /// Board support implementation for the Cyberpixie device.
 pub struct BoardImpl {

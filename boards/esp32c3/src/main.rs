@@ -3,10 +3,10 @@
 #![feature(type_alias_impl_trait)]
 
 use cyberpixie_app::App;
-use cyberpixie_esp32c3::{render::RenderingHandle, singleton, ws2812_spi, BoardImpl};
+use cyberpixie_esp32c3::{ws2812_spi, BoardImpl};
+use cyberpixie_esp_common::{render::RenderingHandle, singleton};
 use embassy_executor::Executor;
 use embassy_net::{Config, Ipv4Address, Ipv4Cidr, Stack, StaticConfig};
-use embassy_sync::channel::Channel;
 use embassy_time::{Duration, Timer};
 use embedded_svc::wifi::{AccessPointConfiguration, Configuration, Wifi};
 use esp_backtrace as _;
@@ -91,17 +91,13 @@ fn main() -> ! {
         &mut system.peripheral_clock_control,
         &clocks
     ));
-    let framebuffer = singleton!(Channel::new());
 
     // Spawn Embassy executor
     let executor = singleton!(Executor::new());
     executor.run(|spawner| {
-        // Rendering handle.
-        spawner.must_spawn(cyberpixie_esp32c3::render::render_task(
-            spi,
-            framebuffer.receiver(),
-        ));
-        let rendering_handle = cyberpixie_esp32c3::render::spawn(spawner, framebuffer.sender());
+        // Rendering tasks.
+        let (framebuffer, rendering_handle) = cyberpixie_esp_common::render::spawn(spawner);
+        spawner.must_spawn(cyberpixie_esp32c3::render_task(spi, framebuffer));
         // Wifi Network.
         spawner.must_spawn(connection(controller));
         spawner.must_spawn(net_task(stack));
