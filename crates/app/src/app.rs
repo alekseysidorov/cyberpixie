@@ -38,7 +38,7 @@ impl<B: Board> App<B> {
             .expect("Board components has been already taken");
 
         let listener = Listener::new(&mut network, port)?;
-        let device_info = read_device_info(&mut storage)?;
+        let device_info = crate::read_device_info(&mut storage)?;
 
         Ok(Self {
             board,
@@ -210,7 +210,7 @@ impl<B: Board> App<B> {
     /// Refreshes cached device information
     fn refresh_device_info(&mut self) -> CyberpixieResult<()> {
         let storage = Self::storage_mut(&mut self.storage)?;
-        self.device_info = read_device_info(storage)?;
+        self.device_info = crate::read_device_info(storage)?;
         Ok(())
     }
 
@@ -225,14 +225,4 @@ impl<B: Board> App<B> {
             }),
         }
     }
-}
-
-fn read_device_info<S: Storage>(storage: &mut S) -> CyberpixieResult<DeviceInfo> {
-    let config = storage.config()?;
-    Ok(DeviceInfo {
-        strip_len: config.strip_len,
-        images_count: storage.images_count()?,
-        current_image: config.current_image,
-        active: false,
-    })
 }

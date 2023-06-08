@@ -9,7 +9,7 @@ license = "MIT OR Apache-2.0"
 # Hardware support
 esp-backtrace = { version = "0.7.0", features = ["esp32c3", "panic-handler", "exception-handler", "print-uart"] }
 esp-println = { version = "0.5.0", features = ["esp32c3", "log"] }
-hal = { package = "esp32c3-hal", version = "0.9.0", features = ["async", "embassy", "embassy-time-timg0"] }
+hal = { package = "esp32c3-hal", version = "0.9", features = ["async", "embassy", "embassy-time-timg0"] }
 ws2812-async = { version = "0.1.0", git = "https://github.com/alekseysidorov/ws2812-async.git", rev = "1afa6b2" }
 
 # Async network

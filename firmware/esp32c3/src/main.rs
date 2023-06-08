@@ -2,33 +2,24 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
-use cyberpixie_app::core::proto::types::Hertz;
-use cyberpixie_esp32c3::{singleton, wheel, SpiType};
+use cyberpixie_app::asynch::App;
+use cyberpixie_esp32c3::{render::RenderingHandle, singleton, ws2812_spi, BoardImpl};
 use embassy_executor::Executor;
-use embassy_net::{
-    tcp::TcpSocket, Config, IpListenEndpoint, Ipv4Address, Ipv4Cidr, Stack, StaticConfig,
-};
-use embassy_time::{Duration, Instant, Timer};
+use embassy_net::{Config, Ipv4Address, Ipv4Cidr, Stack, StaticConfig};
+use embassy_time::{Duration, Timer};
 use embedded_svc::wifi::{AccessPointConfiguration, Configuration, Wifi};
 use esp_backtrace as _;
-use esp_println::{logger::init_logger, print, println};
+use esp_println::logger::init_logger;
 use esp_wifi::wifi::{WifiController, WifiDevice, WifiEvent, WifiMode, WifiState};
 use hal::{
     clock::{ClockControl, CpuClock},
-    dma::DmaPriority,
     embassy,
-    gdma::Gdma,
     peripherals::Peripherals,
     prelude::*,
-    spi::SpiMode,
     systimer::SystemTimer,
     timer::TimerGroup,
-    Rng, Rtc, Spi, IO,
+    Rng, Rtc,
 };
-use smart_leds::{brightness, RGB8};
-use ws2812_async::Ws2812;
-
-const NUM_LEDS: usize = 24;
 
 #[entry]
 fn main() -> ! {
@@ -74,8 +65,8 @@ fn main() -> ! {
 
     // Network stack configuration.
     let config = Config::Static(StaticConfig {
-        address: Ipv4Cidr::new(Ipv4Address::new(192, 168, 88, 1), 24),
-        gateway: Some(Ipv4Address::from_bytes(&[192, 168, 88, 1])),
+        address: Ipv4Cidr::new(Ipv4Address::new(192, 168, 1, 1), 24),
+        gateway: Some(Ipv4Address::from_bytes(&[192, 168, 1, 1])),
         dns_servers: Default::default(),
     });
     // FIXME: There is no way to use DHCP in Ap mode at this moment :(
@@ -91,52 +82,24 @@ fn main() -> ! {
     ));
 
     // Initialize LED strip SPI
-
-    hal::interrupt::enable(
-        hal::peripherals::Interrupt::DMA_CH0,
-        hal::interrupt::Priority::Priority1,
-    )
-    .unwrap();
-
-    let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
-    let sclk = io.pins.gpio6;
-    let miso = io.pins.gpio2;
-    let mosi = io.pins.gpio7;
-    let cs = io.pins.gpio10;
-
-    let dma = Gdma::new(peripherals.DMA, &mut system.peripheral_clock_control);
-    let dma_channel = dma.channel0;
-
-    let descriptors = singleton!([0u32; 8 * 3]);
-    let rx_descriptors = singleton!([0u32; 8 * 3]);
-
-    let spi = singleton!(Spi::new(
+    let spi = singleton!(ws2812_spi(
         peripherals.SPI2,
-        sclk,
-        mosi,
-        miso,
-        cs,
-        3800u32.kHz(),
-        SpiMode::Mode0,
+        peripherals.GPIO,
+        peripherals.IO_MUX,
+        peripherals.DMA,
         &mut system.peripheral_clock_control,
-        &clocks,
-    )
-    .with_dma(dma_channel.configure(
-        false,
-        descriptors,
-        rx_descriptors,
-        DmaPriority::Priority0,
-    )));
+        &clocks
+    ));
 
     // Spawn Embassy executor
     let executor = singleton!(Executor::new());
     executor.run(|spawner| {
+        // Rendering handle
+        let handle = cyberpixie_esp32c3::render::spawn(spawner, spi);
         // Wifi Network.
-        spawner.spawn(connection(controller)).ok();
-        spawner.spawn(net_task(stack)).unwrap();
-        spawner.spawn(task(stack)).ok();
-        // LED Render.
-        spawner.spawn(led_render_task(spi)).unwrap();
+        spawner.must_spawn(connection(controller));
+        spawner.must_spawn(net_task(stack));
+        spawner.must_spawn(app_task(stack, handle));
     })
 }
 
@@ -177,10 +140,7 @@ async fn net_task(stack: &'static Stack<WifiDevice<'static>>) {
 }
 
 #[embassy_executor::task]
-async fn task(stack: &'static Stack<WifiDevice<'static>>) {
-    let mut rx_buffer = [0; 4096];
-    let mut tx_buffer = [0; 4096];
-
+async fn app_task(stack: &'static Stack<WifiDevice<'static>>, rendering_handle: RenderingHandle) {
     loop {
         if stack.is_link_up() {
             break;
@@ -189,125 +149,8 @@ async fn task(stack: &'static Stack<WifiDevice<'static>>) {
     }
 
     log::info!("Network config is {:?}", stack.config());
-    let mut socket = TcpSocket::new(stack, &mut rx_buffer, &mut tx_buffer);
-    socket.set_timeout(Some(embassy_net::SmolDuration::from_secs(10)));
-    loop {
-        println!("Wait for connection...");
-        let r = socket
-            .accept(IpListenEndpoint {
-                addr: None,
-                port: 8080,
-            })
-            .await;
-        println!("Connected...");
 
-        if let Err(e) = r {
-            println!("connect error: {:?}", e);
-            continue;
-        }
-
-        use embedded_io::asynch::Write;
-
-        let mut buffer = [0u8; 1024];
-        let mut pos = 0;
-        loop {
-            match socket.read(&mut buffer).await {
-                Ok(0) => {
-                    println!("read EOF");
-                    break;
-                }
-                Ok(len) => {
-                    let to_print =
-                        unsafe { core::str::from_utf8_unchecked(&buffer[..(pos + len)]) };
-
-                    if to_print.contains("\r\n\r\n") {
-                        print!("{}", to_print);
-                        println!();
-                        break;
-                    }
-
-                    pos += len;
-                }
-                Err(e) => {
-                    println!("read error: {:?}", e);
-                    break;
-                }
-            };
-        }
-
-        let r = socket
-            .write_all(
-                b"HTTP/1.0 200 OK\r\n\r\n\
-            <html>\
-                <body>\
-                    <h1>Hello Rust! Hello esp-wifi!</h1>\
-                </body>\
-            </html>\r\n\
-            ",
-            )
-            .await;
-        if let Err(e) = r {
-            println!("write error: {:?}", e);
-        }
-
-        let r = socket.flush().await;
-        if let Err(e) = r {
-            println!("flush error: {:?}", e);
-        }
-        Timer::after(Duration::from_millis(1000)).await;
-
-        socket.close();
-        Timer::after(Duration::from_millis(1000)).await;
-
-        socket.abort();
-    }
-}
-
-#[embassy_executor::task]
-async fn led_render_task(spi: &'static mut SpiType<'static>) {
-    let rate = Hertz(800);
-    let frame_duration = Duration::from_hz(rate.0 as u64);
-
-    log::info!("Start LED strip rendering task with refresh rate: {rate}hz");
-
-    const LED_BUF_LEN: usize = 12 * NUM_LEDS;
-
-    let mut ws: Ws2812<_, LED_BUF_LEN> = Ws2812::new(spi);
-
-    ws.write(core::iter::repeat(RGB8::default()).take(NUM_LEDS))
-        .await
-        .unwrap();
-    log::info!("LED strip has been cleaned up");
-    loop {
-        let counts = 10_000;
-        let mut total_render_time = 0;
-        let mut dropped_frames = 0;
-
-        for j in 0..counts {
-            let now = Instant::now();
-
-            let data = (0..NUM_LEDS)
-                .map(|i| wheel((((i * 256) as u16 / NUM_LEDS as u16 + j as u16) & 255) as u8));
-            ws.write(brightness(data, 16)).await.unwrap();
-
-            let elapsed = now.elapsed().as_micros();
-            total_render_time += elapsed;
-
-            if now.elapsed() <= frame_duration {
-                let next_frame_time = now + frame_duration;
-                Timer::at(next_frame_time).await;
-            } else {
-                dropped_frames += 1;
-            }
-        }
-
-        let line_render_time = total_render_time as f32 / counts as f32;
-        log::info!("-> Total rendering time {total_render_time}us");
-        log::info!("-> per line: {line_render_time}us");
-        log::info!(
-            "-> Average frame rendering frame rate is {}Hz",
-            1_000_000f32 / line_render_time
-        );
-        log::info!("-> dropped frames: {dropped_frames}");
-    }
+    let board = BoardImpl::new(stack, rendering_handle);
+    let app = App::new(board).expect("Unable to create a cyberpixie application");
+    app.run().await.expect("Application execution failed");
 }

@@ -1,3 +1,5 @@
+#![feature(async_fn_in_trait)]
+
 use std::{convert::Infallible, thread::JoinHandle};
 
 use cyberpixie_app::{App, Board, Configuration, CyberpixieResult, Storage};
@@ -53,6 +55,14 @@ impl Storage for StorageStub {
     }
 
     fn add_image<R: cyberpixie_core::ExactSizeRead>(
+        &mut self,
+        _refresh_rate: cyberpixie_core::proto::types::Hertz,
+        _image: R,
+    ) -> CyberpixieResult<ImageId> {
+        unimplemented!()
+    }
+
+    async fn add_image_async<R: embedded_io::asynch::Read + ExactSizeRead>(
         &mut self,
         _refresh_rate: cyberpixie_core::proto::types::Hertz,
         _image: R,

@@ -2,6 +2,8 @@
 
 use cyberpixie_core::{proto::Headers, ExactSizeRead};
 
+use crate::CyberpixieError;
+
 // FIXME?
 const SEND_BUF_LEN: usize = 256;
 
@@ -92,8 +94,17 @@ pub struct Message<R, H> {
     pub payload: Option<PayloadReader<R>>,
 }
 
+impl Message<&'static [u8], Headers> {
+    pub(crate) fn new(header: impl Into<Headers>) -> Self {
+        Self {
+            header: header.into(),
+            payload: None,
+        }
+    }
+}
+
 impl<R, H> Message<R, H> {
-    fn into_parts(self) -> (H, usize, Option<PayloadReader<R>>) {
+    pub(crate) fn into_parts(self) -> (H, usize, Option<PayloadReader<R>>) {
         if let Some(reader) = self.payload {
             (self.header, reader.len(), Some(reader))
         } else {
@@ -115,19 +126,19 @@ impl<R: embedded_io::blocking::Read> Message<R, Headers> {
         let header_buf = header.encode(&mut send_buf, payload_len);
         device
             .write_all(header_buf)
-            .map_err(cyberpixie_core::Error::network)?;
+            .map_err(CyberpixieError::network)?;
 
         if let Some(mut reader) = payload_reader {
             loop {
                 let bytes_read = reader
                     .read(&mut send_buf)
-                    .map_err(cyberpixie_core::Error::storage_read)?;
+                    .map_err(CyberpixieError::storage_read)?;
                 if bytes_read == 0 {
                     break;
                 }
                 device
                     .write_all(&send_buf[0..bytes_read])
-                    .map_err(cyberpixie_core::Error::network)?;
+                    .map_err(CyberpixieError::network)?;
             }
         }
         Ok(())
@@ -135,7 +146,7 @@ impl<R: embedded_io::blocking::Read> Message<R, Headers> {
 }
 
 impl<R: embedded_io::blocking::Read> Message<R, Headers> {
-    pub async fn send<W>(self, mut device: W) -> cyberpixie_core::Result<()>
+    pub async fn send_async<W>(self, mut device: W) -> cyberpixie_core::Result<()>
     where
         W: embedded_io::asynch::Write,
     {
@@ -148,22 +159,23 @@ impl<R: embedded_io::blocking::Read> Message<R, Headers> {
         device
             .write_all(header_buf)
             .await
-            .map_err(cyberpixie_core::Error::network)?;
+            .map_err(CyberpixieError::network)?;
 
         if let Some(mut reader) = payload_reader {
             loop {
                 let bytes_read = reader
                     .read(&mut send_buf)
-                    .map_err(cyberpixie_core::Error::storage_read)?;
+                    .map_err(CyberpixieError::storage_read)?;
                 if bytes_read == 0 {
                     break;
                 }
                 device
                     .write_all(&send_buf[0..bytes_read])
                     .await
-                    .map_err(cyberpixie_core::Error::network)?;
+                    .map_err(CyberpixieError::network)?;
             }
         }
+        device.flush().await.map_err(CyberpixieError::network)?;
         Ok(())
     }
 }
