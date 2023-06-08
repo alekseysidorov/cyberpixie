@@ -22,7 +22,7 @@ pub trait Board {
     /// Type provides the network stack.
     type NetworkStack: NetworkStack;
     /// Type provides a LED strip pictures rendering task.
-    type RenderTask: RenderTask<Storage = Self::Storage>;
+    type RenderTask;
     /// Returns all board components.
     ///
     /// This method brings the component ownership to the caller and can be invoked only once.
@@ -31,11 +31,13 @@ pub trait Board {
     ///
     /// To prevent data races, this method takes [`Self::Storage`] the entirely, making
     /// it impossible to modify it while the image rendering task is being executed.
-    fn start_rendering(
+    async fn start_rendering(
         &mut self,
         storage: Self::Storage,
         image_id: ImageId,
     ) -> CyberpixieResult<Self::RenderTask>;
+    /// Stops a LED strip rendering task and returns back previously borrowed storage.
+    async fn stop_rendering(&mut self, handle: Self::RenderTask) -> CyberpixieResult<Self::Storage>;
     /// Returns a board firmware information.
     fn firmware_info(&self) -> FirmwareInfo;
 
@@ -55,11 +57,4 @@ pub trait Board {
         }
         Ok(())
     }
-}
-
-pub trait RenderTask {
-    type Storage: Storage;
-
-    async fn render_frame(&mut self);
-    async fn stop(self) -> Self::Storage;
 }

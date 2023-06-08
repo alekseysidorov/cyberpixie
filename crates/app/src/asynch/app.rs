@@ -9,7 +9,7 @@ use cyberpixie_network::{
     Message,
 };
 
-use super::{Board, RenderTask, CLIENT_PORT};
+use super::{Board, CLIENT_PORT};
 use crate::{CyberpixieError, CyberpixieResult, Storage};
 
 /// Cyberpixie application runner.
@@ -42,10 +42,6 @@ impl<B: Board> App<B> {
         loop {
             if let Err(_err) = self.run_client_requests_handler().await {
                 log::info!("Closed connection with client");
-            }
-
-            if let Some(render) = self.inner.render.as_mut() {
-                render.render_frame().await;
             }
         }
     }
@@ -112,7 +108,7 @@ impl<B: Board> AppInner<B> {
         render: &mut Option<B::RenderTask>,
     ) -> CyberpixieResult<&'a mut B::Storage> {
         if let Some(handle) = render.take() {
-            storage.replace(handle.stop().await);
+            storage.replace(board.stop_rendering(handle).await?);
         }
 
         Ok(storage.as_mut().unwrap())
@@ -165,7 +161,8 @@ impl<B: Board> AppInner<B> {
 
                 let render = self
                     .board
-                    .start_rendering(self.storage.take().unwrap(), image_id)?;
+                    .start_rendering(self.storage.take().unwrap(), image_id)
+                    .await?;
                 self.render = Some(render);
                 Ok(ResponseHeader::Empty)
             }

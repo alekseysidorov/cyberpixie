@@ -130,8 +130,14 @@ pub trait Storage: Send + 'static {
     where
         I: Into<Option<ImageId>>,
     {
+        let id = id.into();
+        // Check preconditions.
+        if id >= Some(self.images_count()?) {
+            return Err(CyberpixieError::ImageNotFound);
+        }
+
         let mut config = self.config()?;
-        config.current_image = id.into();
+        config.current_image = id;
         self.set_config(config)
     }
 
@@ -160,6 +166,46 @@ pub trait Storage: Send + 'static {
             .current_image_id()?
             .ok_or(CyberpixieError::ImageRepositoryIsEmpty)?;
         self.read_image(image_id)
+    }
+}
+
+impl<T: Storage> Storage for &'static mut T {
+    type ImageRead<'a> = T::ImageRead<'a>;
+
+    fn config(&mut self) -> CyberpixieResult<Configuration> {
+        T::config(self)
+    }
+
+    fn set_config(&mut self, config: Configuration) -> CyberpixieResult<()> {
+        T::set_config(self, config)
+    }
+
+    fn add_image<R: Read + ExactSizeRead>(
+        &mut self,
+        refresh_rate: Hertz,
+        image: R,
+    ) -> CyberpixieResult<ImageId> {
+        T::add_image(self, refresh_rate, image)
+    }
+
+    fn read_image(&mut self, id: ImageId) -> CyberpixieResult<ImageReader<'_, Self>> {
+        T::read_image(self, id)
+    }
+
+    fn images_count(&mut self) -> CyberpixieResult<ImageId> {
+        T::images_count(self)
+    }
+
+    fn clear_images(&mut self) -> CyberpixieResult<()> {
+        T::clear_images(self)
+    }
+
+    async fn add_image_async<R: embedded_io::asynch::Read + ExactSizeRead>(
+        &mut self,
+        refresh_rate: Hertz,
+        image: R,
+    ) -> CyberpixieResult<ImageId> {
+        T::add_image_async(self, refresh_rate, image).await
     }
 }
 

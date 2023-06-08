@@ -6,6 +6,7 @@
 
 use cyberpixie_app::core::proto::types::Hertz;
 use cyberpixie_embedded_storage::MemoryLayout;
+use esp_storage::FlashStorage;
 use hal::{
     clock::Clocks,
     dma::{ChannelRx, ChannelTx, DmaPriority},
@@ -19,12 +20,15 @@ use hal::{
 use smart_leds::RGB8;
 
 pub use crate::{
-    board_impl::BoardImpl,
+    board::BoardImpl,
     network::{NetworkSocketImpl, NetworkStackImpl},
 };
 
-mod board_impl;
+mod board;
 mod network;
+pub mod render;
+
+pub type StorageImpl = cyberpixie_embedded_storage::StorageImpl<FlashStorage>;
 
 /// Default memory layout of internal Flash storage.
 pub const DEFAULT_MEMORY_LAYOUT: MemoryLayout = MemoryLayout {
