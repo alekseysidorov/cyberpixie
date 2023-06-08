@@ -37,7 +37,8 @@ pub trait Board {
         image_id: ImageId,
     ) -> CyberpixieResult<Self::RenderTask>;
     /// Stops a LED strip rendering task and returns back previously borrowed storage.
-    async fn stop_rendering(&mut self, handle: Self::RenderTask) -> CyberpixieResult<Self::Storage>;
+    async fn stop_rendering(&mut self, handle: Self::RenderTask)
+        -> CyberpixieResult<Self::Storage>;
     /// Returns a board firmware information.
     fn firmware_info(&self) -> FirmwareInfo;
 
