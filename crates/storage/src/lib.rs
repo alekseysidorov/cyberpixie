@@ -18,8 +18,8 @@
 
 use cyberpixie_app::{
     core::{
+        io::image_reader::Image,
         proto::types::{Hertz, ImageId},
-        storage::Image,
         ExactSizeRead,
     },
     Configuration, CyberpixieError, CyberpixieResult, ImageReader,

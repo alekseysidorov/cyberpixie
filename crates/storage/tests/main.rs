@@ -1,5 +1,6 @@
 use cyberpixie_app::{
     core::{
+        io::image_reader::ImageLines,
         proto::types::{Hertz, ImageId},
         ExactSizeRead,
     },
@@ -7,7 +8,7 @@ use cyberpixie_app::{
 };
 use cyberpixie_embedded_storage::{
     test_utils::{leaked_buf, MemoryBackend},
-    StorageImpl,
+    StorageImpl, MemoryLayout,
 };
 use embedded_io::blocking::Read;
 
@@ -99,4 +100,36 @@ fn image_read_write_clear() {
     let (rate, data) = read_image(&mut storage, ImageId(0));
     assert_eq!(rate, Hertz(48));
     assert_eq!(data, image_data_2);
+}
+
+#[test]
+fn test_image_lines_cycle_nyan_cat() {
+    let mut storage = init_storage();
+
+    // Read an image
+    let image = image::load_from_memory(include_bytes!("../../../assets/nyan_cat_48.png"))
+        .unwrap()
+        .to_rgb8();
+    // Convert image to raw bytes
+    let mut raw = Vec::with_capacity(image.len() * 3);
+    for rgb in image.pixels() {
+        raw.extend(rgb.0);
+    }
+    // Add image.
+    storage.add_image(Hertz(500), &raw[..]).unwrap();
+    // Read image line by line.
+    let image = storage.read_image(ImageId(0)).unwrap();
+    let mut lines = ImageLines::new(image, 48, vec![0_u8; 512]);
+    
+    let first_line: Vec<_> = lines.next_line().unwrap().collect();
+    // Render a lot of lines
+    for _ in 1..360 {
+        let _line = lines.next_line().unwrap();
+    }
+    // After several cycles we should return back to the first image line
+    let line: Vec<_> = lines.next_line().unwrap().collect();
+    assert_eq!(first_line, line);
+    // Check that the next line is not equal the first one
+    let line: Vec<_> = lines.next_line().unwrap().collect();
+    assert_ne!(first_line, line);
 }

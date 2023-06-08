@@ -6,8 +6,8 @@
 
 pub use cyberpixie_core as core;
 use cyberpixie_core::{
+    io::image_reader::Image,
     proto::types::{DeviceInfo, FirmwareInfo, Hertz, ImageId},
-    storage::Image,
     ExactSizeRead,
 };
 pub use cyberpixie_core::{Error as CyberpixieError, Result as CyberpixieResult};

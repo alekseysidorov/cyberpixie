@@ -41,7 +41,6 @@ impl Storage for MemoryBackend {
         let from = offset as usize;
         let to = from + bytes.len();
         self.0[from..to].copy_from_slice(bytes);
-        dbg!("write", offset, &self.0[512..516]);
         Ok(())
     }
 }

@@ -4,8 +4,8 @@
 
 use cyberpixie_app::{
     core::{
+        io::image_reader::ImageLines,
         proto::types::{Hertz, ImageId},
-        storage::ImageLines,
         MAX_STRIP_LEN,
     },
     Configuration, Storage,

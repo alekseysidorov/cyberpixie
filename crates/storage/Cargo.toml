@@ -17,6 +17,7 @@ serde = { version = "1", default-features = false, features = ["derive"] }
 
 [dev-dependencies]
 env_logger = "0.10"
+image = "0.24"
 
 [features]
 std = ["embedded-io/std", "cyberpixie-app/std"]
