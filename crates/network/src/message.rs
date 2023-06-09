@@ -1,7 +1,7 @@
 //! Cyberpixie protocol messages io adapters
 
 use cyberpixie_core::{
-    io::{AsyncRead, AsyncWrite, BlockingRead, BlockingWrite, Io, ExactSizeRead},
+    io::{AsyncRead, AsyncWrite, BlockingRead, BlockingWrite, ExactSizeRead, Io},
     proto::Headers,
 };
 

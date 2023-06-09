@@ -53,7 +53,10 @@ async fn image_read_write_simple() {
     let image_data_2 = [2_u8; 24 * 3 * 20];
 
     // Add a first image
-    storage.add_image(Hertz(500), &image_data_1[..]).await.unwrap();
+    storage
+        .add_image(Hertz(500), &image_data_1[..])
+        .await
+        .unwrap();
     assert_eq!(storage.images_count().unwrap(), ImageId(1));
 
     // Read a first image
@@ -62,7 +65,10 @@ async fn image_read_write_simple() {
     assert_eq!(data, image_data_1);
 
     // Add a second image
-    storage.add_image(Hertz(42), &image_data_2[..]).await.unwrap();
+    storage
+        .add_image(Hertz(42), &image_data_2[..])
+        .await
+        .unwrap();
     assert_eq!(storage.images_count().unwrap(), ImageId(2));
 
     // Read a first image again
@@ -83,8 +89,14 @@ async fn image_read_write_clear() {
     let image_data_1 = [1_u8; 72];
 
     // Add an images
-    storage.add_image(Hertz(500), &image_data_1[..]).await.unwrap();
-    storage.add_image(Hertz(42), &image_data_1[..]).await.unwrap();
+    storage
+        .add_image(Hertz(500), &image_data_1[..])
+        .await
+        .unwrap();
+    storage
+        .add_image(Hertz(42), &image_data_1[..])
+        .await
+        .unwrap();
     assert_eq!(storage.images_count().unwrap(), ImageId(2));
     // Clear images
     storage.clear_images().unwrap();
@@ -92,7 +104,10 @@ async fn image_read_write_clear() {
     // Add an image again
 
     let image_data_2 = [2_u8; 24 * 3 * 20];
-    storage.add_image(Hertz(48), &image_data_2[..]).await.unwrap();
+    storage
+        .add_image(Hertz(48), &image_data_2[..])
+        .await
+        .unwrap();
     assert_eq!(storage.images_count().unwrap(), ImageId(1));
 
     // Read it
@@ -130,5 +145,5 @@ async fn test_image_lines_cycle_nyan_cat() {
     assert_eq!(first_line, line);
     // Check that the next line is not equal the first one
     let line: Vec<_> = lines.next_line().unwrap().collect();
-    assert_ne!(first_line, line);    
+    assert_ne!(first_line, line);
 }
