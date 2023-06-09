@@ -1,9 +1,8 @@
 //! Cyberpixie protocol messages io adapters
 
 use cyberpixie_core::{
-    io::{AsyncRead, AsyncWrite, BlockingRead, BlockingWrite, Io},
+    io::{AsyncRead, AsyncWrite, BlockingRead, BlockingWrite, Io, ExactSizeRead},
     proto::Headers,
-    ExactSizeRead,
 };
 
 use crate::CyberpixieError;

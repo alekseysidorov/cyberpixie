@@ -1,11 +1,12 @@
 //! Cybeprixie application business-logic implementation
 
 use cyberpixie_core::{
+    io::ExactSizeRead,
     proto::{
         types::{DeviceInfo, DeviceRole, ImageInfo, PeerInfo},
         RequestHeader, ResponseHeader,
     },
-    ExactSizeRead, BYTES_PER_PIXEL,
+    BYTES_PER_PIXEL,
 };
 use cyberpixie_network::{Connection, Message, NetworkSocket, NetworkStack};
 

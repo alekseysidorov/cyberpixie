@@ -16,9 +16,8 @@
 
 pub use cyberpixie_core::{self as core, Error as CyberpixieError, Result as CyberpixieResult};
 use cyberpixie_core::{
-    io::{image_reader::Image, AsyncRead, BlockingRead, BlockingSeek},
+    io::{image_reader::Image, AsyncRead, BlockingRead, BlockingSeek, ExactSizeRead},
     proto::types::{DeviceInfo, FirmwareInfo, Hertz, ImageId},
-    ExactSizeRead,
 };
 pub use cyberpixie_network as network;
 use cyberpixie_network::{NetworkStack, PayloadReader};
@@ -107,7 +106,7 @@ pub type ImageReader<'a, S> = Image<<S as Storage>::ImageRead<'a>>;
 /// Board internal storage.
 pub trait Storage: Send + 'static {
     /// Image reader type.
-    type ImageRead<'a>: BlockingRead + BlockingSeek
+    type ImageRead<'a>: BlockingRead + BlockingSeek + ExactSizeRead
     where
         Self: 'a;
     /// Returns an application configuration.

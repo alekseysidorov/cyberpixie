@@ -1,8 +1,7 @@
 use cyberpixie_app::{
     core::{
-        io::image_reader::ImageLines,
+        io::{image_reader::ImageLines, ExactSizeRead},
         proto::types::{Hertz, ImageId},
-        ExactSizeRead,
     },
     Configuration, Storage,
 };

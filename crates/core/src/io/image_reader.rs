@@ -4,9 +4,9 @@ use embedded_io::blocking::ReadExactError;
 use rgb::{FromSlice, RGB8};
 
 use crate::{
-    io::{BlockingRead, BlockingSeek},
+    io::{BlockingRead, BlockingSeek, ExactSizeRead},
     proto::types::Hertz,
-    ExactSizeRead, BYTES_PER_PIXEL,
+    BYTES_PER_PIXEL,
 };
 
 #[derive(Debug)]
