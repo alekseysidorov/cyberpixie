@@ -6,7 +6,7 @@
 // Features
 #![feature(async_fn_in_trait)]
 // Linter configuration
-#![warn(unsafe_code, missing_copy_implementations)]
+#![warn(unsafe_code)]
 #![warn(clippy::pedantic)]
 #![warn(clippy::use_self)]
 // Too many false positives.

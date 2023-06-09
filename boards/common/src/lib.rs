@@ -17,7 +17,7 @@
 use cyberpixie_app::{
     core::proto::types::{FirmwareInfo, ImageId},
     network::asynch::{NetworkSocket, NetworkStack},
-    Configuration, CyberpixieError, CyberpixieResult, Board,
+    Board, Configuration, CyberpixieError, CyberpixieResult,
 };
 use cyberpixie_embedded_storage::MemoryLayout;
 use embassy_net::{tcp::TcpSocket, IpListenEndpoint, Stack};

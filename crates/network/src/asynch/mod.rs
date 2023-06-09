@@ -7,10 +7,14 @@ use cyberpixie_core::{
         Headers, RequestHeader, ResponseHeader,
     },
 };
+use embedded_nal::SocketAddr;
 
+pub use self::client::Client;
 use crate::{CyberpixieError, CyberpixieResult, Message, PayloadReader};
 
 pub mod client;
+#[cfg(feature = "tokio")]
+pub mod tokio;
 
 /// The trait allows to create a certain TCP sockets which can do the following operations:
 ///
@@ -41,6 +45,10 @@ pub trait NetworkSocket {
     ///
     /// Returns `Ok(connection)` when a new pending connection was created.
     async fn accept(&mut self, port: u16) -> CyberpixieResult<Self::Connection<'_>>;
+    /// Connects to a remote peer with the given address.
+    ///
+    /// Returns `Ok(connection)` when a connection was established.
+    async fn connect(&mut self, addr: SocketAddr) -> CyberpixieResult<Self::Connection<'_>>;
 }
 
 /// Established connection between Cyberpixie peers.

@@ -3,6 +3,7 @@
 pub use embedded_io::{
     asynch::{Read as AsyncRead, Seek as AsyncSeek, Write as AsyncWrite},
     blocking::{Read as BlockingRead, Seek as BlockingSeek, Write as BlockingWrite},
+    Io,
 };
 
 pub mod image_reader;

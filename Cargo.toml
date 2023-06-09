@@ -19,7 +19,12 @@ default-members = [
   "crates/storage",
 ]
 
-exclude = ["application/rust", "boards/esp32c3", "utils/image_sender"]
+exclude = [
+  "application/rust",
+  "boards/esp32c3",
+  "boards/common",
+  "utils/image_sender",
+]
 
 [workspace.dependencies]
 # Workspace crates
