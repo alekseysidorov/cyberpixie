@@ -3,11 +3,10 @@ use std::path::PathBuf;
 use clap::{CommandFactory, Parser, Subcommand};
 use cyberpixie_cli::convert_image_to_raw;
 use cyberpixie_network::{
-    blocking::Client,
     core::proto::types::{Hertz, ImageId},
-    SocketAddr,
+    tokio::TokioStack,
+    Client, NetworkStack, SocketAddr,
 };
-use std_embedded_nal::Stack;
 
 /// Cyberpixie device manipulation utility
 ///
@@ -54,7 +53,8 @@ enum Command {
     },
 }
 
-fn main() -> anyhow::Result<()> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     env_logger::init();
 
     let cli = Cli::parse();
@@ -63,12 +63,17 @@ fn main() -> anyhow::Result<()> {
         .parse()
         .map_err(|err| anyhow::anyhow!("{err}"))?;
 
-    let mut stack = Stack;
+    let mut stack = TokioStack;
+    // Allocate socket.
+    let mut socket = stack.socket();
     match cli.command {
         Command::DeviceInfo => {
             log::info!("Sending firmware info request to {}", address);
 
-            let peer_info = Client::connect(&mut stack, address)?.peer_info(&mut stack)?;
+            let peer_info = Client::connect(&mut socket, address)
+                .await?
+                .peer_info()
+                .await?;
             // TODO replace by the full firmware info.
             log::info!("Got {:#?} from the {}", peer_info, address);
         }
@@ -77,12 +82,10 @@ fn main() -> anyhow::Result<()> {
             let (strip_len, raw) = convert_image_to_raw(&path)?;
 
             log::info!("Sending image {:?}[{}] to {}", path, strip_len, address);
-            let index = Client::connect(&mut stack, address)?.add_image(
-                &mut stack,
-                refresh_rate,
-                strip_len as u16,
-                &raw,
-            )?;
+            let index = Client::connect(&mut socket, address)
+                .await?
+                .add_image(refresh_rate, strip_len as u16, &raw)
+                .await?;
             log::info!(
                 "Image loaded into the device {} with index {}",
                 address,
@@ -92,20 +95,26 @@ fn main() -> anyhow::Result<()> {
 
         Command::Start { image_id } => {
             log::info!("Sending show image command to {address}");
-            Client::connect(&mut stack, address)?.start(&mut stack, ImageId(image_id))?;
+            Client::connect(&mut socket, address)
+                .await?
+                .start(ImageId(image_id))
+                .await?;
             log::info!("Showing image with id {image_id}");
         }
 
         Command::Stop => {
             log::info!("Sending hide image command to {address}");
-            Client::connect(&mut stack, address)?.stop(&mut stack)?;
+            Client::connect(&mut socket, address).await?.stop().await?;
             log::info!("Hide a currently showing image");
         }
 
         Command::ClearImages => {
             log::info!("Sending clear images command to {address}");
 
-            Client::connect(&mut stack, address)?.clear_images(&mut stack)?;
+            Client::connect(&mut socket, address)
+                .await?
+                .clear_images()
+                .await?;
             log::trace!("Sent images clear command to {address}");
         }
 

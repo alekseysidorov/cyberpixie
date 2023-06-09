@@ -7,18 +7,22 @@ members = [
   "crates/core",
   "crates/network",
   "crates/storage",
-  "firmware/esp32-idf",
-  "firmware/esp32c3",
+  "boards/common",
+  "boards/esp32c3",
   "utils/cli",
 ]
 
-default-members = ["crates/core", "crates/network"]
+default-members = [
+  "crates/app",
+  "crates/core",
+  "crates/network",
+  "crates/storage",
+  "utils/cli",
+]
 
 exclude = [
-  "application/rust",
-  "firmware/esp32-idf",
-  "firmware/esp32c3",
-  "utils/image_sender",
+  "boards/esp32c3",
+  "boards/common",
 ]
 
 [workspace.dependencies]
@@ -27,9 +31,14 @@ cyberpixie-app = { path = "crates/app" }
 cyberpixie-embedded-storage = { path = "crates/storage" }
 cyberpixie-core = { path = "crates/core" }
 cyberpixie-network = { path = "crates/network" }
+cyberpixie-esp-common = { path = "boards/common" }
 
 # Common dependencies
 heapless = { version = "0.7" }
 nb-utils = { git = "https://github.com/alekseysidorov/nb-utils.git", branch = "main" }
 postcard = { version = "1.0", features = ["experimental-derive"] }
 postcard-derive = "0.1.0"
+
+# ESP dependencies
+embassy-net = { git = "https://github.com/embassy-rs/embassy", rev = "fb27594", features = ["nightly", "tcp", "dhcpv4", "medium-ethernet", "unstable-traits", "proto-ipv6"] }
+esp-wifi = { git = "https://github.com/esp-rs/esp-wifi.git", rev = "fb812ca", features = ["embedded-svc", "wifi", "embassy-net"] }

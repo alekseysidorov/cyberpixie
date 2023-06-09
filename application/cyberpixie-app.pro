@@ -63,7 +63,7 @@ ios {
     RUST_BINDING_LIB = $$PWD/../target/$$CARGO_BUILD_TYPE/libcyberpixie_qml.a
 
     rust_binding.target = $$RUST_BINDING_LIB
-    rust_binding.commands = cd $$PWD/rust && QMAKE="${QTDIR}/bin/qmake" TARGET_AR="llvm-ar" cargo build $$CARGO_EXTRA_ARGS && cd ..
+    rust_binding.commands = cd $$PWD/rust && TARGET_AR="llvm-ar" cargo build $$CARGO_EXTRA_ARGS && cd ..
     rust_bindings.depends = $$RUST_BINDING_FILES
 
     QMAKE_EXTRA_TARGETS += rust_binding

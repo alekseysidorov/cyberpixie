@@ -1,24 +1,19 @@
-use std::ops::DerefMut;
+use std::{future::Future, ops::DerefMut};
 
 use cyberpixie_network::{
     core::proto::types::{Hertz, ImageId, PeerInfo},
-    SocketAddr,
+    tokio::{TokioSocket, TokioStack},
+    Client, NetworkSocket, NetworkStack, SocketAddr,
 };
 use image::{
     imageops::{self, FilterType},
     RgbImage,
 };
 use qmetaobject::prelude::*;
-use std_embedded_nal::Stack;
-
-type Client = cyberpixie_network::blocking::Client<Stack>;
 
 #[allow(non_snake_case)]
 #[derive(Default, QObject)]
 pub struct DeviceHandle {
-    // Real implementation.
-    inner: DeviceHandleInner,
-
     // Binding to Qml.
     base: qt_base_class!(trait QObject),
 
@@ -41,8 +36,8 @@ pub struct DeviceHandle {
     deviceInfo: qt_method!(fn(&mut self)),
     setImage: qt_method!(fn(&mut self, index: usize)),
     uploadImage: qt_method!(fn(&mut self, content: QByteArray, refresh_rate: usize)),
-    stop: qt_method!(fn(&mut self)),
     clearImages: qt_method!(fn(&mut self)),
+    stop: qt_method!(fn(&mut self)),
 }
 
 #[allow(non_snake_case)]
@@ -78,7 +73,7 @@ impl DeviceHandle {
         self.invoke(
             move |inner| {
                 let refresh_rate = Hertz(refresh_rate as u32);
-                inner.upload_image(&image_bytes, nwidth, refresh_rate)
+                inner.upload_image(image_bytes, nwidth, refresh_rate)
             },
             move |s, index| {
                 s.imagesCount += 1;
@@ -108,7 +103,7 @@ impl DeviceHandle {
 
     fn invoke<F, R, T>(&mut self, method: F, then: T)
     where
-        F: FnOnce(DeviceHandleInner) -> anyhow::Result<R> + Send + 'static,
+        for<'a> F: FnOnce(DeviceHandleInner<'a, TokioSocket>) -> anyhow::Result<R> + Send + 'static,
         T: FnOnce(&mut Self, R) + Send + 'static + Copy,
         R: Send + 'static,
     {
@@ -133,35 +128,51 @@ impl DeviceHandle {
             }
         });
 
-        let inner = self.inner;
         std::thread::spawn(move || {
+            let mut stack = TokioStack;
+            let mut socket = stack.socket();
+            let inner = DeviceHandleInner {
+                address: SocketAddr::new([192, 168, 1, 1].into(), 1800),
+                socket: &mut socket,
+            };
+
             let value = method(inner);
             set_value(value);
         });
     }
 }
 
-#[derive(Clone, Copy)]
-struct DeviceHandleInner {
+struct DeviceHandleInner<'a, S: NetworkSocket + 'a> {
     address: SocketAddr,
+    socket: &'a mut S,
 }
 
-impl Default for DeviceHandleInner {
-    fn default() -> Self {
-        Self {
-            address: SocketAddr::new([192, 168, 71, 1].into(), 1800),
-        }
+// impl Default for DeviceHandleInner {
+//     fn default() -> Self {
+//         Self {
+//             address: SocketAddr::new([192, 168, 71, 1].into(), 1800),
+//         }
+//     }
+// }
+
+impl<'a, S: NetworkSocket> DeviceHandleInner<'a, S> {
+    async fn cyberpixie_client(self) -> anyhow::Result<Client<S::Connection<'a>>> {
+        Client::connect(self.socket, self.address)
+            .await
+            .map_err(From::from)
     }
-}
 
-impl DeviceHandleInner {
+    fn block_on<R, F: Future<Output = anyhow::Result<R>>>(future: F) -> anyhow::Result<R> {
+        tokio::runtime::Runtime::new()?.block_on(future)
+    }
+
     fn upload_image(
         self,
-        buffer: &[u8],
+        buffer: Vec<u8>,
         nwidth: u32,
         refresh_rate: Hertz,
     ) -> anyhow::Result<usize> {
-        let origin = image::load_from_memory(buffer)?.to_rgb8();
+        let origin = image::load_from_memory(buffer.as_ref())?.to_rgb8();
 
         let nheight = origin.height() * nwidth / origin.width();
         let resized = imageops::resize(&origin, nwidth, nheight, FilterType::Lanczos3);
@@ -177,32 +188,44 @@ impl DeviceHandleInner {
         self.add_image(nwidth as usize, refresh_rate, &raw)
     }
 
-    fn cyberpixie_client(self) -> anyhow::Result<Client> {
-        Client::connect(&mut Stack::default(), self.address).map_err(anyhow::Error::from)
-    }
-
     fn device_info(self) -> anyhow::Result<PeerInfo> {
-        self.cyberpixie_client()?
-            .peer_info(&mut Stack::default())
-            .map_err(anyhow::Error::from)
+        Self::block_on(async {
+            self.cyberpixie_client()
+                .await?
+                .peer_info()
+                .await
+                .map_err(anyhow::Error::from)
+        })
     }
 
     fn show_image(self, index: usize) -> anyhow::Result<()> {
-        self.cyberpixie_client()?
-            .start(&mut Stack::default(), ImageId(index as u16))
-            .map_err(anyhow::Error::from)
+        Self::block_on(async {
+            self.cyberpixie_client()
+                .await?
+                .start(ImageId(index as u16))
+                .await
+                .map_err(anyhow::Error::from)
+        })
     }
 
     fn stop(self) -> anyhow::Result<()> {
-        self.cyberpixie_client()?
-            .stop(&mut Stack::default())
-            .map_err(anyhow::Error::from)
+        Self::block_on(async {
+            self.cyberpixie_client()
+                .await?
+                .stop()
+                .await
+                .map_err(anyhow::Error::from)
+        })
     }
 
     fn clear(self) -> anyhow::Result<()> {
-        self.cyberpixie_client()?
-            .clear_images(&mut Stack::default())
-            .map_err(anyhow::Error::from)
+        Self::block_on(async {
+            self.cyberpixie_client()
+                .await?
+                .clear_images()
+                .await
+                .map_err(anyhow::Error::from)
+        })
     }
 
     fn add_image(
@@ -211,18 +234,19 @@ impl DeviceHandleInner {
         refresh_rate: Hertz,
         bytes: &[u8],
     ) -> anyhow::Result<usize> {
-        assert!(
-            bytes.len() % 3 == 0,
-            "Bytes amount to read must be a multiple of 3."
-        );
+        Self::block_on(async {
+            assert!(
+                bytes.len() % 3 == 0,
+                "Bytes amount to read must be a multiple of 3."
+            );
 
-        let id = self.cyberpixie_client()?.add_image(
-            &mut Stack::default(),
-            refresh_rate,
-            strip_len as u16,
-            bytes,
-        )?;
-        Ok(id.0 as usize)
+            let id = self
+                .cyberpixie_client()
+                .await?
+                .add_image(refresh_rate, strip_len as u16, bytes)
+                .await?;
+            Ok(id.0 as usize)
+        })
     }
 }
 
