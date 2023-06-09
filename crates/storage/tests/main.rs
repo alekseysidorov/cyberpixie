@@ -20,7 +20,7 @@ fn init_storage() -> StorageImpl<MemoryBackend> {
             base: 0x9000,
             size: 0xFFFFF,
         },
-        leaked_buf(),
+        leaked_buf(512),
     )
     .unwrap()
 }
@@ -131,5 +131,5 @@ async fn test_image_lines_cycle_nyan_cat() {
     assert_eq!(first_line, line);
     // Check that the next line is not equal the first one
     let line: Vec<_> = lines.next_line().unwrap().collect();
-    assert_ne!(first_line, line);
+    assert_ne!(first_line, line);    
 }

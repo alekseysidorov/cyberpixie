@@ -15,10 +15,7 @@ nb-utils = { workspace = true }
 serde = { version = "1", default-features = false, features = ["derive"] }
 
 [dev-dependencies]
-env_logger = "0.10"
-std-embedded-nal = "0.1.3"
-tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread"] }
 cyberpixie-network = { workspace = true, features = ["tokio"] }
-
-[features]
-std = ["embedded-io/std", "cyberpixie-core/std", "cyberpixie-network/std"]
+cyberpixie-embedded-storage = { workspace = true, features = ["std"] }
+tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread", "time"] }
+env_logger = "0.10"

@@ -1,23 +1,32 @@
 //! Cybeprixie application business-logic implementation
 
-use cyberpixie_core::proto::{
-    types::{DeviceInfo, DeviceRole, ImageInfo, PeerInfo},
-    RequestHeader, ResponseHeader,
+use cyberpixie_core::{
+    proto::{
+        types::{DeviceInfo, DeviceRole, ImageInfo, PeerInfo},
+        RequestHeader, ResponseHeader,
+    },
+    ExactSizeRead, BYTES_PER_PIXEL,
 };
 use cyberpixie_network::{Connection, Message, NetworkSocket, NetworkStack};
 
-use super::{Board, CLIENT_PORT};
+use super::{Board, DEFAULT_CLIENT_PORT};
 use crate::{CyberpixieError, CyberpixieResult, Storage};
 
 /// Cyberpixie application runner.
 pub struct App<B: Board> {
+    port: u16,
     network: B::NetworkStack,
     inner: AppInner<B>,
 }
 
 impl<B: Board> App<B> {
-    /// Creates a new application instance for the given board.
-    pub fn new(mut board: B) -> CyberpixieResult<Self> {
+    /// Creates a new application instance.
+    pub fn new(board: B) -> CyberpixieResult<Self> {
+        Self::with_port(board, DEFAULT_CLIENT_PORT)
+    }
+
+    /// Creates a new application instance that listens client requests on the specified port.
+    pub fn with_port(mut board: B, port: u16) -> CyberpixieResult<Self> {
         let (mut storage, network) = board
             .take_components()
             .expect("Board components has been already taken");
@@ -25,6 +34,7 @@ impl<B: Board> App<B> {
         let device_info = crate::read_device_info(&mut storage)?;
         Ok(Self {
             network,
+            port,
             inner: AppInner {
                 board,
                 storage: Some(storage),
@@ -46,15 +56,22 @@ impl<B: Board> App<B> {
     async fn run_client_requests_handler(&mut self) -> CyberpixieResult<()> {
         let mut client_socket = self.network.socket();
         // Wait for a new incoming Client connection
-        let mut peer = Connection::incoming(client_socket.accept(CLIENT_PORT).await?);
+        let mut peer = Connection::incoming(client_socket.accept(self.port).await?);
         // Run client requests handler.
         loop {
-            let request = peer.receive_request().await?;
+            let mut request = peer.receive_request().await?;
             let response = self
                 .inner
-                .handle_client_request(request)
+                .handle_client_request(&mut request)
                 .await
                 .unwrap_or_else(ResponseHeader::Error);
+
+            // It the payload has not been read by the handler, we must read it anyway
+            // in order to avoid malformed socked state.
+            if let Some(payload) = request.payload.take() {
+                payload.skip().await.map_err(CyberpixieError::network)?;
+            }
+
             peer.send_message(response).await?;
         }
     }
@@ -114,7 +131,7 @@ impl<B: Board> AppInner<B> {
     /// Handles incoming client request
     async fn handle_client_request<R: embedded_io::asynch::Read>(
         &mut self,
-        request: Message<R, RequestHeader>,
+        request: &mut Message<R, RequestHeader>,
     ) -> CyberpixieResult<ResponseHeader> {
         match request.header {
             RequestHeader::Handshake(info) => {
@@ -123,7 +140,7 @@ impl<B: Board> AppInner<B> {
             }
 
             RequestHeader::Debug => {
-                if let Some(payload) = request.payload {
+                if let Some(payload) = request.payload.take() {
                     self.board.show_debug_message(payload).await?;
                 }
                 Ok(ResponseHeader::Empty)
@@ -136,14 +153,22 @@ impl<B: Board> AppInner<B> {
                 if self.device_info.strip_len != strip_len {
                     return Err(CyberpixieError::StripLengthMismatch);
                 }
-
+                // Request should has payload.
                 let image = request
                     .payload
+                    .take()
                     .ok_or(CyberpixieError::ImageLengthMismatch)?;
+                // The length of the picture in bytes should be a multiple of "strip length" * "bytes per pixel".
+                if image.bytes_remaining() % (strip_len as usize * BYTES_PER_PIXEL) != 0 {
+                    // Don't forget to skip the entire payload.
+                    image.skip().await.map_err(CyberpixieError::network)?;
+                    return Err(CyberpixieError::ImageLengthMismatch);
+                }
 
-                let image_id = Self::storage_mut(&mut self.storage)?
-                    .add_image(refresh_rate, image)
-                    .await?;
+                let storage =
+                    Self::stop_rendering(&mut self.board, &mut self.storage, &mut self.render)
+                        .await?;
+                let image_id = storage.add_image(refresh_rate, image).await?;
 
                 // Since we change the number of images we have to refresh device information.
                 self.refresh_device_info()?;
@@ -155,6 +180,8 @@ impl<B: Board> AppInner<B> {
                     Self::stop_rendering(&mut self.board, &mut self.storage, &mut self.render)
                         .await?;
                 storage.set_current_image_id(image_id)?;
+                // Since we change the current image ID we have to refresh device information.
+                self.refresh_device_info()?;
 
                 let render = self
                     .board

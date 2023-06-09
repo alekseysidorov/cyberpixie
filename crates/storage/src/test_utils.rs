@@ -5,12 +5,12 @@ use core::convert::Infallible;
 use embedded_storage::{ReadStorage, Storage};
 
 /// In-memory embedded-storage backend.
-pub struct MemoryBackend(Vec<u8>);
+pub struct MemoryBackend(pub Vec<u8>);
 
 /// Since tests have a short lifetime we can allow memory to leak without any side effects.
 #[must_use]
-pub fn leaked_buf() -> &'static mut [u8] {
-    Box::leak(vec![0; 512].into_boxed_slice())
+pub fn leaked_buf(n: usize) -> &'static mut [u8] {
+    Box::leak(vec![0; n].into_boxed_slice())
 }
 
 impl Default for MemoryBackend {

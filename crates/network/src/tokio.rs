@@ -1,6 +1,6 @@
 //! Network stack implementation for the Tokio types.
 
-use std::net::Ipv6Addr;
+use std::net::{Ipv6Addr, SocketAddr};
 
 use embedded_io::adapters::FromTokio;
 use tokio::net::{TcpListener, TcpStream};
@@ -48,9 +48,11 @@ impl NetworkSocket for TokioSocket {
 
     async fn accept(&mut self, port: u16) -> CyberpixieResult<Self::Connection<'_>> {
         // Create listener
-        let listener = TcpListener::bind((Ipv6Addr::LOCALHOST, port))
+        let local_address = SocketAddr::from((Ipv6Addr::LOCALHOST, port));
+        let listener = TcpListener::bind(local_address)
             .await
             .map_err(CyberpixieError::network)?;
+        log::info!("Bound listener on the {local_address}");
         // Accept the first incoming connection.
         let (stream, address) = listener.accept().await.map_err(CyberpixieError::network)?;
         log::info!("Accepted an incoming connection from the {address}");

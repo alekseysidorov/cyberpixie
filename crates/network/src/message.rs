@@ -1,7 +1,7 @@
 //! Cyberpixie protocol messages io adapters
 
 use cyberpixie_core::{
-    io::{AsyncRead, AsyncWrite, BlockingRead, BlockingWrite},
+    io::{AsyncRead, AsyncWrite, BlockingRead, BlockingWrite, Io},
     proto::Headers,
     ExactSizeRead,
 };
@@ -40,7 +40,18 @@ impl<T> PayloadReader<T> {
     }
 }
 
-impl<T: embedded_io::Io> embedded_io::Io for PayloadReader<T> {
+impl<T: AsyncRead> PayloadReader<T> {
+    /// Skips all bytes in the payload.
+    pub async fn skip(mut self) -> Result<(), T::Error> {
+        while self.bytes_remaining() != 0 {
+            let mut byte = [0_u8];
+            self.read(&mut byte).await?;
+        }
+        Ok(())
+    }
+}
+
+impl<T: Io> Io for PayloadReader<T> {
     type Error = T::Error;
 }
 

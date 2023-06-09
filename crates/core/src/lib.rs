@@ -21,6 +21,8 @@ pub mod proto;
 /// It doesn't make sense to create pixel devices with strip longer than this one,
 /// the ws2812 protocol has not enough refresh rate.
 pub const MAX_STRIP_LEN: usize = 48;
+/// Bytes count per single pixel.
+pub const BYTES_PER_PIXEL: usize = 3;
 
 /// The reader with the exact number of bytes to read.
 pub trait ExactSizeRead {

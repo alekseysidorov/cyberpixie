@@ -6,7 +6,7 @@ use rgb::{FromSlice, RGB8};
 use crate::{
     io::{BlockingRead, BlockingSeek},
     proto::types::Hertz,
-    ExactSizeRead,
+    ExactSizeRead, BYTES_PER_PIXEL,
 };
 
 #[derive(Debug)]
@@ -46,9 +46,6 @@ where
     B: AsMut<[u8]>,
     R: BlockingRead + BlockingSeek + ExactSizeRead,
 {
-    /// Bytes count per single pixel.
-    pub const BYTES_PER_PIXEL: usize = 3;
-
     /// Creates a new image lines iterator.
     ///
     /// # Panics
@@ -57,7 +54,7 @@ where
     /// - If the image length in pixels is not a multiple of the strip length
     pub fn new(image: Image<R>, strip_len: u16, mut strip_line_buf: B) -> Self {
         let strip_len: usize = strip_len.into();
-        let strip_line_len = strip_len * Self::BYTES_PER_PIXEL;
+        let strip_line_len = strip_len * BYTES_PER_PIXEL;
         // Check preconditions.
         assert!(
             image.bytes.bytes_remaining() >= strip_line_len,

@@ -215,7 +215,7 @@ pub struct MemoryLayout {
 /// This storage uses a very simple linear layout:
 ///
 /// TBD
-pub struct StorageImpl<T: embedded_storage::Storage> {
+pub struct StorageImpl<T> {
     backend: T,
     // Storage memory layout.
     layout: MemoryLayout,
@@ -482,7 +482,7 @@ mod tests {
                 base: 0x9000,
                 size: 0xFFFFF,
             },
-            leaked_buf(),
+            leaked_buf(512),
         )
         .unwrap()
     }
@@ -499,7 +499,7 @@ mod tests {
             base: 0,
             size: 0xFFFFF,
         };
-        let buf = leaked_buf();
+        let buf = leaked_buf(512);
 
         let expected_header = Header {
             strip_len: 18,
@@ -522,7 +522,7 @@ mod tests {
             base: 0x8000,
             size: 0xFFFFF,
         };
-        let buf = leaked_buf();
+        let buf = leaked_buf(512);
 
         let first_location = PictureLocation {
             current: 0,

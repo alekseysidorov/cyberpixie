@@ -21,7 +21,7 @@ image = "0.24"
 tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread"] }
 
 [features]
-std = ["embedded-io/std", "cyberpixie-app/std"]
+std = ["embedded-io/std"]
 
 [[test]]
 name = "main"

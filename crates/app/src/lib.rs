@@ -29,7 +29,7 @@ pub use self::app::App;
 mod app;
 
 /// Port for the client connection.
-pub const CLIENT_PORT: u16 = 1800;
+pub const DEFAULT_CLIENT_PORT: u16 = 1800;
 
 /// Board-specific components
 ///
@@ -87,10 +87,15 @@ pub struct Configuration {
     pub current_image: Option<ImageId>,
 }
 
+impl Configuration {
+    /// Default strip LED length.
+    pub const DEFAULT_STRIP_LED_LEN: u16 = 24;
+}
+
 impl Default for Configuration {
     fn default() -> Self {
         Self {
-            strip_len: 24,
+            strip_len: Self::DEFAULT_STRIP_LED_LEN,
             current_image: None,
         }
     }
@@ -102,7 +107,7 @@ pub type ImageReader<'a, S> = Image<<S as Storage>::ImageRead<'a>>;
 /// Board internal storage.
 pub trait Storage: Send + 'static {
     /// Image reader type.
-    type ImageRead<'a>: BlockingRead + BlockingSeek + ExactSizeRead
+    type ImageRead<'a>: BlockingRead + BlockingSeek
     where
         Self: 'a;
     /// Returns an application configuration.
