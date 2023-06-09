@@ -16,7 +16,7 @@
 
 use cyberpixie_app::{
     core::proto::types::{FirmwareInfo, ImageId},
-    network::asynch::{NetworkSocket, NetworkStack},
+    network::{NetworkSocket, NetworkStack, SocketAddr},
     Board, Configuration, CyberpixieError, CyberpixieResult,
 };
 use cyberpixie_embedded_storage::MemoryLayout;
@@ -56,6 +56,30 @@ impl NetworkSocket for NetworkSocketImpl {
 
         socket
             .accept(IpListenEndpoint { addr: None, port })
+            .await
+            .map_err(CyberpixieError::network)?;
+        Ok(socket)
+    }
+
+    async fn connect(&mut self, addr: SocketAddr) -> CyberpixieResult<Self::Connection<'_>> {
+        let mut socket = TcpSocket::new(self.stack, &mut self.rx, &mut self.tx);
+        socket.set_timeout(Some(embassy_net::SmolDuration::from_secs(30)));
+
+        let remote_endpoint = match addr {
+            SocketAddr::V4(socket) => {
+                let ip = embassy_net::Ipv4Address(socket.ip().octets()).into_address();
+                let port = socket.port();
+                (ip, port)
+            }
+            SocketAddr::V6(socket) => {
+                let ip = embassy_net::Ipv6Address(socket.ip().octets()).into_address();
+                let port = socket.port();
+                (ip, port)
+            }
+        };
+
+        socket
+            .connect(remote_endpoint)
             .await
             .map_err(CyberpixieError::network)?;
         Ok(socket)

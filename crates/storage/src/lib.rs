@@ -18,16 +18,13 @@
 
 use cyberpixie_app::{
     core::{
-        io::image_reader::Image,
+        io::{image_reader::Image, AsyncRead, BlockingRead, BlockingSeek},
         proto::types::{Hertz, ImageId},
         ExactSizeRead,
     },
     Configuration, CyberpixieError, CyberpixieResult, ImageReader,
 };
-use embedded_io::{
-    blocking::{Read, Seek},
-    Io, SeekFrom,
-};
+use embedded_io::{Io, SeekFrom};
 use endian_codec::{DecodeLE, EncodeLE, PackedSize};
 use serde::{Deserialize, Serialize};
 
@@ -299,7 +296,7 @@ impl<'a, T: embedded_storage::ReadStorage> Io for PictureFile<'a, T> {
     type Error = CyberpixieError;
 }
 
-impl<'a, T: embedded_storage::ReadStorage> Read for PictureFile<'a, T> {
+impl<'a, T: embedded_storage::ReadStorage> BlockingRead for PictureFile<'a, T> {
     #[inline]
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
         let amount = core::cmp::min(buf.len(), self.bytes_remaining());
@@ -315,7 +312,7 @@ impl<'a, T: embedded_storage::ReadStorage> Read for PictureFile<'a, T> {
     }
 }
 
-impl<'a, T: embedded_storage::ReadStorage> Seek for PictureFile<'a, T> {
+impl<'a, T: embedded_storage::ReadStorage> BlockingSeek for PictureFile<'a, T> {
     #[inline]
     fn seek(&mut self, pos: SeekFrom) -> Result<u64, Self::Error> {
         // Compute a new image read position
@@ -356,58 +353,7 @@ impl<T: embedded_storage::Storage + Send + 'static> cyberpixie_app::Storage for 
         Ok(())
     }
 
-    fn add_image<R: Read + ExactSizeRead>(
-        &mut self,
-        refresh_rate: Hertz,
-        mut image: R,
-    ) -> CyberpixieResult<ImageId> {
-        let mut header = Header::read(&mut self.backend, self.layout, self.buf)?;
-
-        // Check preconditions
-        if header.images_count.0 >= Self::MAX_PICTURES_NUM {
-            return Err(CyberpixieError::ImageRepositoryIsFull);
-        }
-        // FIXME check image len
-
-        // Next image start offset
-        let image_id = header.images_count;
-        let last_picture = self.vacant_location(image_id)?;
-        let mut offset = last_picture.next;
-
-        // Write the refresh rate.
-        {
-            let buf = &mut self.buf[0..Hertz::PACKED_LEN];
-            refresh_rate.encode_as_le_bytes(buf);
-            self.backend
-                .write(offset, buf)
-                .map_err(|_| CyberpixieError::StorageWrite)?;
-            offset += buf.len() as u32;
-        }
-
-        // Write image bytes
-        while !image.is_empty() {
-            let bytes_read = image.read(self.buf).map_err(CyberpixieError::network)?;
-            self.backend
-                .write(offset, &self.buf[0..bytes_read])
-                .map_err(|_| CyberpixieError::StorageWrite)?;
-            offset += bytes_read as u32;
-        }
-
-        // Save new image location.
-        PictureLocation {
-            current: last_picture.next,
-            next: offset,
-        }
-        .write(image_id, &mut self.backend, self.layout, self.buf)?;
-
-        // Update storage header.
-        header.images_count.0 += 1;
-        header.write(&mut self.backend, self.layout, self.buf)?;
-
-        Ok(image_id)
-    }
-
-    async fn add_image_async<R: embedded_io::asynch::Read + ExactSizeRead>(
+    async fn add_image<R: AsyncRead + ExactSizeRead>(
         &mut self,
         refresh_rate: Hertz,
         mut image: R,

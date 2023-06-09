@@ -7,8 +7,7 @@ use cyberpixie_core::{
 };
 use embedded_nal::SocketAddr;
 
-use super::{Connection, NetworkSocket};
-use crate::CyberpixieResult;
+use crate::{connection::Connection, CyberpixieResult, NetworkSocket};
 
 /// Cyberpixie network async client.
 pub struct Client<C> {
@@ -23,10 +22,8 @@ impl<C: AsyncRead + AsyncWrite> Client<C> {
         I: Into<SocketAddr>,
     {
         let address = address.into();
-        Self::new(Connection {
-            socket: socket.connect(address).await?,
-        })
-        .await
+        let socket = socket.connect(address).await?;
+        Self::new(Connection::incoming(socket)).await
     }
 
     /// Creates a new client on top of the given connection.

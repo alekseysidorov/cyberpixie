@@ -1,12 +1,9 @@
 use std::{future::Future, ops::DerefMut};
 
 use cyberpixie_network::{
-    asynch::{
-        tokio::{TokioSocket, TokioStack},
-        Client, NetworkSocket, NetworkStack,
-    },
     core::proto::types::{Hertz, ImageId, PeerInfo},
-    SocketAddr,
+    tokio::{TokioSocket, TokioStack},
+    Client, NetworkSocket, NetworkStack, SocketAddr,
 };
 use image::{
     imageops::{self, FilterType},

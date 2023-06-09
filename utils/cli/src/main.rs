@@ -3,9 +3,9 @@ use std::path::PathBuf;
 use clap::{CommandFactory, Parser, Subcommand};
 use cyberpixie_cli::convert_image_to_raw;
 use cyberpixie_network::{
-    asynch::{client::Client, tokio::TokioStack, NetworkStack},
     core::proto::types::{Hertz, ImageId},
-    SocketAddr,
+    tokio::TokioStack,
+    Client, NetworkStack, SocketAddr,
 };
 
 /// Cyberpixie device manipulation utility

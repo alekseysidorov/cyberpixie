@@ -21,7 +21,7 @@ use cyberpixie_core::{
     ExactSizeRead,
 };
 pub use cyberpixie_network as network;
-use cyberpixie_network::{asynch::NetworkStack, PayloadReader};
+use cyberpixie_network::{NetworkStack, PayloadReader};
 use serde::{Deserialize, Serialize};
 
 pub use self::app::App;
@@ -115,18 +115,11 @@ pub trait Storage: Send + 'static {
     /// - You must invoke [`Self::clear_images`] method if the strip length changes.
     fn set_config(&mut self, config: Configuration) -> CyberpixieResult<()>;
     /// Adds a new image.
-    fn add_image<R: BlockingRead + ExactSizeRead>(
+    async fn add_image<R: AsyncRead + ExactSizeRead>(
         &mut self,
         refresh_rate: Hertz,
         image: R,
     ) -> CyberpixieResult<ImageId>;
-    /// Adds a new image.
-    async fn add_image_async<R: AsyncRead + ExactSizeRead>(
-        &mut self,
-        refresh_rate: Hertz,
-        image: R,
-    ) -> CyberpixieResult<ImageId>;
-
     /// Reads an image with the given identifier.
     fn read_image(&mut self, id: ImageId) -> CyberpixieResult<ImageReader<'_, Self>>;
     /// Returns total saved images count.
@@ -193,12 +186,12 @@ impl<T: Storage> Storage for &'static mut T {
         T::set_config(self, config)
     }
 
-    fn add_image<R: BlockingRead + ExactSizeRead>(
+    async fn add_image<R: embedded_io::asynch::Read + ExactSizeRead>(
         &mut self,
         refresh_rate: Hertz,
         image: R,
     ) -> CyberpixieResult<ImageId> {
-        T::add_image(self, refresh_rate, image)
+        T::add_image(self, refresh_rate, image).await
     }
 
     fn read_image(&mut self, id: ImageId) -> CyberpixieResult<ImageReader<'_, Self>> {
@@ -211,14 +204,6 @@ impl<T: Storage> Storage for &'static mut T {
 
     fn clear_images(&mut self) -> CyberpixieResult<()> {
         T::clear_images(self)
-    }
-
-    async fn add_image_async<R: embedded_io::asynch::Read + ExactSizeRead>(
-        &mut self,
-        refresh_rate: Hertz,
-        image: R,
-    ) -> CyberpixieResult<ImageId> {
-        T::add_image_async(self, refresh_rate, image).await
     }
 }
 

@@ -1,3 +1,5 @@
+#![allow(clippy::useless_transmute)]
+
 use cstr::cstr;
 use log::LevelFilter;
 use qmetaobject::prelude::*;

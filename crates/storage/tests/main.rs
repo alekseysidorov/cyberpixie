@@ -46,15 +46,15 @@ fn read_image(storage: &mut StorageImpl<MemoryBackend>, id: ImageId) -> (Hertz, 
     (image.refresh_rate, buf)
 }
 
-#[test]
-fn image_read_write_simple() {
+#[tokio::test]
+async fn image_read_write_simple() {
     let mut storage = init_storage();
 
     let image_data_1 = [1_u8; 72];
     let image_data_2 = [2_u8; 24 * 3 * 20];
 
     // Add a first image
-    storage.add_image(Hertz(500), &image_data_1[..]).unwrap();
+    storage.add_image(Hertz(500), &image_data_1[..]).await.unwrap();
     assert_eq!(storage.images_count().unwrap(), ImageId(1));
 
     // Read a first image
@@ -63,7 +63,7 @@ fn image_read_write_simple() {
     assert_eq!(data, image_data_1);
 
     // Add a second image
-    storage.add_image(Hertz(42), &image_data_2[..]).unwrap();
+    storage.add_image(Hertz(42), &image_data_2[..]).await.unwrap();
     assert_eq!(storage.images_count().unwrap(), ImageId(2));
 
     // Read a first image again
@@ -77,15 +77,15 @@ fn image_read_write_simple() {
     assert_eq!(data, image_data_2);
 }
 
-#[test]
-fn image_read_write_clear() {
+#[tokio::test]
+async fn image_read_write_clear() {
     let mut storage = init_storage();
 
     let image_data_1 = [1_u8; 72];
 
     // Add an images
-    storage.add_image(Hertz(500), &image_data_1[..]).unwrap();
-    storage.add_image(Hertz(42), &image_data_1[..]).unwrap();
+    storage.add_image(Hertz(500), &image_data_1[..]).await.unwrap();
+    storage.add_image(Hertz(42), &image_data_1[..]).await.unwrap();
     assert_eq!(storage.images_count().unwrap(), ImageId(2));
     // Clear images
     storage.clear_images().unwrap();
@@ -93,7 +93,7 @@ fn image_read_write_clear() {
     // Add an image again
 
     let image_data_2 = [2_u8; 24 * 3 * 20];
-    storage.add_image(Hertz(48), &image_data_2[..]).unwrap();
+    storage.add_image(Hertz(48), &image_data_2[..]).await.unwrap();
     assert_eq!(storage.images_count().unwrap(), ImageId(1));
 
     // Read it
@@ -102,8 +102,8 @@ fn image_read_write_clear() {
     assert_eq!(data, image_data_2);
 }
 
-#[test]
-fn test_image_lines_cycle_nyan_cat() {
+#[tokio::test]
+async fn test_image_lines_cycle_nyan_cat() {
     let mut storage = init_storage();
 
     // Read an image
@@ -116,7 +116,7 @@ fn test_image_lines_cycle_nyan_cat() {
         raw.extend(rgb.0);
     }
     // Add image.
-    storage.add_image(Hertz(500), &raw[..]).unwrap();
+    storage.add_image(Hertz(500), &raw[..]).await.unwrap();
     // Read image line by line.
     let image = storage.read_image(ImageId(0)).unwrap();
     let mut lines = ImageLines::new(image, 48, vec![0_u8; 512]);

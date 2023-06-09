@@ -4,10 +4,7 @@ use cyberpixie_core::proto::{
     types::{DeviceInfo, DeviceRole, ImageInfo, PeerInfo},
     RequestHeader, ResponseHeader,
 };
-use cyberpixie_network::{
-    asynch::{Connection, NetworkSocket, NetworkStack},
-    Message,
-};
+use cyberpixie_network::{Connection, Message, NetworkSocket, NetworkStack};
 
 use super::{Board, CLIENT_PORT};
 use crate::{CyberpixieError, CyberpixieResult, Storage};
@@ -145,7 +142,7 @@ impl<B: Board> AppInner<B> {
                     .ok_or(CyberpixieError::ImageLengthMismatch)?;
 
                 let image_id = Self::storage_mut(&mut self.storage)?
-                    .add_image_async(refresh_rate, image)
+                    .add_image(refresh_rate, image)
                     .await?;
 
                 // Since we change the number of images we have to refresh device information.
