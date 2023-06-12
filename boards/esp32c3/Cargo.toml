@@ -1,6 +1,6 @@
 [package]
 name = "cyberpixie_esp32c3"
-version = "0.1.0"
+version = "0.3.0"
 authors = ["Aleksey Sidorov <sauron1987@gmail.com>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
@@ -10,7 +10,7 @@ license = "MIT OR Apache-2.0"
 esp-backtrace = { version = "0.7.0", features = ["esp32c3", "panic-handler", "exception-handler", "print-uart"] }
 esp-println = { version = "0.5.0", features = ["esp32c3", "log"] }
 hal = { package = "esp32c3-hal", version = "0.9", features = ["async", "embassy", "embassy-time-timg0"] }
-ws2812-async = { version = "0.1.0", git = "https://github.com/alekseysidorov/ws2812-async.git", rev = "1afa6b2" }
+ws2812-async = { workspace = true }
 
 # Async network
 embassy-executor = { version = "0.2.0", features = ["nightly", "integrated-timers", "arch-riscv32", "executor-thread"] }

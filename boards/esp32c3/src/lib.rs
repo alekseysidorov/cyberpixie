@@ -4,15 +4,18 @@
 #![no_std]
 #![feature(async_fn_in_trait, type_alias_impl_trait)]
 
-use cyberpixie_app::core::{proto::types::Hertz, MAX_STRIP_LEN};
+use cyberpixie_app::{core::{proto::types::Hertz}, App};
 use cyberpixie_esp_common::{
-    render::{Frame, StaticReceiver, QUEUE_LEN},
+    render::{Frame, StaticReceiver, QUEUE_LEN, RenderingHandle},
     singleton,
 };
 pub use cyberpixie_esp_common::{
     BoardImpl, NetworkSocketImpl, NetworkStackImpl, DEFAULT_MEMORY_LAYOUT,
 };
-use embassy_time::{Duration, Instant, Timer};
+
+use embassy_net::Stack;
+use embassy_time::{Duration, Timer};
+use esp_wifi::wifi::WifiDevice;
 use hal::{
     clock::Clocks,
     dma::{ChannelRx, ChannelTx, DmaPriority},
@@ -23,7 +26,6 @@ use hal::{
     system::PeripheralClockControl,
     Spi, IO,
 };
-use smart_leds::RGB8;
 use ws2812_async::Ws2812;
 
 /// Max supported frame rate.
@@ -75,21 +77,6 @@ pub fn ws2812_spi(
     ))
 }
 
-/// Input a value 0 to 255 to get a color value
-/// The colors are a transition r - g - b - back to r.
-pub fn wheel(mut wheel_pos: u8) -> RGB8 {
-    wheel_pos = 255 - wheel_pos;
-    if wheel_pos < 85 {
-        return (255 - wheel_pos * 3, 0, wheel_pos * 3).into();
-    }
-    if wheel_pos < 170 {
-        wheel_pos -= 85;
-        return (0, wheel_pos * 3, 255 - wheel_pos * 3).into();
-    }
-    wheel_pos -= 170;
-    (wheel_pos * 3, 255 - wheel_pos * 3, 0).into()
-}
-
 /// SPI type using by the ws2812 driver.
 pub type SpiType<'d> = SpiDma<
     'd,
@@ -105,78 +92,21 @@ pub async fn render_task(
     spi: &'static mut SpiType<'static>,
     receiver: StaticReceiver<Frame, QUEUE_LEN>,
 ) {
-    const LED_BUF_LEN: usize = 12 * MAX_STRIP_LEN;
+    cyberpixie_esp_common::render::ws2812_async_render(Ws2812::new(spi), receiver).await;
+}
 
-    // Initialize and cleanup a LEN strip.
-    let mut ws: Ws2812<_, LED_BUF_LEN> = Ws2812::new(spi);
-    ws.write(core::iter::repeat(RGB8::default()).take(MAX_STRIP_LEN))
-        .await
-        .unwrap();
-
-    // Default frame duration
-    let mut rate = Hertz(500);
-    let mut frame_duration = Duration::from_hz(rate.0 as u64);
-
-    let mut total_render_time = 0;
-    let mut dropped_frames = 0;
-    let mut counts = 0;
-    let mut max_render_time = 0;
+#[embassy_executor::task]
+pub async fn app_task(stack: &'static Stack<WifiDevice<'static>>, rendering_handle: RenderingHandle) {
     loop {
-        let now = Instant::now();
-        match receiver.recv().await {
-            // Received a new picture frame rate, we should update a refresh period and wait for
-            // a short time until the frames queue will be fill.
-            Frame::UpdateRate(new_rate) => {
-                rate = new_rate;
-                frame_duration = Duration::from_hz(rate.0 as u64);
-                Timer::after(frame_duration * QUEUE_LEN as u32 * 2).await;
-            }
-
-            Frame::Line(line) => {
-                ws.write(line.into_iter()).await.unwrap();
-                let elapsed = now.elapsed();
-
-                total_render_time += elapsed.as_micros();
-                if elapsed <= frame_duration {
-                    let next_frame_time = now + frame_duration;
-                    Timer::at(next_frame_time).await;
-                } else {
-                    dropped_frames += 1;
-                }
-                max_render_time = core::cmp::max(max_render_time, elapsed.as_micros());
-                counts += 1;
-            }
-
-            Frame::Clear => {
-                ws.write(core::iter::repeat(RGB8::default()).take(MAX_STRIP_LEN))
-                    .await
-                    .unwrap();
-                // Reset rendering stats.
-                dropped_frames = 0;
-                total_render_time = 0;
-                max_render_time = 0;
-                counts = 0;
-            }
-        };
-
-        if counts == 10_000 {
-            let line_render_time = total_render_time as f32 / counts as f32;
-            log::info!("-> Refresh rate {rate}hz");
-            log::info!("-> Total rendering time {total_render_time}us");
-            log::info!("-> per line: {line_render_time}us");
-            log::info!("-> max: {max_render_time}us");
-            log::info!(
-                "-> Average frame rendering frame rate is {}Hz",
-                1_000_000f32 / line_render_time
-            );
-            log::info!(
-                "-> dropped frames: {dropped_frames} [{}%]",
-                dropped_frames as f32 * 100_f32 / counts as f32
-            );
-
-            dropped_frames = 0;
-            total_render_time = 0;
-            counts = 0;
+        if stack.is_link_up() {
+            break;
         }
+        Timer::after(Duration::from_millis(500)).await;
     }
+
+    log::info!("Network config is {:?}", stack.config());
+
+    let board = BoardImpl::new(stack, rendering_handle);
+    let app = App::new(board).expect("Unable to create a cyberpixie application");
+    app.run().await.expect("Application execution failed");
 }

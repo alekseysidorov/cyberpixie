@@ -5,9 +5,8 @@ use cyberpixie_core::{
         RequestHeader,
     },
 };
-use embedded_nal::SocketAddr;
 
-use crate::{connection::Connection, CyberpixieResult, NetworkSocket};
+use crate::{connection::Connection, CyberpixieResult, NetworkSocket, SocketAddr};
 
 /// Cyberpixie network async client.
 pub struct Client<C> {

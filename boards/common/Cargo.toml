@@ -6,20 +6,30 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-embassy-executor = { version = "0.2.0", features = ["nightly", "integrated-timers", "arch-riscv32", "executor-thread"] }
+embassy-executor = { version = "0.2.0", features = [
+    "nightly",
+    "integrated-timers",
+    "arch-riscv32",
+    "executor-thread",
+] }
 embassy-net = { workspace = true }
 embassy-sync = { version = "0.2.0", features = ["nightly"] }
 embassy-time = { version = "0.1.1", features = ["nightly"] }
 embedded-storage = "0.3"
+embedded-svc = { version = "0.25", default-features = false }
 esp-storage = { version = "0.1.0" }
 esp-wifi = { workspace = true }
-heapless = { workspace = true }
+heapless = { workspace = true, features = ["serde"] }
 log = "0.4"
+serde = { version = "1", default-features = false, features = ["derive"] }
 smart-leds = "0.3"
 static_cell = "1"
+ws2812-async = { workspace = true }
+embedded-hal-async = { workspace = true}
 
 # Cyberpixie
 cyberpixie-app = { workspace = true }
+cyberpixie-network = { workspace = true, features = ["embassy-net"] }
 cyberpixie-embedded-storage = { workspace = true }
 
 [features]

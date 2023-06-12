@@ -7,7 +7,6 @@ edition = "2021"
 cyberpixie-core = { workspace = true }
 cyberpixie-network = { workspace = true }
 embedded-io = "0.4"
-embedded-nal = "0.6"
 heapless = { workspace = true }
 log = "0.4"
 nb = "1.0"

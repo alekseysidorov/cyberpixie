@@ -12,7 +12,7 @@ use cyberpixie_embedded_storage::{
 };
 use cyberpixie_network::{
     tokio::{TokioConnection, TokioSocket, TokioStack},
-    Client, NetworkStack,
+    Client, Ipv6Addr, NetworkStack,
 };
 use tokio::task::JoinHandle;
 
@@ -77,12 +77,9 @@ async fn create_loopback(
     tokio::time::sleep(Duration::from_millis(50)).await;
 
     // Create a Cyberpixie client and connect with an application.
-    let client = Client::connect(
-        socket,
-        embedded_nal::SocketAddr::new(embedded_nal::Ipv6Addr::localhost().into(), port),
-    )
-    .await
-    .expect("unable to establish client connection");
+    let client = Client::connect(socket, (Ipv6Addr::LOCALHOST, port))
+        .await
+        .expect("unable to establish client connection");
     (app_handle, client)
 }
 

@@ -12,7 +12,7 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
-use cyberpixie_esp32c3::{wheel, ws2812_spi, SpiType};
+use cyberpixie_esp32c3::{ws2812_spi, SpiType};
 use cyberpixie_esp_common::singleton;
 use embassy_executor::Executor;
 use embassy_time::{Duration, Instant, Timer};
@@ -30,6 +30,21 @@ use smart_leds::{brightness, RGB8};
 use ws2812_async::Ws2812;
 
 const NUM_LEDS: usize = 24;
+
+/// Input a value 0 to 255 to get a color value
+/// The colors are a transition r - g - b - back to r.
+pub fn wheel(mut wheel_pos: u8) -> RGB8 {
+    wheel_pos = 255 - wheel_pos;
+    if wheel_pos < 85 {
+        return (255 - wheel_pos * 3, 0, wheel_pos * 3).into();
+    }
+    if wheel_pos < 170 {
+        wheel_pos -= 85;
+        return (0, wheel_pos * 3, 255 - wheel_pos * 3).into();
+    }
+    wheel_pos -= 170;
+    (wheel_pos * 3, 255 - wheel_pos * 3, 0).into()
+}
 
 #[embassy_executor::task]
 async fn spi_task(spi: &'static mut SpiType<'static>) {
