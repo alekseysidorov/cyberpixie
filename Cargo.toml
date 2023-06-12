@@ -41,4 +41,4 @@ postcard-derive = "0.1.0"
 
 # ESP dependencies
 embassy-net = { git = "https://github.com/embassy-rs/embassy", rev = "fb27594", features = ["nightly", "tcp", "dhcpv4", "medium-ethernet", "unstable-traits", "proto-ipv6"] }
-esp-wifi = { git = "https://github.com/esp-rs/esp-wifi.git", rev = "fb812ca", features = ["embedded-svc", "wifi", "embassy-net"] }
+esp-wifi = { git = "https://github.com/esp-rs/esp-wifi.git", rev = "f80df63", features = ["embedded-svc", "wifi", "embassy-net"] }

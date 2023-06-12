@@ -102,7 +102,7 @@ pub struct RenderingHandle {
 
 impl RenderingHandle {
     pub async fn start(&self, storage: StorageImpl, id: ImageId) {
-        self.commands.send(Command::Start { storage, id }).await
+        self.commands.send(Command::Start { storage, id }).await;
     }
 
     pub async fn stop(&self) -> StorageImpl {

@@ -11,7 +11,7 @@ use embassy_time::{Duration, Timer};
 use embedded_svc::wifi::{AccessPointConfiguration, Configuration, Wifi};
 use esp_backtrace as _;
 use esp_println::{logger::init_logger, print, println};
-use esp_wifi::wifi::{WifiController, WifiDevice, WifiEvent, WifiMode, WifiState};
+use esp_wifi::{wifi::{WifiController, WifiDevice, WifiEvent, WifiMode, WifiState}, EspWifiInitFor};
 use hal::{
     clock::{ClockControl, CpuClock},
     embassy,
@@ -53,13 +53,15 @@ fn main() -> ! {
 
     // Initialize and get Wifi device
     let timer = SystemTimer::new(peripherals.SYSTIMER).alarm0;
-    esp_wifi::initialize(
+    let init = esp_wifi::initialize(
+        EspWifiInitFor::Wifi,
         timer,
         Rng::new(peripherals.RNG),
         system.radio_clock_control,
         &clocks,
     )
     .unwrap();
+
     let (wifi, _bluetooth) = peripherals.RADIO.split();
 
     // Network stack configuration.
@@ -72,7 +74,7 @@ fn main() -> ! {
     // let config = Config::Dhcp(Default::default());
 
     // Initialize the network stack
-    let (wifi_interface, controller) = esp_wifi::wifi::new_with_mode(wifi, WifiMode::Ap);
+    let (wifi_interface, controller) = esp_wifi::wifi::new_with_mode(&init, wifi, WifiMode::Ap);
     let stack = singleton!(Stack::new(
         wifi_interface,
         config,
