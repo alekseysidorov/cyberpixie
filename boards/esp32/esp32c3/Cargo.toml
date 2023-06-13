@@ -1,9 +1,13 @@
+cargo-features = ["per-package-target"]
+
 [package]
-name = "cyberpixie_esp32c3"
+name = "cyberpixie-esp32c3"
 version = "0.3.0"
 authors = ["Aleksey Sidorov <sauron1987@gmail.com>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
+# This package is suitable only for this target
+forced-target = "riscv32imc-unknown-none-elf"
 
 [dependencies]
 # Hardware support

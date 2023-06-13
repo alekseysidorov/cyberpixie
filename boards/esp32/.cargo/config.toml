@@ -12,7 +12,7 @@ opt-level = "s"
 lto = "thin"
 
 [target.riscv32imc-unknown-none-elf]
-runner = "espflash flash --monitor --partition-table .cargo/partitions.csv"
+runner = "espflash flash --monitor --partition-table esp32c3/partitions.csv"
 rustflags = [
   "-C",
   "link-arg=-Tlinkall.x",

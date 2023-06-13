@@ -242,19 +242,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "cyberpixie-network"
-version = "0.3.0"
-dependencies = [
- "cyberpixie-core",
- "embedded-io",
- "heapless",
- "log",
- "no-std-net 0.6.0",
- "smoltcp",
-]
-
-[[package]]
-name = "cyberpixie_esp32c3"
+name = "cyberpixie-esp32c3"
 version = "0.3.0"
 dependencies = [
  "cyberpixie-app",
@@ -277,6 +265,18 @@ dependencies = [
  "smart-leds",
  "static_cell",
  "ws2812-async",
+]
+
+[[package]]
+name = "cyberpixie-network"
+version = "0.3.0"
+dependencies = [
+ "cyberpixie-core",
+ "embedded-io",
+ "heapless",
+ "log",
+ "no-std-net 0.6.0",
+ "smoltcp",
 ]
 
 [[package]]
