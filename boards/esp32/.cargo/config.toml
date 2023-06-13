@@ -1,16 +1,6 @@
 [build]
 target = "riscv32imc-unknown-none-elf"
 
-# The best discovered optimization flags without stability issues.
-[profile.release]
-opt-level = "s"
-lto = "thin"
-
-[profile.dev]
-debug = true # Symbols are nice and they don't increase the size on Flash
-opt-level = "s"
-lto = "thin"
-
 [target.riscv32imc-unknown-none-elf]
 runner = "espflash flash --monitor --partition-table esp32c3/partitions.csv"
 rustflags = [
@@ -49,3 +39,13 @@ rustflags = [
 
 [unstable]
 build-std = ["core"]
+
+# The best discovered optimization flags without stability issues.
+[profile.release]
+opt-level = "s"
+lto = "thin"
+
+[profile.dev]
+debug = true # Symbols are nice and they don't increase the size on Flash
+opt-level = "s"
+lto = "thin"
