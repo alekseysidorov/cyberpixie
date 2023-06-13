@@ -26,7 +26,7 @@ embedded-storage = "0.3"
 esp-storage = { version = "0.1.0", features = ["esp32c3"] }
 
 # Common
-heapless = { workspace = true }
+heapless = { version = "0.7", features = ["serde"]}
 log = "0.4"
 smart-leds = "0.3"
 static_cell = "1"

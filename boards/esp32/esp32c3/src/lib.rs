@@ -4,15 +4,14 @@
 #![no_std]
 #![feature(async_fn_in_trait, type_alias_impl_trait)]
 
-use cyberpixie_app::{core::{proto::types::Hertz}, App};
+use cyberpixie_app::{core::proto::types::Hertz, App};
 use cyberpixie_esp_common::{
-    render::{Frame, StaticReceiver, QUEUE_LEN, RenderingHandle},
+    render::{Frame, RenderingHandle, StaticReceiver, QUEUE_LEN},
     singleton,
 };
 pub use cyberpixie_esp_common::{
     BoardImpl, NetworkSocketImpl, NetworkStackImpl, DEFAULT_MEMORY_LAYOUT,
 };
-
 use embassy_net::Stack;
 use embassy_time::{Duration, Timer};
 use esp_wifi::wifi::WifiDevice;
@@ -96,7 +95,10 @@ pub async fn render_task(
 }
 
 #[embassy_executor::task]
-pub async fn app_task(stack: &'static Stack<WifiDevice<'static>>, rendering_handle: RenderingHandle) {
+pub async fn app_task(
+    stack: &'static Stack<WifiDevice<'static>>,
+    rendering_handle: RenderingHandle,
+) {
     loop {
         if stack.is_link_up() {
             break;

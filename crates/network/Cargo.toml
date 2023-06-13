@@ -6,16 +6,15 @@ edition = "2021"
 
 [dependencies]
 cyberpixie-core = { workspace = true }
-smoltcp = { workspace = true, optional = true }
 embedded-io = { version = "0.4", features = ["async"] }
-heapless = { workspace = true }
+heapless = { version = "0.7" }
 log = "0.4"
 no-std-net = { version = "0.6" }
+smoltcp = { workspace = true, optional = true }
 tokio = { version = "1", features = ["net"], optional = true }
 
 [dev-dependencies]
 env_logger = "0.10"
-nb-utils = { workspace = true, features = ["std"] }
 
 [features]
 default = []

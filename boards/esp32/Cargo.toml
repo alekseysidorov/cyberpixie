@@ -2,33 +2,17 @@
 resolver = "2"
 
 members = [
-  "application/rust",
-  "crates/app",
-  "crates/core",
-  "crates/network",
-  "crates/storage",
-  "boards/esp32/common",
-  "boards/esp32/esp32c3",
-  "utils/cli",
+  "common",
+  "esp32c3",
 ]
-
-default-members = [
-  "crates/app",
-  "crates/core",
-  "crates/network",
-  "crates/storage",
-  "utils/cli",
-]
-
-exclude = ["boards/esp32/esp32c3", "boards/esp32/common"]
 
 [workspace.dependencies]
 # Workspace crates
-cyberpixie-app = { path = "crates/app" }
-cyberpixie-embedded-storage = { path = "crates/storage" }
-cyberpixie-core = { path = "crates/core" }
-cyberpixie-network = { path = "crates/network" }
-cyberpixie-esp-common = { path = "boards/esp32/common" }
+cyberpixie-app = { path = "../../crates/app" }
+cyberpixie-embedded-storage = { path = "../../crates/storage" }
+cyberpixie-core = { path = "../../crates/core" }
+cyberpixie-network = { path = "../../crates/network" }
+cyberpixie-esp-common = { path = "common" }
 
 # ESP dependencies
 embassy-net = { git = "https://github.com/embassy-rs/embassy", rev = "fb27594", features = ["nightly", "tcp", "dhcpv4", "medium-ethernet", "unstable-traits", "proto-ipv6"] }

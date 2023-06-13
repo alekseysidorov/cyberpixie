@@ -66,7 +66,7 @@ impl NetworkSocket for NetworkSocketImpl {
     async fn connect(&mut self, addr: SocketAddr) -> CyberpixieResult<Self::Connection<'_>> {
         let mut socket = TcpSocket::new(self.stack, &mut self.rx, &mut self.tx);
         socket.set_timeout(Some(embassy_net::SmolDuration::from_secs(30)));
-        
+
         let (addr, port) = FromSocketAddress::from_socket_address(addr);
         socket
             .connect((addr, port))

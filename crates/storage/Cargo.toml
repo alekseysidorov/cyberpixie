@@ -10,7 +10,7 @@ cyberpixie-app = { workspace = true }
 embedded-io = "0.4"
 embedded-storage = "0.3"
 endian_codec = "0.1"
-heapless = { workspace = true }
+heapless = { version = "0.7" }
 log = "0.4"
 postcard = { version = "1.0", default-features = false }
 serde = { version = "1", default-features = false, features = ["derive"] }
