@@ -51,5 +51,5 @@ jobs:
             target/
             boards/esp32/target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - run: nix-shell boards/esp32/esp32c3/shell.nix --command "cd boards/esp32/esp32c3 && cargo clippy"
-      - run: nix-shell boards/esp32/esp32s3/shell.nix --command "cd boards/esp32/esp32s3 && cargo clippy"
+      - run: cargo board esp32c3 clippy
+      - run: cargo board esp32s3 clippy

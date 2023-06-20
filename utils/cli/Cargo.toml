@@ -11,5 +11,4 @@ cyberpixie-network = { workspace = true, features = ["tokio"] }
 env_logger = "0.10"
 image = "0.24"
 log = "0.4"
-nb = "1.0"
 tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread"] }
