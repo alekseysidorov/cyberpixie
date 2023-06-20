@@ -1,11 +1,10 @@
 # Shell for the platform independent code parts
 { localSystem ? builtins.currentSystem
-, pkgs ? import ./../../nix { inherit localSystem; }
+, pkgs ? import ./../../../nix { inherit localSystem; }
 }:
 let
   # Read a cargo build configuration toml
-  cargoConfigUtils = pkgs.cargoConfigUtils.fromFile ./.cargo/config.toml;
-  shellPrompt = pkgs.mkBashPrompt cargoConfigUtils.target;
+  shellPrompt = pkgs.mkBashPrompt "esp32c3";
 in
 pkgs.mkShell {
   nativeBuildInputs = with pkgs; [
@@ -15,9 +14,6 @@ pkgs.mkShell {
     espflash
     cargo-espflash
   ];
-
-  env = cargoConfigUtils.env;
-  # env = cargoConfigUtils.target;
 
   shellHook = ''
     # Setup nice bash prompt

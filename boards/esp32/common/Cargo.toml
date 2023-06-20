@@ -10,17 +10,22 @@ embassy-executor = { version = "0.2.0", features = ["nightly", "integrated-timer
 embassy-net = { workspace = true }
 embassy-sync = { version = "0.2.0", features = ["nightly"] }
 embassy-time = { version = "0.1.1", features = ["nightly"] }
+embedded-hal-async = { workspace = true }
 embedded-storage = "0.3"
+embedded-svc = { version = "0.25", default-features = false }
 esp-storage = { version = "0.1.0" }
 esp-wifi = { workspace = true }
-heapless = { workspace = true }
+heapless = { version = "0.7", features = ["serde"] }
 log = "0.4"
+serde = { version = "1", default-features = false, features = ["derive"] }
 smart-leds = "0.3"
 static_cell = "1"
+ws2812-async = { workspace = true }
 
 # Cyberpixie
 cyberpixie-app = { workspace = true }
 cyberpixie-embedded-storage = { workspace = true }
+cyberpixie-network = { workspace = true, features = ["embassy-net"] }
 
 [features]
 default = ["esp32c3"]

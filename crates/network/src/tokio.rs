@@ -62,10 +62,7 @@ impl NetworkSocket for TokioSocket {
         })
     }
 
-    async fn connect(
-        &mut self,
-        addr: embedded_nal::SocketAddr,
-    ) -> CyberpixieResult<Self::Connection<'_>> {
+    async fn connect(&mut self, addr: SocketAddr) -> CyberpixieResult<Self::Connection<'_>> {
         // Just convert a socket address type by using the string representation.
         let addr: std::net::SocketAddr = addr.to_string().parse().unwrap();
         let stream = TcpStream::connect(addr)

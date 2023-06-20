@@ -20,12 +20,14 @@ use cyberpixie_app::{
     Board, Configuration, CyberpixieError, CyberpixieResult,
 };
 use cyberpixie_embedded_storage::MemoryLayout;
+use cyberpixie_network::FromSocketAddress;
 use embassy_net::{tcp::TcpSocket, IpListenEndpoint, Stack};
 use esp_storage::FlashStorage;
 use esp_wifi::wifi::WifiDevice;
 use render::RenderingHandle;
 
 pub mod render;
+pub mod wifi;
 
 pub type StorageImpl = cyberpixie_embedded_storage::StorageImpl<FlashStorage>;
 
@@ -65,21 +67,9 @@ impl NetworkSocket for NetworkSocketImpl {
         let mut socket = TcpSocket::new(self.stack, &mut self.rx, &mut self.tx);
         socket.set_timeout(Some(embassy_net::SmolDuration::from_secs(30)));
 
-        let remote_endpoint = match addr {
-            SocketAddr::V4(socket) => {
-                let ip = embassy_net::Ipv4Address(socket.ip().octets()).into_address();
-                let port = socket.port();
-                (ip, port)
-            }
-            SocketAddr::V6(socket) => {
-                let ip = embassy_net::Ipv6Address(socket.ip().octets()).into_address();
-                let port = socket.port();
-                (ip, port)
-            }
-        };
-
+        let (addr, port) = FromSocketAddress::from_socket_address(addr);
         socket
-            .connect(remote_endpoint)
+            .connect((addr, port))
             .await
             .map_err(CyberpixieError::network)?;
         Ok(socket)

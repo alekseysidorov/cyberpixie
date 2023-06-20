@@ -7,7 +7,7 @@ edition = "2021"
 displaydoc = { version = "0.2", default-features = false }
 embedded-io = "0.4"
 endian_codec = "0.1"
-heapless = { workspace = true }
+heapless = { version = "0.7" }
 log = "0.4"
 postcard = { version = "1.0", default-features = false, features = ["experimental-derive"] }
 rgb = "0.8"
