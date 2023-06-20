@@ -15,7 +15,7 @@ embedded-storage = "0.3"
 embedded-svc = { version = "0.25", default-features = false }
 esp-storage = { version = "0.1.0" }
 esp-wifi = { workspace = true }
-heapless = { version = "0.7", features = ["serde"]}
+heapless = { version = "0.7", features = ["serde"] }
 log = "0.4"
 serde = { version = "1", default-features = false, features = ["derive"] }
 smart-leds = "0.3"

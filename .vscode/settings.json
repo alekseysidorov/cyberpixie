@@ -1,5 +1,5 @@
 {
-    "rust-analyzer.linkedProjects": [
-        "./boards/esp32/Cargo.toml"
-    ]
+  "rust-analyzer.linkedProjects": [
+    "./boards/esp32/Cargo.toml"
+  ]
 }
