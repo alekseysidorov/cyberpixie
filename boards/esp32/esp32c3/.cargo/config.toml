@@ -1,15 +1,12 @@
-[build]
-target = "xtensa-esp32s3-none-elf"
+[target.riscv32imc-unknown-none-elf]
+runner = "espflash flash --monitor --partition-table partitions.csv"
 
 # The best discovered optimization flags without stability issues.
 [profile.release]
-opt-level = 3
+opt-level = "s"
 lto = "thin"
 
 [profile.dev]
 debug = true # Symbols are nice and they don't increase the size on Flash
-opt-level = 3
+opt-level = "s"
 lto = "thin"
-
-[target.xtensa-esp32s3-none-elf]
-runner = "espflash flash --monitor --partition-table partitions.csv"

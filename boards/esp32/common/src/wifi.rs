@@ -6,8 +6,8 @@ use embassy_time::{Duration, Timer};
 use embedded_svc::wifi::Wifi;
 pub use esp_wifi::wifi::WifiDevice;
 use esp_wifi::{
-    wifi::{WifiController, WifiEvent, WifiState, WifiMode},
-    EspWifiTimer, EspWifiInitFor,
+    wifi::{WifiController, WifiEvent, WifiMode, WifiState},
+    EspWifiInitFor, EspWifiTimer,
 };
 
 use crate::{hal::peripheral::Peripheral, singleton};

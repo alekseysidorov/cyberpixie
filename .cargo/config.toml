@@ -1,0 +1,3 @@
+[alias]
+esp32c3 = "-Z unstable-options -C boards/esp32/esp32c3"
+esp32s3 = "-Z unstable-options -C boards/esp32/esp32s3"

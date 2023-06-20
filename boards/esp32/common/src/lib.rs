@@ -22,14 +22,13 @@ use cyberpixie_app::{
 use cyberpixie_embedded_storage::MemoryLayout;
 use cyberpixie_network::FromSocketAddress;
 use embassy_net::{tcp::TcpSocket, IpListenEndpoint, Stack};
-use esp_storage::FlashStorage;
-use esp_wifi::wifi::WifiDevice;
-use render::RenderingHandle;
-
 #[cfg(feature = "esp32c3")]
 use esp32c3_hal as hal;
 #[cfg(feature = "esp32s3")]
 use esp32s3_hal as hal;
+use esp_storage::FlashStorage;
+use esp_wifi::wifi::WifiDevice;
+use render::RenderingHandle;
 
 pub mod render;
 pub mod wifi;
