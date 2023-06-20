@@ -37,6 +37,18 @@ rustflags = [
   'target_has_atomic="ptr"',
 ]
 
+[target.xtensa-esp32s3-none-elf]
+runner = "espflash flash --monitor --partition-table esp32s3/partitions.csv"
+
+rustflags = [
+    "-C",
+    "link-arg=-Tlinkall.x",
+    "-C",
+    "link-arg=-Trom_functions.x",
+    "-C",
+    "target-feature=-loop",
+]
+
 [unstable]
 build-std = ["core"]
 

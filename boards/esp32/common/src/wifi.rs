@@ -4,9 +4,13 @@ use embassy_executor::Spawner;
 use embassy_net::{IpAddress, Ipv4Cidr, Stack};
 use embassy_time::{Duration, Timer};
 use embedded_svc::wifi::Wifi;
-use esp_wifi::wifi::{WifiController, WifiDevice, WifiEvent, WifiState};
+pub use esp_wifi::wifi::WifiDevice;
+use esp_wifi::{
+    wifi::{WifiController, WifiEvent, WifiState, WifiMode},
+    EspWifiTimer, EspWifiInitFor,
+};
 
-use crate::singleton;
+use crate::{hal::peripheral::Peripheral, singleton};
 
 /// Supported Wifi configuration modes.
 #[derive(PartialEq, Eq, Clone)]
@@ -86,12 +90,22 @@ pub struct WifiManager {
 
 impl WifiManager {
     /// Creates a new Wifi manager instance.
+    #[must_use]
     pub fn new(
         mode: Mode,
-        device: WifiDevice<'static>,
-        controller: WifiController<'static>,
-        seed: u64,
+        wifi: impl Peripheral<P = crate::hal::radio::Wifi> + 'static,
+        timer: EspWifiTimer,
+        mut rng: crate::hal::Rng,
+        radio_clocks: crate::hal::system::RadioClockControl,
+        clocks: &crate::hal::clock::Clocks,
     ) -> Self {
+        // Generate a random seed.
+        let seed = u64::from(rng.random());
+        let init = esp_wifi::initialize(EspWifiInitFor::Wifi, timer, rng, radio_clocks, clocks)
+            .expect("Unable to initialize WiFI");
+
+        // Initialize the network stack
+        let (device, controller) = esp_wifi::wifi::new_with_mode(&init, wifi, WifiMode::Ap);
         let stack = singleton!(Stack::new(
             device,
             mode.network_config(),

@@ -233,6 +233,8 @@ dependencies = [
  "embedded-svc",
  "esp-storage",
  "esp-wifi",
+ "esp32c3-hal",
+ "esp32s3-hal",
  "heapless",
  "log",
  "serde",
@@ -258,8 +260,32 @@ dependencies = [
  "esp-backtrace",
  "esp-println",
  "esp-storage",
- "esp-wifi",
  "esp32c3-hal",
+ "heapless",
+ "log",
+ "smart-leds",
+ "static_cell",
+ "ws2812-async",
+]
+
+[[package]]
+name = "cyberpixie-esp32s3"
+version = "0.3.0"
+dependencies = [
+ "cyberpixie-app",
+ "cyberpixie-embedded-storage",
+ "cyberpixie-esp-common",
+ "embassy-executor",
+ "embassy-net",
+ "embassy-sync 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "embassy-time 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "embedded-io",
+ "embedded-storage",
+ "embedded-svc",
+ "esp-backtrace",
+ "esp-println",
+ "esp-storage",
+ "esp32s3-hal",
  "heapless",
  "log",
  "smart-leds",
@@ -604,9 +630,9 @@ checksum = "156d7a2fdd98ebbf9ae579cbceca3058cff946e13f8e17b90e3511db0508c723"
 
 [[package]]
 name = "embedded-svc"
-version = "0.25.0"
+version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4b70d70bd45c40027ed1c997ec3fb63ffb7237d5b2ad7b7da89adf0c3b93c71"
+checksum = "6ef8b7dd14e32d9176635172a54d8de92640e0afa14f1533b4b11b4e212b8a0e"
 dependencies = [
  "atomic-waker",
  "embedded-io",
@@ -946,6 +972,7 @@ dependencies = [
  "bare-metal",
  "embassy-time 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "embedded-hal 0.2.7",
+ "embedded-hal-async",
  "esp-hal-common",
 ]
 
@@ -1590,9 +1617,9 @@ checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
 
 [[package]]
 name = "winnow"
-version = "0.4.6"
+version = "0.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61de7bac303dc551fe038e2b3cef0f571087a47571ea6e79a87692ac99b99699"
+checksum = "ca0ace3845f0d96209f0375e6d367e3eb87eb65d27d445bdc9f1843a26f39448"
 dependencies = [
  "memchr",
 ]

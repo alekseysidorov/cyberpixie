@@ -2,7 +2,7 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
-use cyberpixie_esp32c3::{app_task, ws2812_spi};
+use cyberpixie_esp32s3::{app_task, ws2812_spi};
 use cyberpixie_esp_common::{singleton, wifi::WifiManager};
 use embassy_executor::Executor;
 use esp_backtrace as _;
@@ -12,7 +12,6 @@ use hal::{
     embassy,
     peripherals::Peripherals,
     prelude::*,
-    systimer::SystemTimer,
     timer::TimerGroup,
     Rng, Rtc,
 };
@@ -24,7 +23,7 @@ fn main() -> ! {
     let peripherals = Peripherals::take();
     let mut system = peripherals.SYSTEM.split();
 
-    let clocks = ClockControl::configure(system.clock_control, CpuClock::Clock160MHz).freeze();
+    let clocks = ClockControl::configure(system.clock_control, CpuClock::Clock240MHz).freeze();
 
     let mut rtc = Rtc::new(peripherals.RTC_CNTL);
     // Disable watchdog timers
@@ -46,7 +45,7 @@ fn main() -> ! {
     wdt1.disable();
 
     // Initialize and get Wifi device
-    let timer = SystemTimer::new(peripherals.SYSTIMER).alarm0;
+    let timer = timer_group1.timer0;
     let (wifi, _bluetooth) = peripherals.RADIO.split();
 
     let wifi_manager = WifiManager::new(
@@ -78,6 +77,6 @@ fn main() -> ! {
         let stack = wifi_manager.must_spawn(spawner);
 
         spawner.must_spawn(app_task(stack, rendering_handle));
-        spawner.must_spawn(cyberpixie_esp32c3::render_task(spi, framebuffer));
+        spawner.must_spawn(cyberpixie_esp32s3::render_task(spi, framebuffer));
     })
 }

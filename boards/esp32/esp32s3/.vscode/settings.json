@@ -1,0 +1,14 @@
+{
+  "rust-analyzer.cargo.target": "xtensa-esp32s3-none-elf",
+  "rust-analyzer.check.allTargets": false,
+  "rust-analyzer.cargo.buildScripts.invocationLocation": "root",
+  "rust-analyzer.check.invocationLocation": "root",
+  "rust-analyzer.check.command": "clippy",
+  "rust-analyzer.check.overrideCommand": [
+    "cargo",
+    "clippy",
+    "--examples",
+    "--bins",
+    "--message-format=json-diagnostic-rendered-ansi"
+  ]
+}
