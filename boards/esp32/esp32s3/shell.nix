@@ -17,13 +17,22 @@ pkgs.mkShell {
     cargo-espflash
   ];
 
-  shellHook =
-    let
-      setupToolchain = builtins.readFile ./scripts/setup-rust-toolchain.sh;
-    in
-    ''
-      ${setupToolchain}
-      # Setup nice bash prompt
-      ${shellPrompt}
-    '';
+  shellHook = ''
+    # Install esp toolchain
+    ESP_TARGET_DIR="../target/esp"
+    EXPORT_FILE="$ESP_TARGET_DIR/export-esh.sh"
+    if [ ! -f "$EXPORT_FILE" ]; then
+        mkdir -p "$ESP_TARGET_DIR"
+        espup install -f $EXPORT_FILE -t esp32s3
+    else
+        espup update
+    fi
+    # Export variables
+    . $EXPORT_FILE
+    export RUSTUP_TOOLCHAIN="esp"
+    # Force cargo build target to make sure that the vscode will use it as well
+    export CARGO_BUILD_TARGET="xtensa-esp32s3-none-elf"
+    # Setup nice bash prompt
+    ${shellPrompt}
+  '';
 }

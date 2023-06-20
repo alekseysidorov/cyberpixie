@@ -3,7 +3,7 @@ resolver = "2"
 
 members = ["common", "esp32c3", "esp32s3"]
 
-default-members = ["common", "esp32c3"]
+default-members = ["common"]
 
 [workspace.dependencies]
 # Workspace crates

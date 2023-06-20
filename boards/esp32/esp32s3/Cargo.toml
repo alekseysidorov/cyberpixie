@@ -33,4 +33,4 @@ static_cell = "1"
 # Cyberpixie
 cyberpixie-app = { workspace = true }
 cyberpixie-embedded-storage = { workspace = true }
-cyberpixie-esp-common = { path = "../common", default-features = false, features = ["esp32s3"] }
+cyberpixie-esp-common = { path = "../common", features = ["esp32s3"] }

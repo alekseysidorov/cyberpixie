@@ -31,6 +31,6 @@ cyberpixie-embedded-storage = { workspace = true }
 cyberpixie-network = { workspace = true, features = ["embassy-net"] }
 
 [features]
-default = ["esp32c3"]
+default = []
 esp32c3 = ["esp-storage/esp32c3", "esp-wifi/esp32c3","dep:esp32c3-hal"]
 esp32s3 = ["esp-storage/esp32s3", "esp-wifi/esp32s3", "dep:esp32s3-hal"]
