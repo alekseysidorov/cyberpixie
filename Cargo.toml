@@ -35,7 +35,7 @@ cyberpixie-esp-common = { path = "boards/esp32/common" }
 esp32c3-hal = { version = "0.9", features = ["async", "embassy"] }
 esp32s3-hal = { version = "0.9", features = ["async", "embassy"] }
 embassy-net = { git = "https://github.com/embassy-rs/embassy", rev = "fb27594", features = ["nightly", "tcp", "dhcpv4", "medium-ethernet", "unstable-traits", "proto-ipv6"] }
-esp-wifi = { git = "https://github.com/esp-rs/esp-wifi.git", rev = "f80df63", features = ["embedded-svc", "wifi", "embassy-net", "ipv6"] }
+esp-wifi = { git = "https://github.com/esp-rs/esp-wifi.git", rev = "f80df63", features = ["embedded-svc", "wifi", "embassy-net", "ipv6", "ble"] }
 smoltcp = { version = "0.9.0", default-features = false, features = ["proto-ipv4", "proto-ipv6"] }
 ws2812-async = { version = "0.1.0", git = "https://github.com/alekseysidorov/ws2812-async.git", rev = "1afa6b2" }
 embedded-hal-async = { version = "=0.2.0-alpha.1" }
