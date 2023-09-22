@@ -17,8 +17,8 @@ embassy-executor = { workspace = true, features = ["nightly", "integrated-timers
 embassy-net = { workspace = true }
 embassy-sync = { workspace = true }
 embassy-time = { workspace = true }
-embedded-io = { workspace = true }
-embedded-io-async = { workspace = true }
+# embedded-io = { workspace = true }
+# embedded-io-async = { workspace = true }
 embedded-svc = { version = "0.25", default-features = false }
 
 # Storage

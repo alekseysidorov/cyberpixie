@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 cyberpixie-core = { workspace = true }
 cyberpixie-network = { workspace = true }
-embedded-io-async = { workspace = true }
+# embedded-io-async = { workspace = true }
 embedded-io = { workspace = true }
 heapless = { version = "0.7" }
 log = "0.4"

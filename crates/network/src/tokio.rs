@@ -2,7 +2,8 @@
 
 use std::net::{Ipv6Addr, SocketAddr};
 
-use embedded_io_adapters::tokio_1::FromTokio;
+// use embedded_io_adapters::tokio_1::FromTokio;
+use embedded_io::adapters::FromTokio;
 use tokio::net::{TcpListener, TcpStream};
 
 use super::{NetworkSocket, NetworkStack};
