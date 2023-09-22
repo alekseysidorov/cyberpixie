@@ -13,10 +13,6 @@ pkgs.mkShell {
     cargo-espflash
   ];
 
-  buildInputs = with pkgs; [
-    zlib.dev
-  ];
-
   # Force cargo build target to make sure that the vscode will use it as well
   env.CARGO_BUILD_TARGET = boardTarget;
 
