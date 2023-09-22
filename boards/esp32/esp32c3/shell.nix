@@ -9,10 +9,13 @@ pkgs.mkShell {
   nativeBuildInputs = with pkgs; [
     rustToolchain
     rustBuildHostDependencies
-    zlib
     # Utilites to flash firmware to the device
     espflash
     cargo-espflash
+  ];
+
+  buildInputs = with pkgs; [
+    zlib.dev
   ];
 
   # Force cargo build target to make sure that the vscode will use it as well
