@@ -13,3 +13,6 @@ lto = "thin"
 debug = true # Symbols are nice and they don't increase the size on Flash
 opt-level = "s"
 lto = "thin"
+
+[unstable]
+build-std = ["core"]
