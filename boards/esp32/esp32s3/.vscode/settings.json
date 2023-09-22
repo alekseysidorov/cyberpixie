@@ -1,0 +1,10 @@
+{
+  "rust-analyzer.check.command": "clippy",
+  "rust-analyzer.check.overrideCommand": [
+    "cargo",
+    "clippy",
+    "--examples",
+    "--bins",
+    "--message-format=json-diagnostic-rendered-ansi"
+  ]
+}

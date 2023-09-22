@@ -159,8 +159,8 @@ pub trait Storage: Send + 'static {
     /// Switches to a next image, if it reaches the last image it turns back to the first image.
     fn switch_to_next_image(&mut self) -> CyberpixieResult<Option<ImageId>> {
         let Some(mut current_image) = self.current_image_id()? else {
-                return Ok(None)
-            };
+            return Ok(None);
+        };
 
         current_image.0 += 1;
         if current_image == self.images_count()? {

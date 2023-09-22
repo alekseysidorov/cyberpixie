@@ -1,7 +1,8 @@
 //! Cyberpixie application implementation on top of the Embassy framework
-//! for the esp32c3 board.
+//! for the esp32s3 board.
 
 #![no_std]
+#![allow(incomplete_features)] // Xtensa toolchain is too old.
 #![feature(async_fn_in_trait, type_alias_impl_trait)]
 
 use cyberpixie_app::{core::proto::types::Hertz, App};
@@ -40,7 +41,12 @@ pub fn ws2812_spi(
     clocks: &Clocks,
 ) -> SpiType<'static> {
     hal::interrupt::enable(
-        hal::peripherals::Interrupt::DMA_CH0,
+        hal::peripherals::Interrupt::DMA_IN_CH0,
+        hal::interrupt::Priority::Priority1,
+    )
+    .unwrap();
+    hal::interrupt::enable(
+        hal::peripherals::Interrupt::DMA_OUT_CH0,
         hal::interrupt::Priority::Priority1,
     )
     .unwrap();
