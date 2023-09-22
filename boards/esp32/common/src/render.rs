@@ -90,7 +90,9 @@ async fn storage_reading_task(
             log::info!("Rendering task stopped");
         } else {
             // Waiting for a new rendering task.
-            let Command::Start { storage, id } = commands.recv().await else { continue; };
+            let Command::Start { storage, id } = commands.recv().await else {
+                continue;
+            };
             pending.replace((storage, id));
             log::info!("Received a new picture rendering task");
         }
