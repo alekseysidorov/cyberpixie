@@ -9,6 +9,7 @@ pkgs.mkShell {
   nativeBuildInputs = with pkgs; [
     rustToolchain
     rustBuildHostDependencies
+    zlib
     # Utilites to flash firmware to the device
     espflash
     cargo-espflash

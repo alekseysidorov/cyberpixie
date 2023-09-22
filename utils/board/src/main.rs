@@ -1,4 +1,5 @@
 use std::fmt::Display;
+
 use clap::{Parser, ValueEnum};
 use xshell::{cmd, Shell};
 
