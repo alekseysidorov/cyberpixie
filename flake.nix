@@ -4,7 +4,7 @@
       url = "github:numtide/flake-utils";
     };
     nixpkgs-cross-overlay = {
-      url = "github:alekseysidorov/nixpkgs-cross-overlay";
+      url = "github:alekseysidorov/nixpkgs-cross-overlay/dev";
     };
   };
 
