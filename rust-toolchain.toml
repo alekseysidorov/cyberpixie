@@ -1,4 +1,4 @@
 [toolchain]
-channel = "nightly-2023-06-01"
+channel = "nightly-2023-09-22"
 targets = ["riscv32imc-unknown-none-elf", "aarch64-linux-android"]
 components = ["rust-src"]

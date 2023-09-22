@@ -8,7 +8,6 @@ in
 pkgs.mkShell {
   nativeBuildInputs = with pkgs; [
     rustBuildHostDependencies
-    zlib
     # Special case for the xtensa toolchain
     rustup
     espup
