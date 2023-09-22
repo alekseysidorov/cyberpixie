@@ -76,7 +76,7 @@ async fn storage_reading_task(
                 // Send line to the rendering thread.
                 framebuffer.send(Frame::Line(line)).await;
                 // Check if a stop command has been sent.
-                if let Ok(Command::Stop) = commands.try_recv() {
+                if let Ok(Command::Stop) = commands.try_receive() {
                     // Stop this rendering task
                     log::info!("Stopping a rendering task");
                     break;
@@ -90,7 +90,7 @@ async fn storage_reading_task(
             log::info!("Rendering task stopped");
         } else {
             // Waiting for a new rendering task.
-            let Command::Start { storage, id } = commands.recv().await else {
+            let Command::Start { storage, id } = commands.receive().await else {
                 continue;
             };
             pending.replace((storage, id));
@@ -100,7 +100,7 @@ async fn storage_reading_task(
 }
 
 /// Pictures rendering handle to control the rendering process.
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct RenderingHandle {
     commands: StaticSender<Command, 1>,
     responses: StaticReceiver<StorageImpl, 1>,
@@ -115,7 +115,7 @@ impl RenderingHandle {
         // Send stop command.
         self.commands.send(Command::Stop).await;
         // Wait for the response with the storage.
-        self.responses.recv().await
+        self.responses.receive().await
     }
 }
 
@@ -160,7 +160,7 @@ pub async fn ws2812_async_render<S: SpiBus>(
     let mut max_render_time = 0;
     loop {
         let now = Instant::now();
-        match receiver.recv().await {
+        match receiver.receive().await {
             // Received a new picture frame rate, we should update a refresh period and wait for
             // a short time until the frames queue will be fill.
             Frame::UpdateRate(new_rate) => {

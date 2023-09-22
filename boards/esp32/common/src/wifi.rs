@@ -102,10 +102,10 @@ impl WifiManager {
         // Generate a random seed.
         let seed = u64::from(rng.random());
         let init = esp_wifi::initialize(EspWifiInitFor::Wifi, timer, rng, radio_clocks, clocks)
-            .expect("Unable to initialize WiFI");
+            .expect("Unable to initialize WiFi");
 
         // Initialize the network stack
-        let (device, controller) = esp_wifi::wifi::new_with_mode(&init, wifi, WifiMode::Ap);
+        let (device, controller) = esp_wifi::wifi::new_with_mode(&init, wifi, WifiMode::Ap).expect("Unable to create WiFi device");
         let stack = singleton!(Stack::new(
             device,
             mode.network_config(),
