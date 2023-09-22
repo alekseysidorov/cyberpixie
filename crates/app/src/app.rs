@@ -1,7 +1,7 @@
 //! Cybeprixie application business-logic implementation
 
 use cyberpixie_core::{
-    io::{ExactSizeRead, AsyncRead},
+    io::{AsyncRead, ExactSizeRead},
     proto::{
         types::{DeviceInfo, DeviceRole, ImageInfo, PeerInfo},
         RequestHeader, ResponseHeader,

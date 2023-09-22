@@ -18,12 +18,14 @@
 
 use cyberpixie_app::{
     core::{
-        io::{image_reader::Image, AsyncRead, BlockingRead, BlockingSeek, ExactSizeRead, ErrorType},
+        io::{
+            image_reader::Image, AsyncRead, BlockingRead, BlockingSeek, ErrorType, ExactSizeRead,
+        },
         proto::types::{Hertz, ImageId},
     },
     Configuration, CyberpixieError, CyberpixieResult, ImageReader,
 };
-use embedded_io::{SeekFrom};
+use embedded_io::SeekFrom;
 use endian_codec::{DecodeLE, EncodeLE, PackedSize};
 use serde::{Deserialize, Serialize};
 

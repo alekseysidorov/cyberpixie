@@ -1,10 +1,9 @@
 pub use endian_codec::PackedSize;
 use endian_codec::{DecodeLE, EncodeLE};
 use postcard::experimental::max_size::MaxSize;
-use crate::io::BlockingReadExactError;
 
 use super::{Headers, RequestHeader, ResponseHeader};
-use crate::io::BlockingRead;
+use crate::io::{BlockingRead, BlockingReadExactError};
 
 pub trait FromPacket: Sized {
     fn from_bytes(buf: &[u8]) -> Result<Self, postcard::Error>;

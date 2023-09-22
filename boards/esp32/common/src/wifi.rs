@@ -105,7 +105,8 @@ impl WifiManager {
             .expect("Unable to initialize WiFi");
 
         // Initialize the network stack
-        let (device, controller) = esp_wifi::wifi::new_with_mode(&init, wifi, WifiMode::Ap).expect("Unable to create WiFi device");
+        let (device, controller) = esp_wifi::wifi::new_with_mode(&init, wifi, WifiMode::Ap)
+            .expect("Unable to create WiFi device");
         let stack = singleton!(Stack::new(
             device,
             mode.network_config(),
