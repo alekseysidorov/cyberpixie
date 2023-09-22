@@ -1,9 +1,15 @@
 //! An additional I/O traits and facilities.
 
 pub use embedded_io::{
-    asynch::{Read as AsyncRead, Seek as AsyncSeek, Write as AsyncWrite},
-    blocking::{Read as BlockingRead, Seek as BlockingSeek, Write as BlockingWrite},
-    Io,
+    asynch::{
+        Read as AsyncRead, ReadExactError as AsyncReadExactError, Seek as AsyncSeek,
+        Write as AsyncWrite,
+    },
+    blocking::{
+        Read as BlockingRead, ReadExactError as BlockingReadExactError, Seek as BlockingSeek,
+        Write as BlockingWrite,
+    },
+    Io as ErrorType,
 };
 
 pub mod image_reader;

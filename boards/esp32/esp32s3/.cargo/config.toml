@@ -13,3 +13,6 @@ lto = "thin"
 
 [target.xtensa-esp32s3-none-elf]
 runner = "espflash flash --monitor --partition-table partitions.csv"
+
+[unstable]
+build-std = ["core"]

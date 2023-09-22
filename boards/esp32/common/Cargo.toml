@@ -9,14 +9,14 @@ edition = "2021"
 esp32c3-hal = { workspace = true, optional = true }
 esp32s3-hal = { workspace = true, optional = true }
 
-embassy-executor = { version = "0.2.0", features = ["nightly", "integrated-timers", "executor-thread"] }
+embassy-executor = { version = "0.3.0", features = ["nightly", "integrated-timers", "executor-thread"] }
 embassy-net = { workspace = true }
-embassy-sync = { version = "0.2.0", features = ["nightly"] }
-embassy-time = { version = "0.1.1", features = ["nightly"] }
+embassy-sync = { workspace = true }
+embassy-time = { workspace = true }
 embedded-hal-async = { workspace = true }
 embedded-storage = "0.3"
-embedded-svc = { version = "0.25", default-features = false }
-esp-storage = { version = "0.1.0" }
+embedded-svc = { workspace = true }
+esp-storage = { version = "0.3.0" }
 esp-wifi = { workspace = true }
 heapless = { version = "0.7", features = ["serde"] }
 log = "0.4"

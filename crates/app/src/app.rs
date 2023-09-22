@@ -1,7 +1,7 @@
 //! Cybeprixie application business-logic implementation
 
 use cyberpixie_core::{
-    io::ExactSizeRead,
+    io::{AsyncRead, ExactSizeRead},
     proto::{
         types::{DeviceInfo, DeviceRole, ImageInfo, PeerInfo},
         RequestHeader, ResponseHeader,
@@ -130,7 +130,7 @@ impl<B: Board> AppInner<B> {
     }
 
     /// Handles incoming client request
-    async fn handle_client_request<R: embedded_io::asynch::Read>(
+    async fn handle_client_request<R: AsyncRead>(
         &mut self,
         request: &mut Message<R, RequestHeader>,
     ) -> CyberpixieResult<ResponseHeader> {

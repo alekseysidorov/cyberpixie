@@ -1,7 +1,7 @@
 //! Cyberpixie protocol messages io adapters
 
 use cyberpixie_core::{
-    io::{AsyncRead, AsyncWrite, BlockingRead, BlockingWrite, ExactSizeRead, Io},
+    io::{AsyncRead, AsyncWrite, BlockingRead, BlockingWrite, ErrorType, ExactSizeRead},
     proto::Headers,
 };
 
@@ -50,7 +50,7 @@ impl<T: AsyncRead> PayloadReader<T> {
     }
 }
 
-impl<T: Io> Io for PayloadReader<T> {
+impl<T: ErrorType> ErrorType for PayloadReader<T> {
     type Error = T::Error;
 }
 

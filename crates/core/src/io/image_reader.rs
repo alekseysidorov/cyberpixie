@@ -1,10 +1,9 @@
 //! Image reader wrapper raw embedded I/O reader.
 
-use embedded_io::blocking::ReadExactError;
 use rgb::{FromSlice, RGB8};
 
 use crate::{
-    io::{BlockingRead, BlockingSeek, ExactSizeRead},
+    io::{BlockingRead, BlockingReadExactError, BlockingSeek, ExactSizeRead},
     proto::types::Hertz,
     BYTES_PER_PIXEL,
 };
@@ -87,16 +86,19 @@ where
     #[inline]
     pub fn next_line(
         &mut self,
-    ) -> Result<impl Iterator<Item = RGB8> + '_, ReadExactError<R::Error>> {
+    ) -> Result<impl Iterator<Item = RGB8> + '_, BlockingReadExactError<R::Error>> {
         let line = self.fill_next_line()?.as_rgb().iter().copied();
         Ok(line)
     }
 
     #[inline]
-    fn fill_next_line(&mut self) -> Result<&[u8], ReadExactError<R::Error>> {
+    fn fill_next_line(&mut self) -> Result<&[u8], BlockingReadExactError<R::Error>> {
         // In this case we reached the end of file and have to rewind to the beginning
         if self.image.bytes.bytes_remaining() == 0 {
-            self.image.bytes.rewind().map_err(ReadExactError::Other)?;
+            self.image
+                .bytes
+                .rewind()
+                .map_err(BlockingReadExactError::Other)?;
         }
         // Fill the buffer with by the bytes of the next image line
         let buf = &mut self.strip_line_buf.as_mut()[0..self.strip_line_len];

@@ -17,8 +17,8 @@ use embassy_net::Stack;
 use embassy_time::{Duration, Timer};
 use hal::{
     clock::Clocks,
-    dma::{ChannelRx, ChannelTx, DmaPriority},
-    gdma::{Channel0RxImpl, Channel0TxImpl, Gdma, SuitablePeripheral0},
+    dma::DmaPriority,
+    gdma::Gdma,
     peripherals::{DMA, GPIO, IO_MUX, SPI2},
     prelude::*,
     spi::{dma::SpiDma, FullDuplexMode, SpiMode},
@@ -77,14 +77,7 @@ pub fn ws2812_spi(
 }
 
 /// SPI type using by the ws2812 driver.
-pub type SpiType<'d> = SpiDma<
-    'd,
-    hal::peripherals::SPI2,
-    ChannelTx<'d, Channel0TxImpl, hal::gdma::Channel0>,
-    ChannelRx<'d, Channel0RxImpl, hal::gdma::Channel0>,
-    SuitablePeripheral0,
-    FullDuplexMode,
->;
+pub type SpiType<'d> = SpiDma<'d, hal::peripherals::SPI2, hal::gdma::Channel0, FullDuplexMode>;
 
 #[embassy_executor::task]
 pub async fn render_task(
@@ -106,7 +99,7 @@ pub async fn app_task(
         Timer::after(Duration::from_millis(500)).await;
     }
 
-    log::info!("Network config is {:?}", stack.config());
+    log::info!("Network config is {:?}", stack.config_v4());
 
     let board = BoardImpl::new(stack, rendering_handle);
     let app = App::new(board).expect("Unable to create a cyberpixie application");

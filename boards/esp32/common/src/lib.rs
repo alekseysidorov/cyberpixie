@@ -22,6 +22,7 @@ use cyberpixie_app::{
 use cyberpixie_embedded_storage::MemoryLayout;
 use cyberpixie_network::FromSocketAddress;
 use embassy_net::{tcp::TcpSocket, IpListenEndpoint, Stack};
+use embassy_time::Duration;
 #[cfg(feature = "esp32c3")]
 use esp32c3_hal as hal;
 #[cfg(feature = "esp32s3")]
@@ -58,7 +59,7 @@ impl NetworkSocket for NetworkSocketImpl {
 
     async fn accept(&mut self, port: u16) -> CyberpixieResult<Self::Connection<'_>> {
         let mut socket = TcpSocket::new(self.stack, &mut self.rx, &mut self.tx);
-        socket.set_timeout(Some(embassy_net::SmolDuration::from_secs(30)));
+        socket.set_timeout(Some(Duration::from_secs(30)));
 
         socket
             .accept(IpListenEndpoint { addr: None, port })
@@ -69,7 +70,7 @@ impl NetworkSocket for NetworkSocketImpl {
 
     async fn connect(&mut self, addr: SocketAddr) -> CyberpixieResult<Self::Connection<'_>> {
         let mut socket = TcpSocket::new(self.stack, &mut self.rx, &mut self.tx);
-        socket.set_timeout(Some(embassy_net::SmolDuration::from_secs(30)));
+        socket.set_timeout(Some(Duration::from_secs(30)));
 
         let (addr, port) = FromSocketAddress::from_socket_address(addr);
         socket

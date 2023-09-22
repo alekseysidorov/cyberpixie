@@ -1,10 +1,9 @@
-use embedded_io::blocking::ReadExactError;
 pub use endian_codec::PackedSize;
 use endian_codec::{DecodeLE, EncodeLE};
 use postcard::experimental::max_size::MaxSize;
 
 use super::{Headers, RequestHeader, ResponseHeader};
-use crate::io::BlockingRead;
+use crate::io::{BlockingRead, BlockingReadExactError};
 
 pub trait FromPacket: Sized {
     fn from_bytes(buf: &[u8]) -> Result<Self, postcard::Error>;
@@ -67,11 +66,11 @@ impl<E: std::fmt::Display> From<PacketReadError<E>> for std::io::Error {
     }
 }
 
-impl<E: embedded_io::Error> From<ReadExactError<E>> for PacketReadError<E> {
-    fn from(inner: ReadExactError<E>) -> Self {
+impl<E: embedded_io::Error> From<BlockingReadExactError<E>> for PacketReadError<E> {
+    fn from(inner: BlockingReadExactError<E>) -> Self {
         match inner {
-            ReadExactError::UnexpectedEof => Self::UnexpectedEof,
-            ReadExactError::Other(other) => Self::Other(other),
+            BlockingReadExactError::UnexpectedEof => Self::UnexpectedEof,
+            BlockingReadExactError::Other(other) => Self::Other(other),
         }
     }
 }

@@ -17,6 +17,9 @@ pkgs.mkShell {
 
   # Force cargo build target to make sure that the vscode will use it as well
   env.CARGO_BUILD_TARGET = boardTarget;
+  # Force cargo workspace to enable build-std feature for this crate
+  env.CARGO_UNSTABLE_BUILD_STD = "core";
+  # Override Rust toolchain target
   env.RUSTUP_TOOLCHAIN = "esp";
 
   shellHook = ''

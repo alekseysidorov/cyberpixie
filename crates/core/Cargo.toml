@@ -5,7 +5,8 @@ edition = "2021"
 
 [dependencies]
 displaydoc = { version = "0.2", default-features = false }
-embedded-io = "0.4"
+embedded-io = { workspace = true }
+# embedded-io-async = { workspace = true }
 endian_codec = "0.1"
 heapless = { version = "0.7" }
 log = "0.4"

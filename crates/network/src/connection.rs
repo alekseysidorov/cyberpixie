@@ -51,7 +51,7 @@ where
         payload: P,
     ) -> cyberpixie_core::Result<()>
     where
-        R: embedded_io::blocking::Read,
+        R: cyberpixie_core::io::BlockingRead,
         P: Into<PayloadReader<R>>,
         I: Into<Headers>,
     {

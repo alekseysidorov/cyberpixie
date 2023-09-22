@@ -18,12 +18,14 @@
 
 use cyberpixie_app::{
     core::{
-        io::{image_reader::Image, AsyncRead, BlockingRead, BlockingSeek, ExactSizeRead},
+        io::{
+            image_reader::Image, AsyncRead, BlockingRead, BlockingSeek, ErrorType, ExactSizeRead,
+        },
         proto::types::{Hertz, ImageId},
     },
     Configuration, CyberpixieError, CyberpixieResult, ImageReader,
 };
-use embedded_io::{Io, SeekFrom};
+use embedded_io::SeekFrom;
 use endian_codec::{DecodeLE, EncodeLE, PackedSize};
 use serde::{Deserialize, Serialize};
 
@@ -291,7 +293,7 @@ pub struct PictureFile<'a, T: embedded_storage::ReadStorage> {
     read_pos: u32,
 }
 
-impl<'a, T: embedded_storage::ReadStorage> Io for PictureFile<'a, T> {
+impl<'a, T: embedded_storage::ReadStorage> ErrorType for PictureFile<'a, T> {
     type Error = CyberpixieError;
 }
 

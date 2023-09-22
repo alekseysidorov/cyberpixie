@@ -7,22 +7,23 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 # Hardware support
-esp-backtrace = { version = "0.7.0", features = ["esp32c3", "panic-handler", "exception-handler", "print-uart"] }
-esp-println = { version = "0.5.0", features = ["esp32c3", "log"] }
-hal = { package = "esp32c3-hal", version = "0.9", features = ["async", "embassy", "embassy-time-timg0"] }
+esp-backtrace = { version = "0.8.0", features = ["esp32c3", "panic-handler", "exception-handler", "print-uart"] }
+esp-println = { version = "0.6.0", features = ["esp32c3", "log"] }
+hal = { package = "esp32c3-hal", version = "0.12", features = ["async", "embassy", "embassy-time-timg0"] }
 ws2812-async = { workspace = true }
 
 # Async network
-embassy-executor = { version = "0.2.0", features = ["nightly", "integrated-timers", "arch-riscv32", "executor-thread"] }
+embassy-executor = { workspace = true, features = ["nightly", "integrated-timers", "arch-riscv32", "executor-thread"] }
 embassy-net = { workspace = true }
-embassy-sync = { version = "0.2.0", features = ["nightly"] }
-embassy-time = { version = "0.1.1", features = ["nightly"] }
-embedded-io = { version = "0.4", features = ["async"] }
+embassy-sync = { workspace = true }
+embassy-time = { workspace = true }
+# embedded-io = { workspace = true }
+# embedded-io-async = { workspace = true }
 embedded-svc = { version = "0.25", default-features = false }
 
 # Storage
 embedded-storage = "0.3"
-esp-storage = { version = "0.1.0", features = ["esp32c3"] }
+esp-storage = { version = "0.3.0", features = ["esp32c3"] }
 
 # Common
 heapless = { version = "0.7", features = ["serde"] }
