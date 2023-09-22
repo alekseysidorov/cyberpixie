@@ -2,10 +2,10 @@
 resolver = "2"
 
 members = [
-  "application/rust",
+  # "application/rust",
   "boards/esp32/common",
   "boards/esp32/esp32c3",
-  # "boards/esp32/esp32s3",
+  "boards/esp32/esp32s3",
   "crates/app",
   "crates/core",
   "crates/network",
@@ -24,7 +24,7 @@ default-members = [
 ]
 
 exclude = [
-  "boards/esp32/esp32s3",
+  "application/rust",
 ]
 
 [workspace.dependencies]
@@ -37,7 +37,7 @@ cyberpixie-network = { path = "crates/network" }
 
 # ESP dependencies
 embassy-executor = { version = "0.3.0", features = ["nightly", "integrated-timers", "executor-thread"] }
-embassy-net = { version = "0.1.0", features = ["nightly", "tcp", "dhcpv4", "medium-ethernet", "unstable-traits", "proto-ipv6"] }
+embassy-net = { version = "0.1.0", features = ["nightly", "tcp", "udp", "dhcpv4", "medium-ethernet", "unstable-traits", "proto-ipv6"] }
 embassy-sync = { version = "0.3.0", features = ["nightly"] }
 embassy-time = { version = "0.1.1", features = ["nightly"] }
 embedded-hal-async = { version = "=1.0.0-rc.1" }

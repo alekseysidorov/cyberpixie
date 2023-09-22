@@ -16,7 +16,7 @@ use embassy_sync::{
     channel::{Channel, Receiver, Sender},
 };
 use embassy_time::{Duration, Instant, Timer};
-use embedded_hal_async::spi::SpiBusWrite;
+use embedded_hal_async::spi::SpiBus;
 use smart_leds::RGB8;
 
 use crate::{singleton, StorageImpl};
@@ -141,7 +141,7 @@ pub fn must_spawn(spawner: Spawner) -> (StaticReceiver<Frame, QUEUE_LEN>, Render
 }
 
 /// Generic ws2812 async render based on the SPI DMA.
-pub async fn ws2812_async_render<S: SpiBusWrite>(
+pub async fn ws2812_async_render<S: SpiBus>(
     mut ws: ws2812_async::Ws2812<S, LED_BUF_LEN>,
     receiver: StaticReceiver<Frame, QUEUE_LEN>,
 ) {

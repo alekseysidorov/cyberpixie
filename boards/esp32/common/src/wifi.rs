@@ -39,7 +39,7 @@ impl Mode {
                     unimplemented!("ipv6 is not supported by the embassy-net stack");
                 };
 
-                embassy_net::Config::Static(embassy_net::StaticConfig {
+                embassy_net::Config::ipv4_static(embassy_net::StaticConfigV4 {
                     address: Ipv4Cidr::new(address, 24),
                     gateway: Some(address),
                     dns_servers: heapless::Vec::default(),
