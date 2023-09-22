@@ -1,6 +1,6 @@
 //! Image reader wrapper raw embedded I/O reader.
 
-use embedded_io::blocking::ReadExactError;
+use embedded_io::ReadExactError;
 use rgb::{FromSlice, RGB8};
 
 use crate::{

@@ -2,12 +2,12 @@
 
 use std::net::{Ipv6Addr, SocketAddr};
 
-use embedded_io::adapters::FromTokio;
+use embedded_io_adapters::tokio_1::FromTokio;
 use tokio::net::{TcpListener, TcpStream};
 
 use super::{NetworkSocket, NetworkStack};
 use crate::{
-    core::io::{AsyncRead, AsyncWrite, Io},
+    core::io::{AsyncRead, AsyncWrite, ErrorType},
     CyberpixieError, CyberpixieResult,
 };
 
@@ -26,7 +26,7 @@ pub struct TokioConnection {
     _listener: Option<TcpListener>,
 }
 
-impl Io for TokioConnection {
+impl ErrorType for TokioConnection {
     type Error = std::io::Error;
 }
 

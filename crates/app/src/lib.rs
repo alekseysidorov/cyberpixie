@@ -190,7 +190,7 @@ impl<T: Storage> Storage for &'static mut T {
         T::set_config(self, config)
     }
 
-    async fn add_image<R: embedded_io::asynch::Read + ExactSizeRead>(
+    async fn add_image<R: embedded_io_async::Read + ExactSizeRead>(
         &mut self,
         refresh_rate: Hertz,
         image: R,

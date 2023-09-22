@@ -1,6 +1,6 @@
 use cyberpixie_app::{
     core::{
-        io::{image_reader::ImageLines, ExactSizeRead},
+        io::{image_reader::ImageLines, ExactSizeRead, BlockingRead},
         proto::types::{Hertz, ImageId},
     },
     Configuration, Storage,
@@ -9,7 +9,6 @@ use cyberpixie_embedded_storage::{
     test_utils::{leaked_buf, MemoryBackend},
     MemoryLayout, StorageImpl,
 };
-use embedded_io::blocking::Read;
 
 fn init_storage() -> StorageImpl<MemoryBackend> {
     StorageImpl::init(

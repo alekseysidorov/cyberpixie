@@ -130,7 +130,7 @@ impl<B: Board> AppInner<B> {
     }
 
     /// Handles incoming client request
-    async fn handle_client_request<R: embedded_io::asynch::Read>(
+    async fn handle_client_request<R: embedded_io_async::Read>(
         &mut self,
         request: &mut Message<R, RequestHeader>,
     ) -> CyberpixieResult<ResponseHeader> {

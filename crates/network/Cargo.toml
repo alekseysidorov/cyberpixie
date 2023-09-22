@@ -6,7 +6,9 @@ edition = "2021"
 
 [dependencies]
 cyberpixie-core = { workspace = true }
-embedded-io = { version = "0.4", features = ["async"] }
+embedded-io = { workspace = true }
+embedded-io-async = { workspace = true }
+embedded-io-adapters = { workspace = true, optional = true }
 heapless = { version = "0.7" }
 log = "0.4"
 no-std-net = { version = "0.6" }
@@ -18,6 +20,6 @@ env_logger = "0.10"
 
 [features]
 default = []
-std = ["embedded-io/std", "no-std-net/std", "cyberpixie-core/std"]
-tokio = ["std", "dep:tokio", "embedded-io/tokio"]
+std = ["no-std-net/std", "cyberpixie-core/std", "embedded-io-adapters/std"]
+tokio = ["std", "dep:tokio", "embedded-io-adapters/tokio-1"]
 embassy-net = ["dep:smoltcp"]

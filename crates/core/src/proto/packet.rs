@@ -1,4 +1,4 @@
-use embedded_io::blocking::ReadExactError;
+use embedded_io::ReadExactError;
 pub use endian_codec::PackedSize;
 use endian_codec::{DecodeLE, EncodeLE};
 use postcard::experimental::max_size::MaxSize;
