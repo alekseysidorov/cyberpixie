@@ -10,7 +10,6 @@ pkgs.mkShell {
     rustToolchain
     rustBuildHostDependencies
     # Utilites to flash firmware to the device
-    espflash
     cargo-espflash
   ];
 

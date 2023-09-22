@@ -12,7 +12,6 @@ pkgs.mkShell {
     rustup
     espup
     # Utilites to flash firmware to the device
-    espflash
     cargo-espflash
   ];
 
