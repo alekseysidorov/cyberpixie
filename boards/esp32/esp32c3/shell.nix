@@ -11,6 +11,7 @@ pkgs.mkShell {
     rustBuildHostDependencies
     # Utilites to flash firmware to the device
     cargo-espflash
+    bluerepl
   ];
 
   # Force cargo build target to make sure that the vscode will use it as well

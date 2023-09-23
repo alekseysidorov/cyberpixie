@@ -27,7 +27,7 @@ exclude = [
   "application/rust",
   "boards/esp32/common",
   "boards/esp32/esp32c3",
-  "boards/esp32/esp32s3",
+  # "boards/esp32/esp32s3",
 ]
 
 [workspace.dependencies]

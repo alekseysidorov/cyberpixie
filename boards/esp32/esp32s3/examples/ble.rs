@@ -22,8 +22,7 @@ use esp_wifi::{
     ble::controller::asynch::BleConnector, initialize, EspWifiInitFor, EspWifiInitialization,
 };
 use hal::{
-    clock::ClockControl, embassy, peripherals::*, prelude::*, radio::Bluetooth,
-    systimer::SystemTimer, timer::TimerGroup, Rng, IO,
+    clock::ClockControl, embassy, peripherals::*, prelude::*, radio::Bluetooth, timer::TimerGroup, Rng, IO,
 };
 
 pub type BootButton = hal::gpio::Gpio9<hal::gpio::Input<hal::gpio::PullDown>>;
@@ -124,7 +123,6 @@ static EXECUTOR: StaticCell<Executor> = StaticCell::new();
 
 #[entry]
 fn main() -> ! {
-    #[cfg(feature = "log")]
     esp_println::logger::init_logger(log::LevelFilter::Info);
 
     let peripherals = Peripherals::take();
@@ -132,7 +130,12 @@ fn main() -> ! {
     let mut system = peripherals.SYSTEM.split();
     let clocks = ClockControl::max(system.clock_control).freeze();
 
-    let timer = SystemTimer::new(peripherals.SYSTIMER).alarm0;
+    let timer = hal::timer::TimerGroup::new(
+        peripherals.TIMG1,
+        &clocks,
+        &mut system.peripheral_clock_control,
+    )
+    .timer0;
     let init = initialize(
         EspWifiInitFor::Ble,
         timer,

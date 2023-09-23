@@ -7,8 +7,10 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 # Hardware support
+bleps = { workspace = true }
 esp-backtrace = { version = "0.8.0", features = ["esp32s3", "panic-handler", "exception-handler", "print-uart"] }
 esp-println = { version = "0.6.0", features = ["esp32s3", "log"] }
+esp-wifi = { workspace = true }
 hal = { package = "esp32s3-hal", version = "0.12", features = ["async", "embassy", "embassy-time-timg0"] }
 ws2812-async = { workspace = true }
 

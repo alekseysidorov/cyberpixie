@@ -18,8 +18,8 @@ use embassy_net::Stack;
 use embassy_time::{Duration, Timer};
 use hal::{
     clock::Clocks,
-    dma::{ChannelRx, ChannelTx, DmaPriority},
-    gdma::{Channel0RxImpl, Channel0TxImpl, Gdma, SuitablePeripheral0},
+    dma::{DmaPriority},
+    gdma::{Gdma},
     peripherals::{DMA, GPIO, IO_MUX, SPI2},
     prelude::*,
     spi::{dma::SpiDma, FullDuplexMode, SpiMode},
