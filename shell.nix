@@ -15,6 +15,7 @@ pkgs.mkShell {
     darwin.apple_sdk.frameworks.AppKit
     darwin.apple_sdk.frameworks.OpenGL
     darwin.apple_sdk.frameworks.AGL
+    darwin.apple_sdk.frameworks.CoreBluetooth
   ];
 
   shellHook = "${pkgs.crossBashPrompt}";

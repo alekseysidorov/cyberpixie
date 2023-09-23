@@ -145,7 +145,7 @@ impl Board for BoardImpl {
         image_id: ImageId,
     ) -> cyberpixie_app::CyberpixieResult<Self::RenderTask> {
         self.rendering_handle.start(storage, image_id).await;
-        Ok(self.rendering_handle.clone())
+        Ok(self.rendering_handle)
     }
 
     async fn stop_rendering(

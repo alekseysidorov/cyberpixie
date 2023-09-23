@@ -2,10 +2,10 @@
 resolver = "2"
 
 members = [
-  # "application/rust",
+  "application/rust",
   "boards/esp32/common",
   "boards/esp32/esp32c3",
-  "boards/esp32/esp32s3",
+  # "boards/esp32/esp32s3",
   "crates/app",
   "crates/core",
   "crates/network",
@@ -25,6 +25,9 @@ default-members = [
 
 exclude = [
   "application/rust",
+  "boards/esp32/common",
+  "boards/esp32/esp32c3",
+  "boards/esp32/esp32s3",
 ]
 
 [workspace.dependencies]
@@ -36,14 +39,13 @@ cyberpixie-esp-common = { path = "boards/esp32/common" }
 cyberpixie-network = { path = "crates/network" }
 
 # ESP dependencies
+bleps = { git = "https://github.com/bjoernQ/bleps", package = "bleps", rev = "b82f1e7009bef7e32f0918be5b186188aa5e7109", features = ["macros", "async"] }
 embassy-executor = { version = "0.3.0", features = ["nightly", "integrated-timers", "executor-thread"] }
 embassy-net = { version = "0.1.0", features = ["nightly", "tcp", "udp", "dhcpv4", "medium-ethernet", "proto-ipv6"] }
 embassy-sync = { version = "0.3.0", features = ["nightly"] }
 embassy-time = { version = "0.1.1", features = ["nightly"] }
 embedded-hal-async = { version = "=1.0.0-rc.1" }
-# embedded-io = { version = "0.5" }
-# embedded-io-adapters = "0.5.0"
-# embedded-io-async = "0.5.0"
+embedded-io = { version = "0.4", features = ["async"] }
 embedded-svc = { version = "0.25", default-features = false }
 esp-wifi = { git = "https://github.com/esp-rs/esp-wifi.git", rev = "b54310e", features = ["embedded-svc", "wifi", "embassy-net", "ipv6", "ble"] }
 esp32c3-hal = { version = "0.12", features = ["async", "embassy"] }
@@ -51,4 +53,6 @@ esp32s3-hal = { version = "0.12", features = ["async", "embassy"] }
 smoltcp = { version = "0.10.0", default-features = false, features = ["proto-ipv4", "proto-ipv6"] }
 ws2812-async = { version = "0.1.0", git = "https://github.com/kalkyl/ws2812-async.git", rev = "200a752" }
 
-embedded-io = { version = "0.4", features = ["async"] }
+# embedded-io = { version = "0.5" }
+# embedded-io-adapters = "0.5.0"
+# embedded-io-async = "0.5.0"

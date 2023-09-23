@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, time::Duration};
 
 use clap::{CommandFactory, Parser, Subcommand};
 use cyberpixie_cli::convert_image_to_raw;
@@ -51,6 +51,8 @@ enum Command {
         #[arg(value_enum)]
         shell: clap_complete_command::Shell,
     },
+    /// Bluetooth low energy test
+    BLE,
 }
 
 #[tokio::main]
@@ -121,7 +123,71 @@ async fn main() -> anyhow::Result<()> {
         Command::Completions { shell } => {
             shell.generate(&mut Cli::command(), &mut std::io::stdout());
         }
+
+        Command::BLE => check_ble().await?,
     }
 
     Ok(())
+}
+
+async fn check_ble() -> anyhow::Result<()> {
+    use btleplug::{
+        api::{
+            bleuuid::uuid_from_u16, Central, Manager as _, Peripheral as _, ScanFilter, WriteType,
+        },
+        platform::{Adapter, Manager, Peripheral},
+    };
+
+    log::info!("Checking bluetooth low energy");
+
+    let manager = btleplug::platform::Manager::new().await.unwrap();
+
+    // get the first bluetooth adapter
+    let adapters = manager.adapters().await?;
+    let central = adapters.into_iter().nth(0).unwrap();
+
+    // start scanning for devices
+    central.start_scan(ScanFilter::default()).await?;
+    // instead of waiting, you can use central.events() to get a stream which will
+    // notify you of new devices, for an example of that see examples/event_driven_discovery.rs
+    tokio::time::sleep(Duration::from_secs(2)).await;
+
+    // find the device we're interested in
+    let cyberpixie = find_cyberpixie(&central)
+        .await
+        .expect("Unable to found cyberpixie device");
+    log::info!("found {cyberpixie:?}");
+
+    // connect to the device
+    // cyberpixie.connect().await?;
+
+    // // discover services and characteristics
+    cyberpixie.discover_services().await?;
+
+    // find the characteristic we want
+    let chars = cyberpixie.characteristics();
+
+    log::info!("Chars: {chars:?}");
+
+    Ok(())
+}
+
+async fn find_cyberpixie(
+    central: &btleplug::platform::Adapter,
+) -> Option<btleplug::platform::Peripheral> {
+    use btleplug::api::{Central, Peripheral};
+
+    for p in central.peripherals().await.unwrap() {
+        if p.properties()
+            .await
+            .unwrap()
+            .unwrap()
+            .local_name
+            .iter()
+            .any(|name| name.contains("cyberpixie"))
+        {
+            return Some(p);
+        }
+    }
+    None
 }

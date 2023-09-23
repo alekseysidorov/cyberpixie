@@ -3,7 +3,7 @@
 //! Following pins are used:
 //! SCLK    GPIO6
 //! MISO    GPIO2
-//! MOSI    GPIO7
+//! MOSI    GPIO7 (LED control)
 //! CS      GPIO10
 //!
 //! This example demonstrates the overhead of additional load on a frame rendering time.
