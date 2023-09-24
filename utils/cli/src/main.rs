@@ -3,7 +3,14 @@ use std::{path::PathBuf, time::Duration};
 use clap::{CommandFactory, Parser, Subcommand};
 use cyberpixie_cli::convert_image_to_raw;
 use cyberpixie_network::{
-    core::proto::types::{Hertz, ImageId},
+    core::{
+        proto::{
+            packet::{FromPacket, PackedSize, Packet},
+            types::{Hertz, ImageId},
+            ResponseHeader,
+        },
+        Error as CyberpixieError,
+    },
     tokio::TokioStack,
     Client, NetworkStack, SocketAddr,
 };
@@ -148,18 +155,22 @@ async fn check_ble() -> anyhow::Result<()> {
 
     // start scanning for devices
     central.start_scan(ScanFilter::default()).await?;
-    // instead of waiting, you can use central.events() to get a stream which will
-    // notify you of new devices, for an example of that see examples/event_driven_discovery.rs
-    tokio::time::sleep(Duration::from_secs(2)).await;
 
-    // find the device we're interested in
-    let cyberpixie = find_cyberpixie(&central)
-        .await
-        .expect("Unable to found cyberpixie device");
+    let cyberpixie;
+    loop {
+        // instead of waiting, you can use central.events() to get a stream which will
+        // notify you of new devices, for an example of that see examples/event_driven_discovery.rs
+        tokio::time::sleep(Duration::from_secs(3)).await;
+        // find the device we're interested in
+        if let Some(value) = find_cyberpixie(&central).await {
+            cyberpixie = value;
+            break;
+        }
+    }
     log::info!("found {cyberpixie:?}");
 
     // connect to the device
-    // cyberpixie.connect().await?;
+    cyberpixie.connect().await?;
 
     // // discover services and characteristics
     cyberpixie.discover_services().await?;
@@ -168,6 +179,30 @@ async fn check_ble() -> anyhow::Result<()> {
     let chars = cyberpixie.characteristics();
 
     log::info!("Chars: {chars:?}");
+
+    let board_info_char = chars
+        .iter()
+        .find(|c| c.uuid == "937312e0-2354-11eb-9f10-fbc30a62cf38".parse().unwrap())
+        .expect("Unable to find characterics");
+
+    for i in 0..500 {
+        let buf = cyberpixie.read(board_info_char).await?;
+        // Decode packet
+        let packet = Packet::from_bytes(&buf[0..Packet::PACKED_LEN]);
+        log::trace!("Got a next packet {packet:?}");
+
+        // Read header
+        let header_len = packet.header_len as usize;
+        if header_len >= Packet::MAX_LEN {
+            return Err(CyberpixieError::Decode.into());
+        }
+
+        let buf = &buf[Packet::PACKED_LEN..];
+        let header =
+            ResponseHeader::from_bytes(&buf[0..header_len]).map_err(CyberpixieError::decode)?;
+
+        log::info!("[{i}] Got info: {header:?}");
+    }
 
     Ok(())
 }

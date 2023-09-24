@@ -9,6 +9,7 @@ pkgs.mkShell {
     # Dependencies for the code formatting utility
     dprint
     nixpkgs-fmt
+    bluerepl
   ]
   # Additional frameworks for the Qt application
   ++ lib.optionals stdenv.isDarwin [

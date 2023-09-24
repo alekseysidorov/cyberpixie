@@ -47,7 +47,7 @@ embassy-time = { version = "0.1.1", features = ["nightly"] }
 embedded-hal-async = { version = "=1.0.0-rc.1" }
 embedded-io = { version = "0.4", features = ["async"] }
 embedded-svc = { version = "0.25", default-features = false }
-esp-wifi = { git = "https://github.com/esp-rs/esp-wifi.git", rev = "b54310e", features = ["embedded-svc", "wifi", "embassy-net", "ipv6", "ble"] }
+esp-wifi = { git = "https://github.com/esp-rs/esp-wifi.git", rev = "b54310e", features = ["embedded-svc", "wifi", "esp-now", "embassy-net", "ipv6", "ble"] }
 esp32c3-hal = { version = "0.12", features = ["async", "embassy"] }
 esp32s3-hal = { version = "0.12", features = ["async", "embassy"] }
 smoltcp = { version = "0.10.0", default-features = false, features = ["proto-ipv4", "proto-ipv6"] }

@@ -211,7 +211,7 @@ impl<T: Storage> Storage for &'static mut T {
     }
 }
 
-pub(crate) fn read_device_info<S: Storage>(storage: &mut S) -> CyberpixieResult<DeviceInfo> {
+pub fn read_device_info<S: Storage>(storage: &mut S) -> CyberpixieResult<DeviceInfo> {
     let config = storage.config()?;
     Ok(DeviceInfo {
         strip_len: config.strip_len,

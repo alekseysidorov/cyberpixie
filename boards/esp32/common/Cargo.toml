@@ -6,9 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+esp-println = { version = "0.6.0", features = ["esp32c3", "log"] }
 esp32c3-hal = { workspace = true, optional = true }
 esp32s3-hal = { workspace = true, optional = true }
 
+bleps = { workspace = true }
 embassy-executor = { version = "0.3.0", features = ["nightly", "integrated-timers", "executor-thread"] }
 embassy-net = { workspace = true }
 embassy-sync = { workspace = true }

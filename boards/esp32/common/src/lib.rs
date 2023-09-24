@@ -31,6 +31,7 @@ use esp_storage::FlashStorage;
 use esp_wifi::wifi::WifiDevice;
 use render::RenderingHandle;
 
+pub mod ble;
 pub mod render;
 pub mod wifi;
 
