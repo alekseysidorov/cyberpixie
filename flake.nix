@@ -6,6 +6,9 @@
     nixpkgs-cross-overlay = {
       url = "github:alekseysidorov/nixpkgs-cross-overlay/dev";
     };
+
+    treefmt-nix.url = "github:numtide/treefmt-nix";
+    flake-root.url = "github:srid/flake-root";
   };
 
   outputs = { flake-utils, ... }: { } // flake-utils.lib.eachDefaultSystem

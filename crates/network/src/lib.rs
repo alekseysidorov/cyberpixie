@@ -62,7 +62,9 @@ pub trait NetworkSocket {
     type ConnectionError: embedded_io::Error;
     /// Type holding of a TCP connection state. Should close the connection when dropped.
     type Connection<'a>: AsyncRead<Error = Self::ConnectionError>
-        + AsyncWrite<Error = Self::ConnectionError>;
+        + AsyncWrite<Error = Self::ConnectionError>
+    where
+        Self: 'a;
     /// Accepts an active incoming connection on the specified local port
     ///
     /// Returns `Ok(connection)` when a new pending connection was created.

@@ -20,6 +20,19 @@ let
       (final: prev: {
         # Setup Rust toolchain in according with the toolchain file 
         rustToolchain = prev.rust-bin.fromRustupToolchainFile ./../rust-toolchain.toml;
+
+        #         rustToolchain = prev.rust-bin.selectLatestNightlyWith (toolchain: toolchain.default.override {
+        #   targets = [
+        #     "riscv32imc-unknown-none-elf"
+        #     "aarch64-linux-android"
+        #   ];
+        #   extensions = [
+        #     "rust-src"
+        #     "rustfmt"
+        #     "llvm-tools"
+        #     "miri"
+        #   ];
+        # });
       })
     ] ++ overlays;
   };
