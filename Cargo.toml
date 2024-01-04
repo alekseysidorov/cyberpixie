@@ -23,9 +23,7 @@ default-members = [
   "utils/board",
 ]
 
-exclude = [
-  "application/rust",
-]
+exclude = ["application/rust"]
 
 [workspace.dependencies]
 # Workspace crates
@@ -35,20 +33,56 @@ cyberpixie-embedded-storage = { path = "crates/storage" }
 cyberpixie-esp-common = { path = "boards/esp32/common" }
 cyberpixie-network = { path = "crates/network" }
 
+# Common dependencies
+displaydoc = { version = "0.2", default-features = false }
+endian_codec = "0.1"
+env_logger = "0.10"
+heapless = { version = "0.8" }
+image = "0.24"
+log = "0.4"
+nb = "1.0"
+no-std-net = { version = "0.6" }
+postcard = { version = "1.0", default-features = false, features = [
+  "experimental-derive",
+] }
+rgb = "0.8"
+serde = { version = "1", default-features = false, features = ["derive"] }
+tokio = { version = "1" }
+
 # ESP dependencies
-embassy-executor = { version = "0.3.0", features = ["nightly", "integrated-timers", "executor-thread"] }
-embassy-net = { version = "0.1.0", features = ["nightly", "tcp", "udp", "dhcpv4", "medium-ethernet", "proto-ipv6"] }
+embassy-executor = { version = "0.3.0", features = [
+  "nightly",
+  "integrated-timers",
+  "executor-thread",
+] }
+embassy-net = { version = "0.1.0", features = [
+  "nightly",
+  "tcp",
+  "udp",
+  "dhcpv4",
+  "medium-ethernet",
+  "proto-ipv6",
+] }
 embassy-sync = { version = "0.3.0", features = ["nightly"] }
 embassy-time = { version = "0.1.1", features = ["nightly"] }
 embedded-hal-async = { version = "=1.0.0-rc.1" }
 # embedded-io = { version = "0.5" }
 # embedded-io-adapters = "0.5.0"
 # embedded-io-async = "0.5.0"
+embedded-io = { version = "0.4", features = ["async"] }
+embedded-storage = { version = "0.3" }
 embedded-svc = { version = "0.25", default-features = false }
-esp-wifi = { git = "https://github.com/esp-rs/esp-wifi.git", rev = "b54310e", features = ["embedded-svc", "wifi", "embassy-net", "ipv6", "ble"] }
+esp-wifi = { git = "https://github.com/esp-rs/esp-wifi.git", rev = "b54310e", features = [
+  "embedded-svc",
+  "wifi",
+  "embassy-net",
+  "ipv6",
+  "ble",
+] }
 esp32c3-hal = { version = "0.12", features = ["async", "embassy"] }
 esp32s3-hal = { version = "0.12", features = ["async", "embassy"] }
-smoltcp = { version = "0.10.0", default-features = false, features = ["proto-ipv4", "proto-ipv6"] }
+smoltcp = { version = "0.10.0", default-features = false, features = [
+  "proto-ipv4",
+  "proto-ipv6",
+] }
 ws2812-async = { version = "0.1.0", git = "https://github.com/kalkyl/ws2812-async.git", rev = "200a752" }
-
-embedded-io = { version = "0.4", features = ["async"] }

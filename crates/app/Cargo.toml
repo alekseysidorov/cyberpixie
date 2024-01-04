@@ -8,13 +8,13 @@ cyberpixie-core = { workspace = true }
 cyberpixie-network = { workspace = true }
 # embedded-io-async = { workspace = true }
 embedded-io = { workspace = true }
-heapless = { version = "0.7" }
-log = "0.4"
-nb = "1.0"
-serde = { version = "1", default-features = false, features = ["derive"] }
+heapless = { workspace = true }
+log = { workspace = true }
+nb = { workspace = true }
+serde = { workspace = true }
 
 [dev-dependencies]
 cyberpixie-embedded-storage = { workspace = true, features = ["std"] }
 cyberpixie-network = { workspace = true, features = ["tokio"] }
-env_logger = "0.10"
-tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread", "time"] }
+env_logger = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "time"] }

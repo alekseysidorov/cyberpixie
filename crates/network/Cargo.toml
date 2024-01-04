@@ -9,14 +9,14 @@ cyberpixie-core = { workspace = true }
 embedded-io = { workspace = true }
 # embedded-io-async = { workspace = true }
 # embedded-io-adapters = { workspace = true, optional = true }
-heapless = { version = "0.7" }
-log = "0.4"
-no-std-net = { version = "0.6" }
+heapless = { workspace = true }
+log = { workspace = true }
+no-std-net = { workspace = true }
 smoltcp = { workspace = true, optional = true }
-tokio = { version = "1", features = ["net"], optional = true }
+tokio = { workspace = true, features = ["net"], optional = true }
 
 [dev-dependencies]
-env_logger = "0.10"
+env_logger = { workspace = true }
 
 [features]
 default = []

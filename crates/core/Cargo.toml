@@ -6,13 +6,12 @@ edition = "2021"
 [dependencies]
 displaydoc = { version = "0.2", default-features = false }
 embedded-io = { workspace = true }
-# embedded-io-async = { workspace = true }
-endian_codec = "0.1"
-heapless = { version = "0.7" }
-log = "0.4"
-postcard = { version = "1.0", default-features = false, features = ["experimental-derive"] }
-rgb = "0.8"
-serde = { version = "1", default-features = false, features = ["derive"] }
+endian_codec = { workspace = true }
+heapless = { workspace = true }
+log = { workspace = true }
+postcard = { workspace = true }
+rgb = { workspace = true }
+serde = { workspace = true }
 
 [features]
 std = ["embedded-io/std"]

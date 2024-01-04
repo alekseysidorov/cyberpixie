@@ -9,6 +9,7 @@ pkgs.mkShell {
     # Dependencies for the code formatting utility
     dprint
     nixpkgs-fmt
+    taplo-cli
   ]
   # Additional frameworks for the Qt application
   ++ lib.optionals stdenv.isDarwin [
