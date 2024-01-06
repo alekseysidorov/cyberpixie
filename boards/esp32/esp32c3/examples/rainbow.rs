@@ -13,26 +13,32 @@
 #![feature(type_alias_impl_trait)]
 
 use cyberpixie_esp32c3::{ws2812_spi, SpiType};
-use cyberpixie_esp_common::singleton;
-use embassy_executor::Executor;
+use embassy_executor::Spawner;
 use embassy_time::{Duration, Instant, Timer};
 use esp_backtrace as _;
 use esp_println::println;
 use hal::{
-    clock::{ClockControl, CpuClock},
-    embassy,
+    clock::ClockControl,
+    dma::DmaPriority,
+    dma_descriptors, embassy,
+    gdma::*,
     peripherals::Peripherals,
     prelude::*,
-    timer::TimerGroup,
-    Rtc,
+    spi::{
+        master::{prelude::*, Spi},
+        SpiMode,
+    },
+    IO,
 };
 use smart_leds::{brightness, RGB8};
+use static_cell::make_static;
 use ws2812_async::Ws2812;
 
 const NUM_LEDS: usize = 24;
 
 /// Input a value 0 to 255 to get a color value
 /// The colors are a transition r - g - b - back to r.
+#[inline]
 pub fn wheel(mut wheel_pos: u8) -> RGB8 {
     wheel_pos = 255 - wheel_pos;
     if wheel_pos < 85 {
@@ -46,18 +52,20 @@ pub fn wheel(mut wheel_pos: u8) -> RGB8 {
     (wheel_pos * 3, 255 - wheel_pos * 3, 0).into()
 }
 
-#[embassy_executor::task]
 async fn spi_task(spi: &'static mut SpiType<'static>) {
     const LED_BUF_LEN: usize = 12 * NUM_LEDS;
 
     let mut ws: Ws2812<_, LED_BUF_LEN> = Ws2812::new(spi);
 
-    ws.write(core::iter::repeat(RGB8::default()).take(NUM_LEDS))
+    ws.write(core::iter::repeat(RGB8::default()).take(144))
         .await
         .unwrap();
     loop {
-        let counts = 1024;
+        let counts = 10_000;
         let mut total_render_time = 0;
+
+        println!("Starting benchmark cycle");
+        println!();
 
         for j in 0..counts {
             let now = Instant::now();
@@ -69,77 +77,44 @@ async fn spi_task(spi: &'static mut SpiType<'static>) {
             let elapsed = now.elapsed().as_micros();
             total_render_time += elapsed;
 
-            Timer::after(Duration::from_micros(100)).await;
+            // Timer::after(Duration::from_micros(50)).await;
         }
 
         let line_render_time = total_render_time as f32 / counts as f32;
+
+        println!("-> Num leds {}", NUM_LEDS);
         println!("-> Total rendering time {total_render_time}us");
         println!("-> per line: {line_render_time}us");
         println!(
             "-> Average frame rendering frame rate is {}Hz",
             1_000_000f32 / line_render_time
         );
+        println!(
+            "-> Average frame rendering pixel rate is {}Hz",
+            (1_000_000f32 / line_render_time) * NUM_LEDS as f32
+        );
     }
 }
 
-#[embassy_executor::task]
-async fn dummy_task(_nope: &'static mut ()) {
-    loop {
-        // Imitate cpu bound task
-        for _ in 0..100500 {
-            core::hint::spin_loop();
-        }
-
-        Timer::after(Duration::from_millis(50)).await;
-    }
-}
-
-#[entry]
-fn main() -> ! {
+#[main]
+async fn main(spawner: Spawner) {
     esp_println::println!("Init!");
 
-    // Initialize peripherals
     let peripherals = Peripherals::take();
-    let mut system = peripherals.SYSTEM.split();
+    let system = peripherals.SYSTEM.split();
+    let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
 
-    let clocks = ClockControl::configure(system.clock_control, CpuClock::Clock160MHz).freeze();
-
-    let mut rtc = Rtc::new(peripherals.RTC_CNTL);
-    let timer_group0 = TimerGroup::new(
-        peripherals.TIMG0,
+    embassy::init(
         &clocks,
-        &mut system.peripheral_clock_control,
+        hal::timer::TimerGroup::new(peripherals.TIMG0, &clocks).timer0,
     );
-    let mut wdt0 = timer_group0.wdt;
-    let timer_group1 = TimerGroup::new(
-        peripherals.TIMG1,
-        &clocks,
-        &mut system.peripheral_clock_control,
-    );
-    let mut wdt1 = timer_group1.wdt;
 
-    // Disable watchdog timers
-    rtc.swd.disable();
-    rtc.rwdt.disable();
-    wdt0.disable();
-    wdt1.disable();
-
-    let spi = singleton!(ws2812_spi(
+    let spi = make_static!(ws2812_spi(
         peripherals.SPI2,
         peripherals.GPIO,
         peripherals.IO_MUX,
         peripherals.DMA,
-        &mut system.peripheral_clock_control,
         &clocks
     ));
-
-    let dummy = singleton!(());
-
-    // Initialize and run an Embassy executor.
-    embassy::init(&clocks, timer_group0.timer0);
-    let executor = singleton!(Executor::new());
-    executor.run(|spawner| {
-        spawner.spawn(spi_task(spi)).ok();
-        spawner.spawn(dummy_task(dummy)).ok();
-    })
+    spi_task(spi).await;
 }

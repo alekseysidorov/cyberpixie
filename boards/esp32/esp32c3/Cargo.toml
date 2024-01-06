@@ -7,9 +7,9 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 # Hardware support
-esp-backtrace = { version = "0.8.0", features = ["esp32c3", "panic-handler", "exception-handler", "print-uart"] }
-esp-println = { version = "0.6.0", features = ["esp32c3", "log"] }
-hal = { package = "esp32c3-hal", version = "0.12", features = ["async", "embassy", "embassy-time-timg0"] }
+esp-backtrace = { version = "0.10.0", features = ["esp32c3", "panic-handler", "exception-handler", "print-uart"] }
+esp-println = { version = "0.8.0", features = ["esp32c3", "log"] }
+hal = { package = "esp32c3-hal", version = "0.14", features = ["async", "embassy", "embassy-time-timg0"] }
 ws2812-async = { workspace = true }
 
 # Async network
@@ -19,19 +19,27 @@ embassy-sync = { workspace = true }
 embassy-time = { workspace = true }
 # embedded-io = { workspace = true }
 # embedded-io-async = { workspace = true }
-embedded-svc = { version = "0.25", default-features = false }
+embedded-svc = { version = "0.26", default-features = false }
 
 # Storage
 embedded-storage = "0.3"
 esp-storage = { version = "0.3.0", features = ["esp32c3"] }
 
 # Common
-heapless = { version = "0.7", features = ["serde"] }
+heapless = { workspace = true, features = ["serde"] }
 log = "0.4"
 smart-leds = "0.3"
-static_cell = "1"
+static_cell = { workspace = true }
+
+# Portable atomics
+portable-atomic.workspace = true
+portable_atomic_enum.workspace = true
+futures-util.workspace = true
+atomic-waker.workspace = true
 
 # Cyberpixie
 cyberpixie-app = { workspace = true }
-cyberpixie-embedded-storage = { workspace = true }
+# cyberpixie-embedded-storage = { workspace = true }
 cyberpixie-esp-common = { workspace = true, features = ["esp32c3"] }
+
+embedded-hal-async = "=1.0.0-rc.2"

@@ -4,13 +4,13 @@ use embassy_executor::Spawner;
 use embassy_net::{IpAddress, Ipv4Cidr, Stack};
 use embassy_time::{Duration, Timer};
 use embedded_svc::wifi::Wifi;
-pub use esp_wifi::wifi::WifiDevice;
 use esp_wifi::{
     wifi::{WifiController, WifiEvent, WifiMode, WifiState},
     EspWifiInitFor, EspWifiTimer,
 };
 
 use crate::{hal::peripheral::Peripheral, singleton};
+pub use crate::WifiDevice;
 
 /// Supported Wifi configuration modes.
 #[derive(PartialEq, Eq, Clone)]
@@ -84,7 +84,7 @@ impl Default for Mode {
 
 pub struct WifiManager {
     mode: Mode,
-    stack: &'static Stack<WifiDevice<'static>>,
+    stack: &'static Stack<WifiDevice>,
     controller: WifiController<'static>,
 }
 
@@ -123,7 +123,7 @@ impl WifiManager {
 
     /// Spawns a Wifi manager tasks.
     #[must_use]
-    pub fn must_spawn(self, spawner: Spawner) -> &'static Stack<WifiDevice<'static>> {
+    pub fn must_spawn(self, spawner: Spawner) -> &'static Stack<WifiDevice> {
         spawner.must_spawn(connection_task(self.controller, self.mode.wifi_config()));
         spawner.must_spawn(network_stack_task(self.stack));
         self.stack
@@ -161,6 +161,6 @@ async fn connection_task(
 }
 
 #[embassy_executor::task]
-async fn network_stack_task(stack: &'static Stack<WifiDevice<'static>>) {
+async fn network_stack_task(stack: &'static Stack<WifiDevice>) {
     stack.run().await;
 }

@@ -9,7 +9,7 @@ edition = "2021"
 esp32c3-hal = { workspace = true, optional = true }
 esp32s3-hal = { workspace = true, optional = true }
 
-embassy-executor = { version = "0.3.0", features = ["nightly", "integrated-timers", "executor-thread"] }
+embassy-executor = { workspace = true }
 embassy-net = { workspace = true }
 embassy-sync = { workspace = true }
 embassy-time = { workspace = true }
@@ -18,11 +18,11 @@ embedded-storage = "0.3"
 embedded-svc = { workspace = true }
 esp-storage = { version = "0.3.0" }
 esp-wifi = { workspace = true }
-heapless = { version = "0.7", features = ["serde"] }
+heapless = { workspace = true, features = ["serde"] }
 log = "0.4"
 serde = { version = "1", default-features = false, features = ["derive"] }
 smart-leds = "0.3"
-static_cell = "1"
+static_cell = { workspace = true }
 ws2812-async = { workspace = true }
 
 # Cyberpixie
