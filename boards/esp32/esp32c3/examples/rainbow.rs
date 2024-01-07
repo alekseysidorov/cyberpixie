@@ -34,7 +34,7 @@ use smart_leds::{brightness, RGB8};
 use static_cell::make_static;
 use ws2812_async::Ws2812;
 
-const NUM_LEDS: usize = 24;
+const NUM_LEDS: usize = 48;
 
 /// Input a value 0 to 255 to get a color value
 /// The colors are a transition r - g - b - back to r.
@@ -57,9 +57,12 @@ async fn spi_task(spi: &'static mut SpiType<'static>) {
 
     let mut ws: Ws2812<_, LED_BUF_LEN> = Ws2812::new(spi);
 
+    println!("Cleaning led");
     ws.write(core::iter::repeat(RGB8::default()).take(144))
         .await
         .unwrap();
+    println!("Rainbow example is ready to start");
+
     loop {
         let counts = 10_000;
         let mut total_render_time = 0;
@@ -77,7 +80,7 @@ async fn spi_task(spi: &'static mut SpiType<'static>) {
             let elapsed = now.elapsed().as_micros();
             total_render_time += elapsed;
 
-            // Timer::after(Duration::from_micros(50)).await;
+            Timer::after(Duration::from_micros(50)).await;
         }
 
         let line_render_time = total_render_time as f32 / counts as f32;
@@ -97,7 +100,7 @@ async fn spi_task(spi: &'static mut SpiType<'static>) {
 }
 
 #[main]
-async fn main(spawner: Spawner) {
+async fn main(_spawner: Spawner) {
     esp_println::println!("Init!");
 
     let peripherals = Peripherals::take();
@@ -116,5 +119,6 @@ async fn main(spawner: Spawner) {
         peripherals.DMA,
         &clocks
     ));
+
     spi_task(spi).await;
 }

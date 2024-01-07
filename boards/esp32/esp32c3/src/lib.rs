@@ -10,6 +10,7 @@ use cyberpixie_app::{core::proto::types::Hertz, App};
 // };
 use embassy_net::Stack;
 use embassy_time::{Duration, Timer};
+use esp_println::println;
 use hal::{
     clock::Clocks,
     dma::DmaPriority,
@@ -37,12 +38,6 @@ pub fn ws2812_spi(
     dma: DMA,
     clocks: &Clocks,
 ) -> SpiType<'static> {
-    hal::interrupt::enable(
-        hal::peripherals::Interrupt::DMA_CH0,
-        hal::interrupt::Priority::Priority1,
-    )
-    .unwrap();
-
     let io = IO::new(gpio, io_mux);
     let sclk = io.pins.gpio6;
     let miso = io.pins.gpio2;
@@ -54,7 +49,7 @@ pub fn ws2812_spi(
 
     let dma_descriptors = make_static!(dma_descriptors!(32_000));
 
-    Spi::new(spi, 5000u32.kHz(), SpiMode::Mode0, &clocks)
+    Spi::new(spi, 5150u32.kHz(), SpiMode::Mode0, &clocks)
         .with_pins(Some(sclk), Some(mosi), Some(miso), Some(cs))
         .with_dma(dma_channel.configure(
             false,
