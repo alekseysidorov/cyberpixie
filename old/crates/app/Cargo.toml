@@ -17,4 +17,9 @@ serde = { workspace = true }
 cyberpixie-embedded-storage = { workspace = true, features = ["std"] }
 cyberpixie-network = { workspace = true, features = ["tokio"] }
 env_logger = { workspace = true }
-tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "time"] }
+tokio = { workspace = true, features = [
+  "macros",
+  "rt",
+  "rt-multi-thread",
+  "time",
+] }

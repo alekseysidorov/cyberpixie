@@ -9,8 +9,8 @@ use esp_wifi::{
     EspWifiInitFor, EspWifiTimer,
 };
 
-use crate::{hal::peripheral::Peripheral, singleton};
 pub use crate::WifiDevice;
+use crate::{hal::peripheral::Peripheral, singleton};
 
 /// Supported Wifi configuration modes.
 #[derive(PartialEq, Eq, Clone)]

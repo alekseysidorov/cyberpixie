@@ -7,13 +7,27 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 # Hardware support
-esp-backtrace = { version = "0.10.0", features = ["esp32c3", "panic-handler", "exception-handler", "print-uart"] }
+esp-backtrace = { version = "0.10.0", features = [
+  "esp32c3",
+  "panic-handler",
+  "exception-handler",
+  "print-uart",
+] }
 esp-println = { version = "0.8.0", features = ["esp32c3", "log"] }
-hal = { package = "esp32c3-hal", version = "0.14", features = ["async", "embassy", "embassy-time-timg0"] }
+hal = { package = "esp32c3-hal", version = "0.14", features = [
+  "async",
+  "embassy",
+  "embassy-time-timg0",
+] }
 ws2812-async = { workspace = true }
 
 # Async network
-embassy-executor = { workspace = true, features = ["nightly", "integrated-timers", "arch-riscv32", "executor-thread"] }
+embassy-executor = { workspace = true, features = [
+  "nightly",
+  "integrated-timers",
+  "arch-riscv32",
+  "executor-thread",
+] }
 embassy-net = { workspace = true }
 embassy-sync = { workspace = true }
 embassy-time = { workspace = true }
@@ -32,10 +46,10 @@ smart-leds = "0.3"
 static_cell = { workspace = true }
 
 # Portable atomics
+atomic-waker.workspace = true
+futures-util.workspace = true
 portable-atomic.workspace = true
 portable_atomic_enum.workspace = true
-futures-util.workspace = true
-atomic-waker.workspace = true
 
 # Cyberpixie
 cyberpixie-app = { workspace = true }

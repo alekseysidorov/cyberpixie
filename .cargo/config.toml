@@ -1,20 +1,18 @@
-[alias]
-# Board specific tasks
-board = "run --package board --"
+[build]
+target = "riscv32imc-unknown-none-elf"
 
 [target.riscv32imc-unknown-none-elf]
-rustflags = [
-    "-C", "link-arg=-Tlinkall.x",
-    "-C", "link-arg=-Trom_functions.x",
-    "-C", "force-frame-pointers",
-]
+runner = "espflash flash --monitor --partition-table assets/partitions.csv"
 
-[target.xtensa-esp32s3-none-elf]
-rustflags = [
-  "-C",
-  "link-arg=-Tlinkall.x",
-  "-C",
-  "link-arg=-Trom_functions.x",
-  "-C",
-  "target-feature=-loop",
-]
+# The best discovered optimization flags without stability issues.
+[profile.release]
+opt-level = "s"
+lto = "thin"
+
+[profile.dev]
+debug = true    # Symbols are nice and they don't increase the size on Flash
+opt-level = "s"
+lto = "thin"
+
+[unstable]
+build-std = ["core"]

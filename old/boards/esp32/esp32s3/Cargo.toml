@@ -7,13 +7,27 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 # Hardware support
-esp-backtrace = { version = "0.8.0", features = ["esp32s3", "panic-handler", "exception-handler", "print-uart"] }
+esp-backtrace = { version = "0.8.0", features = [
+  "esp32s3",
+  "panic-handler",
+  "exception-handler",
+  "print-uart",
+] }
 esp-println = { version = "0.6.0", features = ["esp32s3", "log"] }
-hal = { package = "esp32s3-hal", version = "0.12", features = ["async", "embassy", "embassy-time-timg0"] }
+hal = { package = "esp32s3-hal", version = "0.12", features = [
+  "async",
+  "embassy",
+  "embassy-time-timg0",
+] }
 ws2812-async = { workspace = true }
 
 # Async network
-embassy-executor = { workspace = true, features = ["nightly", "integrated-timers", "executor-thread", "arch-xtensa"] }
+embassy-executor = { workspace = true, features = [
+  "nightly",
+  "integrated-timers",
+  "executor-thread",
+  "arch-xtensa",
+] }
 embassy-net = { workspace = true }
 embassy-sync = { workspace = true, features = ["nightly"] }
 embassy-time = { workspace = true, features = ["nightly"] }

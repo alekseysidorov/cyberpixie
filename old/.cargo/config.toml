@@ -1,0 +1,20 @@
+[alias]
+# Board specific tasks
+board = "run --package board --"
+
+[target.riscv32imc-unknown-none-elf]
+rustflags = [
+    "-C", "link-arg=-Tlinkall.x",
+    "-C", "link-arg=-Trom_functions.x",
+    "-C", "force-frame-pointers",
+]
+
+[target.xtensa-esp32s3-none-elf]
+rustflags = [
+  "-C",
+  "link-arg=-Tlinkall.x",
+  "-C",
+  "link-arg=-Trom_functions.x",
+  "-C",
+  "target-feature=-loop",
+]
