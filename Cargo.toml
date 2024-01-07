@@ -1,6 +1,6 @@
 [package]
 name = "cyberpixie-esp32c3"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Aleksey Sidorov <sauron1987@gmail.com>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
@@ -14,7 +14,7 @@ esp-backtrace = { version = "0.10.0", features = [
   "print-uart",
 ] }
 esp-println = { version = "0.8.0", features = ["esp32c3", "log"] }
-esp32c3-hal = { version = "0.14", features = ["async", "embassy", "embassy-time-timg0"] }
+esp32c3-hal = { version = "0.14", features = ["async", "embassy", "embassy-executor-thread", "embassy-time-timg0"] }
 
 # Common libraries
 embassy-executor = { version = "0.4.0", features = [
