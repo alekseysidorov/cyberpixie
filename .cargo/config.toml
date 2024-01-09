@@ -6,7 +6,7 @@ runner = "espflash flash --monitor --partition-table assets/partitions.csv"
 rustflags = [
     "-C", "link-arg=-Tlinkall.x",
     "-C", "force-frame-pointers",
-    # "-C", "link-arg=-Trom_functions.x",
+    "-C", "link-arg=-Trom_functions.x",
 ]
 
 # The best discovered optimization flags without stability issues.

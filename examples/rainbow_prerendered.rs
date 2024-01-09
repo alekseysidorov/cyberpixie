@@ -12,9 +12,10 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
-use cyberpixie_esp32c3::{create_ws2812_spi, AsyncSpi};
+use cyberpixie_esp32c3::{create_ws2812_spi, ws2812_spi::BLANK_LINE_LEN, AsyncSpi};
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Instant, Timer};
+use embedded_hal_async::spi::{ErrorType, SpiBus};
 use esp32c3_hal::{
     clock::ClockControl,
     dma::DmaPriority,
@@ -34,7 +35,10 @@ use smart_leds::{brightness, RGB8};
 use static_cell::make_static;
 use ws2812_async::Ws2812;
 
+const NUM_LINES: usize = 10;
 const NUM_LEDS: usize = 48;
+const LED_LINE_LEN: usize = 12 * NUM_LEDS + BLANK_LINE_LEN;
+const LED_BUF_LEN: usize = (12 * NUM_LEDS + BLANK_LINE_LEN) * NUM_LINES;
 
 /// Input a value 0 to 255 to get a color value
 /// The colors are a transition r - g - b - back to r.
@@ -53,16 +57,28 @@ pub fn wheel(mut wheel_pos: u8) -> RGB8 {
 }
 
 async fn spi_task(spi: &'static mut AsyncSpi) {
-    const LED_BUF_LEN: usize = 12 * NUM_LEDS;
+    let pixels = (0..NUM_LINES).flat_map(|j| {
+        let data = (0..NUM_LEDS)
+            .map(move |i| wheel((((i * 256) as u16 / NUM_LEDS as u16 + j as u16) & 255) as u8));
+        brightness(data, 16)
+    });
 
-    let mut ws: Ws2812<_, LED_BUF_LEN> = Ws2812::new(spi);
+    // let lines = cyberpixie_esp32c3::ws2812_spi::rgb8_line_to_spi(pixels)
+    //     .collect::<heapless::Vec<u8, LED_BUF_LEN>>();
+
+    // let mut ws: Ws2812<_, LED_BUF_LEN> = Ws2812::new(spi);
 
     println!("Cleaning led");
-    ws.write(core::iter::repeat(RGB8::default()).take(144))
-        .await
-        .unwrap();
-    println!("Rainbow example is ready to start");
+    for _ in 0..100 {
+        const BLANK_LEN: usize = 12 * 72 + BLANK_LINE_LEN;
+        let blank = cyberpixie_esp32c3::ws2812_spi::rgb8_line_to_spi([RGB8::default(); 72])
+            .collect::<heapless::Vec<u8, BLANK_LEN>>();
+        embedded_hal_async::spi::SpiBus::write(spi, &blank)
+            .await
+            .unwrap();
+    }
 
+    println!("Rainbow example is ready to start");
     loop {
         let counts = 1_000;
         let mut total_render_time = 0;
@@ -72,18 +88,29 @@ async fn spi_task(spi: &'static mut AsyncSpi) {
 
         for j in 0..counts {
             let now = Instant::now();
+            // embedded_hal_async::spi::SpiBus::write(spi, &lines)
+            //     .await
+            //     .unwrap();
 
-            let data = (0..NUM_LEDS)
-                .map(|i| wheel((((i * 256) as u16 / NUM_LEDS as u16 + j as u16) & 255) as u8));
-            ws.write(brightness(data, 16)).await.unwrap();
+            let data = brightness(
+                (0..NUM_LEDS)
+                    .map(|i| wheel((((i * 256) as u16 / NUM_LEDS as u16 + j as u16) & 255) as u8)),
+                16,
+            );
+            let line = cyberpixie_esp32c3::ws2812_spi::rgb8_line_to_spi(data)
+                .collect::<heapless::Vec<u8, LED_LINE_LEN>>();
+            embedded_hal_async::spi::SpiBus::write(spi, &line)
+                .await
+                .unwrap();
 
             let elapsed = now.elapsed().as_micros();
             total_render_time += elapsed;
 
-            Timer::after(Duration::from_micros(50)).await;
+            Timer::after(Duration::from_micros(10)).await;
         }
 
-        let line_render_time = total_render_time as f32 / counts as f32;
+        let lines = counts;
+        let line_render_time = total_render_time as f32 / (lines as f32);
 
         println!("-> Num leds {}", NUM_LEDS);
         println!("-> Total rendering time {total_render_time}us");

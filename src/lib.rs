@@ -20,6 +20,8 @@ use hal::{
 };
 use static_cell::make_static;
 
+pub mod ws2812_spi;
+
 // use cyberpixie_app::{core::proto::types::Hertz, App};
 // // pub use cyberpixie_esp_common::{
 // //     BoardImpl, NetworkSocketImpl, NetworkStackImpl, DEFAULT_MEMORY_LAYOUT,
@@ -65,7 +67,10 @@ pub fn create_ws2812_spi(
 
     let dma_descriptors = make_static!(dma_descriptors!(32_000));
 
-    Spi::new(spi, 5150u32.kHz(), SpiMode::Mode0, clocks)
+    Spi::new(spi, 
+        // 3800u32.kHz(),
+        5150u32.kHz(), 
+        SpiMode::Mode0, clocks)
         .with_pins(Some(sclk), Some(mosi), Some(miso), Some(cs))
         .with_dma(dma_channel.configure(
             false,

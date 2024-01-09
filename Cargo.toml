@@ -15,6 +15,7 @@ esp-backtrace = { version = "0.10.0", features = [
 ] }
 esp-println = { version = "0.8.0", features = ["esp32c3", "log"] }
 esp32c3-hal = { version = "0.14", features = ["async", "embassy", "embassy-executor-thread", "embassy-time-timg0"] }
+embedded-hal-async = { version = "=1.0.0-rc.2" }
 
 # Common libraries
 embassy-executor = { version = "0.4.0", features = [
@@ -27,41 +28,4 @@ embassy-time = { version = "0.2.0" }
 smart-leds = "0.3"
 static_cell = { version = "2.0", features = ["nightly"] }
 ws2812-async = { version = "0.1.0", git = "https://github.com/alekseysidorov/ws2812-async.git", rev = "6d8af8e" }
-
-# ws2812-async = { workspace = true }
-
-# # Async network
-# embassy-executor = { workspace = true, features = [
-#   "nightly",
-#   "integrated-timers",
-#   "arch-riscv32",
-#   "executor-thread",
-# ] }
-# embassy-net = { workspace = true }
-# embassy-sync = { workspace = true }
-# embassy-time = { workspace = true }
-# # embedded-io = { workspace = true }
-# # embedded-io-async = { workspace = true }
-# embedded-svc = { version = "0.26", default-features = false }
-
-# # Storage
-# embedded-storage = "0.3"
-# esp-storage = { version = "0.3.0", features = ["esp32c3"] }
-
-# # Common
-# heapless = { workspace = true, features = ["serde"] }
-# log = "0.4"
-# smart-leds = "0.3"
-
-# # Portable atomics
-# atomic-waker.workspace = true
-# futures-util.workspace = true
-# portable-atomic.workspace = true
-# portable_atomic_enum.workspace = true
-
-# # Cyberpixie
-# cyberpixie-app = { workspace = true }
-# # cyberpixie-embedded-storage = { workspace = true }
-# cyberpixie-esp-common = { workspace = true, features = ["esp32c3"] }
-
-# embedded-hal-async = "=1.0.0-rc.2"
+heapless = "0.8.0"
