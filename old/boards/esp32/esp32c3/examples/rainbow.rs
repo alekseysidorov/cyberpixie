@@ -34,7 +34,7 @@ use smart_leds::{brightness, RGB8};
 use static_cell::make_static;
 use ws2812_async::Ws2812;
 
-const NUM_LEDS: usize = 48;
+const NUM_LEDS: usize = 36;
 
 /// Input a value 0 to 255 to get a color value
 /// The colors are a transition r - g - b - back to r.
@@ -79,8 +79,6 @@ async fn spi_task(spi: &'static mut SpiType<'static>) {
 
             let elapsed = now.elapsed().as_micros();
             total_render_time += elapsed;
-
-            Timer::after(Duration::from_micros(50)).await;
         }
 
         let line_render_time = total_render_time as f32 / counts as f32;

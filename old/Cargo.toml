@@ -100,4 +100,4 @@ smoltcp = { version = "0.11.0", default-features = false, features = [
   "proto-ipv4",
   "proto-ipv6",
 ] }
-ws2812-async = { version = "0.1.0", git = "https://github.com/alekseysidorov/ws2812-async.git", rev = "6d8af8e" }
+ws2812-async = { version = "0.1.0", git = "https://github.com/alekseysidorov/ws2812-async.git", rev = "e4b8300ebed166feb0c25830d94b3aba9479f45e" }

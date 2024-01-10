@@ -7,6 +7,7 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 # Board specific
+embedded-hal-async = { version = "=1.0.0-rc.2" }
 esp-backtrace = { version = "0.10.0", features = [
   "esp32c3",
   "panic-handler",
@@ -14,18 +15,20 @@ esp-backtrace = { version = "0.10.0", features = [
   "print-uart",
 ] }
 esp-println = { version = "0.8.0", features = ["esp32c3", "log"] }
-esp32c3-hal = { version = "0.14", features = ["async", "embassy", "embassy-executor-thread", "embassy-time-timg0"] }
-embedded-hal-async = { version = "=1.0.0-rc.2" }
+esp32c3-hal = { version = "0.14", features = [
+  "async",
+  "embassy",
+  "embassy-executor-thread",
+  "embassy-time-timg0",
+] }
 
 # Common libraries
 embassy-executor = { version = "0.4.0", features = [
   "nightly",
   "integrated-timers",
   "arch-riscv32",
-  "executor-thread",
 ] }
 embassy-time = { version = "0.2.0" }
+heapless = "0.8.0"
 smart-leds = "0.3"
 static_cell = { version = "2.0", features = ["nightly"] }
-ws2812-async = { version = "0.1.0", git = "https://github.com/alekseysidorov/ws2812-async.git", rev = "6d8af8e" }
-heapless = "0.8.0"

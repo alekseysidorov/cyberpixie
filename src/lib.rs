@@ -67,10 +67,7 @@ pub fn create_ws2812_spi(
 
     let dma_descriptors = make_static!(dma_descriptors!(32_000));
 
-    Spi::new(spi, 
-        // 3800u32.kHz(),
-        5150u32.kHz(), 
-        SpiMode::Mode0, clocks)
+    Spi::new(spi, 5100u32.kHz(), SpiMode::Mode0, clocks)
         .with_pins(Some(sclk), Some(mosi), Some(miso), Some(cs))
         .with_dma(dma_channel.configure(
             false,

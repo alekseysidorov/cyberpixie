@@ -12,13 +12,16 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
-use cyberpixie_esp32c3::{create_ws2812_spi, AsyncSpi};
+use cyberpixie_esp32c3::{
+    create_ws2812_spi,
+    ws2812_spi::{self, size_of_line},
+    AsyncSpi,
+};
 use embassy_executor::Spawner;
-use embassy_time::{Duration, Instant, Timer};
+use embassy_time::Instant;
 use esp32c3_hal::{
     clock::ClockControl,
-    dma::DmaPriority,
-    dma_descriptors, embassy,
+    embassy,
     gdma::*,
     peripherals::Peripherals,
     prelude::*,
@@ -32,9 +35,9 @@ use esp_backtrace as _;
 use esp_println::println;
 use smart_leds::{brightness, RGB8};
 use static_cell::make_static;
-use ws2812_async::Ws2812;
 
-const NUM_LEDS: usize = 48;
+const NUM_LEDS: usize = 36;
+const LED_BUF_LEN: usize = size_of_line(NUM_LEDS);
 
 /// Input a value 0 to 255 to get a color value
 /// The colors are a transition r - g - b - back to r.
@@ -53,18 +56,19 @@ pub fn wheel(mut wheel_pos: u8) -> RGB8 {
 }
 
 async fn spi_task(spi: &'static mut AsyncSpi) {
-    const LED_BUF_LEN: usize = 12 * NUM_LEDS;
-
-    let mut ws: Ws2812<_, LED_BUF_LEN> = Ws2812::new(spi);
-
     println!("Cleaning led");
-    ws.write(core::iter::repeat(RGB8::default()).take(144))
-        .await
-        .unwrap();
+    for _ in 0..100 {
+        const BLANK_LINE_BUF: usize = size_of_line(72);
+        let blank = ws2812_spi::make_line([RGB8::default(); 72])
+            .collect::<heapless::Vec<u8, BLANK_LINE_BUF>>();
+        embedded_hal_async::spi::SpiBus::write(spi, &blank)
+            .await
+            .unwrap();
+    }
     println!("Rainbow example is ready to start");
 
     loop {
-        let counts = 1_000;
+        let counts = 10_000;
         let mut total_render_time = 0;
 
         println!("Starting benchmark cycle");
@@ -73,14 +77,21 @@ async fn spi_task(spi: &'static mut AsyncSpi) {
         for j in 0..counts {
             let now = Instant::now();
 
-            let data = (0..NUM_LEDS)
-                .map(|i| wheel((((i * 256) as u16 / NUM_LEDS as u16 + j as u16) & 255) as u8));
-            ws.write(brightness(data, 16)).await.unwrap();
+            embedded_hal_async::spi::SpiBus::write(
+                spi,
+                &ws2812_spi::make_line(brightness(
+                    (0..NUM_LEDS).map(|i| {
+                        wheel((((i * 256) as u16 / NUM_LEDS as u16 + j as u16) & 255) as u8)
+                    }),
+                    16,
+                ))
+                .collect::<heapless::Vec<u8, LED_BUF_LEN>>(),
+            )
+            .await
+            .unwrap();
 
             let elapsed = now.elapsed().as_micros();
             total_render_time += elapsed;
-
-            Timer::after(Duration::from_micros(50)).await;
         }
 
         let line_render_time = total_render_time as f32 / counts as f32;
