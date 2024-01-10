@@ -32,7 +32,7 @@ use hal::{
 };
 use smart_leds::{brightness, RGB8};
 use static_cell::make_static;
-use ws2812_async::Ws2812;
+use ws2812_async::Ws2x12;
 
 const NUM_LEDS: usize = 36;
 

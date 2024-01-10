@@ -18,20 +18,14 @@ use cyberpixie_esp32c3::{
     AsyncSpi,
 };
 use embassy_executor::Spawner;
-use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel};
-use embassy_time::{Instant, Timer};
+use embassy_sync::{blocking_mutex::raw::NoopRawMutex, channel};
+use embassy_time::Instant;
+use embedded_hal_async::spi::SpiBus;
 use esp32c3_hal::{
-    clock::ClockControl,
-    dma::DmaPriority,
-    dma_descriptors, embassy,
-    gdma::*,
+    clock::{ClockControl, CpuClock},
+    embassy,
     peripherals::Peripherals,
-    prelude::*,
-    spi::{
-        master::{prelude::*, Spi},
-        SpiMode,
-    },
-    IO,
+    prelude::{_esp_hal_system_SystemExt, main, entry},
 };
 use esp_backtrace as _;
 use esp_println::println;
@@ -40,8 +34,7 @@ use static_cell::make_static;
 
 const NUM_LEDS: usize = 48;
 
-type Sender<T> = channel::Sender<'static, CriticalSectionRawMutex, T, 4>;
-type Receiver<T> = channel::Receiver<'static, CriticalSectionRawMutex, T, 4>;
+type Receiver<T> = channel::Receiver<'static, NoopRawMutex, T, 2>;
 
 const LED_ROW_BUF_LEN: usize = size_of_line(NUM_LEDS);
 type LedRow = [u8; LED_ROW_BUF_LEN];
@@ -51,11 +44,8 @@ async fn spi_task(rows: Receiver<LedRow>, spi: &'static mut AsyncSpi) {
     println!("Cleaning led");
     for _ in 0..100 {
         const BLANK_LINE_BUF: usize = size_of_line(72);
-        let blank = ws2812_spi::make_line([RGB8::default(); 72])
-            .collect::<heapless::Vec<u8, BLANK_LINE_BUF>>();
-        embedded_hal_async::spi::SpiBus::write(spi, &blank)
-            .await
-            .unwrap();
+        let blank = ws2812_spi::make_row::<BLANK_LINE_BUF>([RGB8::default(); 72]);
+        spi.write(&blank).await.unwrap();
     }
     println!("Rainbow example is ready to start");
 
@@ -66,13 +56,11 @@ async fn spi_task(rows: Receiver<LedRow>, spi: &'static mut AsyncSpi) {
         println!("Starting benchmark cycle");
         println!();
 
-        for j in 0..counts {
+        for _ in 0..counts {
             let now = Instant::now();
 
             let data = rows.receive().await;
-            embedded_hal_async::spi::SpiBus::write(spi, &data)
-                .await
-                .unwrap();
+            spi.write(&data).await.unwrap();
 
             let elapsed = now.elapsed().as_micros();
             total_render_time += elapsed;
@@ -116,7 +104,7 @@ async fn main(spawner: Spawner) {
 
     let peripherals = Peripherals::take();
     let system = peripherals.SYSTEM.split();
-    let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
+    let clocks = ClockControl::configure(system.clock_control, CpuClock::Clock160MHz).freeze();
 
     embassy::init(
         &clocks,
@@ -137,15 +125,12 @@ async fn main(spawner: Spawner) {
 
     loop {
         for j in 0..1000 {
-            let line = ws2812_spi::make_line(brightness(
+            let line = ws2812_spi::make_row(brightness(
                 (0..NUM_LEDS)
                     .map(|i| wheel((((i * 256) as u16 / NUM_LEDS as u16 + j as u16) & 255) as u8)),
                 16,
-            ))
-            .collect::<heapless::Vec<u8, LED_ROW_BUF_LEN>>()
-            .into_array()
-            .unwrap();
-        
+            ));
+
             ch.send(line).await;
         }
     }

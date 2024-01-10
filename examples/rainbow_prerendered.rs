@@ -19,26 +19,22 @@ use cyberpixie_esp32c3::{
 };
 use embassy_executor::Spawner;
 use embassy_time::Instant;
+use embedded_hal_async::spi::SpiBus;
 use esp32c3_hal::{
-    clock::ClockControl,
+    clock::{ClockControl, CpuClock},
     embassy,
-    gdma::*,
     peripherals::Peripherals,
-    prelude::*,
-    spi::{
-        master::{prelude::*, Spi},
-        SpiMode,
-    },
-    IO,
+    prelude::{_esp_hal_system_SystemExt, main, entry},
 };
 use esp_backtrace as _;
 use esp_println::println;
 use smart_leds::{brightness, RGB8};
 use static_cell::make_static;
 
-const NUM_LINES: usize = 256;
-const NUM_LEDS: usize = 36;
+const NUM_LEDS: usize = 48;
 const LED_LINE_LEN: usize = size_of_line(NUM_LEDS);
+
+const NUM_LINES: usize = 128;
 const LED_BUF_LEN: usize = LED_LINE_LEN * NUM_LINES;
 
 /// Input a value 0 to 255 to get a color value
@@ -60,7 +56,7 @@ pub fn wheel(mut wheel_pos: u8) -> RGB8 {
 async fn spi_task(spi: &'static mut AsyncSpi) {
     let lines = (0..NUM_LINES)
         .flat_map(|j| {
-            ws2812_spi::make_line(brightness(
+            ws2812_spi::make_row::<LED_LINE_LEN>(brightness(
                 (0..NUM_LEDS).map(move |i| {
                     wheel((((i * 256) as u16 / NUM_LEDS as u16 + j as u16) & 255) as u8)
                 }),
@@ -72,11 +68,8 @@ async fn spi_task(spi: &'static mut AsyncSpi) {
     println!("Cleaning led");
     for _ in 0..100 {
         const BLANK_LINE_BUF: usize = size_of_line(72);
-        let blank = ws2812_spi::make_line([RGB8::default(); 72])
-            .collect::<heapless::Vec<u8, BLANK_LINE_BUF>>();
-        embedded_hal_async::spi::SpiBus::write(spi, &blank)
-            .await
-            .unwrap();
+        let blank = ws2812_spi::make_row::<BLANK_LINE_BUF>([RGB8::default(); 72]);
+        spi.write(&blank).await.unwrap();
     }
     println!("Rainbow example is ready to start");
 
@@ -89,9 +82,8 @@ async fn spi_task(spi: &'static mut AsyncSpi) {
 
         for _ in 0..counts {
             let now = Instant::now();
-            embedded_hal_async::spi::SpiBus::write(spi, &lines)
-                .await
-                .unwrap();
+
+            spi.write(&lines).await.unwrap();
             let elapsed = now.elapsed().as_micros();
             total_render_time += elapsed;
         }
@@ -119,7 +111,7 @@ async fn main(_spawner: Spawner) {
 
     let peripherals = Peripherals::take();
     let system = peripherals.SYSTEM.split();
-    let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
+    let clocks = ClockControl::configure(system.clock_control, CpuClock::Clock160MHz).freeze();
 
     embassy::init(
         &clocks,
