@@ -107,7 +107,11 @@ where
 #[esp_hal_embassy::main]
 async fn main(_spawner: Spawner) {
     esp_println::println!("Init!");
-    let peripherals = esp_hal::init(esp_hal::Config::default());
+    let peripherals = esp_hal::init({
+        let mut config = esp_hal::Config::default();
+        config.cpu_clock = CpuClock::max();
+        config
+    });
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     esp_hal_embassy::init(timg0.timer0);
@@ -127,7 +131,7 @@ async fn main(_spawner: Spawner) {
     let mut spi = Spi::new_with_config(
         peripherals.SPI2,
         Config {
-            frequency: 4_500u32.kHz(),
+            frequency: 4_800u32.kHz(),
             mode: SpiMode::Mode0,
             ..Config::default()
         },
