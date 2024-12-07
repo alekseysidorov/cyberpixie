@@ -9,8 +9,7 @@ pub const fn size_of_line(rgb8_len: usize) -> usize {
 }
 
 #[inline]
-pub fn make_row<const N: usize>(iter: impl IntoIterator<Item = RGB8>) -> [u8; N]
-{
+pub fn make_row<const N: usize>(iter: impl IntoIterator<Item = RGB8>) -> [u8; N] {
     let iter = iter.into_iter();
 
     let mut data = [0_u8; N];
