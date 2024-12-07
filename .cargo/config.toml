@@ -1,23 +1,17 @@
-[build]
-target = "riscv32imc-unknown-none-elf"
-
 [target.riscv32imc-unknown-none-elf]
-runner = "espflash flash --monitor --partition-table assets/partitions.csv"
+runner = "espflash flash --monitor"
+
+[env]
+ESP_LOG="INFO"
+
+[build]
 rustflags = [
-    "-C", "link-arg=-Tlinkall.x",
-    "-C", "force-frame-pointers",
-    # "-C", "link-arg=-Trom_functions.x",
+  # Required to obtain backtraces (e.g. when using the "esp-backtrace" crate.)
+  # NOTE: May negatively impact performance of produced code
+  "-C", "force-frame-pointers",
 ]
 
-# The best discovered optimization flags without stability issues.
-[profile.release]
-opt-level = "s"
-lto = "thin"
-
-[profile.dev]
-debug = true    # Symbols are nice and they don't increase the size on Flash
-opt-level = "s"
-lto = "thin"
+target = "riscv32imc-unknown-none-elf"
 
 [unstable]
-build-std = ["core"]
+build-std = ["alloc", "core"]
