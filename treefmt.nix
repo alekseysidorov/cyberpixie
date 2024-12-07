@@ -4,7 +4,7 @@
   # Used to find the project root
   projectRootFile = "flake.nix";
 
-    programs.rustfmt = {
+  programs.rustfmt = {
     enable = true;
     package = pkgs.rustToolchain;
   };
