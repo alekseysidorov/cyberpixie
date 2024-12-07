@@ -38,7 +38,7 @@
       # Setup runtime dependencies
       runtimeInputs = with pkgs; [
         cargo-nextest
-        probe-rs-tools
+        espflash
       ]
       # Some additional libraries for the Darwin platform
       ++ lib.optionals stdenv.isDarwin [

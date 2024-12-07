@@ -20,20 +20,18 @@
 
 use cyberpixie::ws2812_spi::{self, size_of_line};
 use embassy_executor::Spawner;
-use embassy_time::{Duration, Instant, Timer};
+use embassy_time::Instant;
 use esp_backtrace as _;
 use esp_hal::{
     dma::*,
     dma_buffers,
     prelude::*,
     spi::{
-        master::{Config, Spi, SpiDmaBus},
+        master::{Config, Spi},
         SpiMode,
     },
     timer::timg::TimerGroup,
-    Async,
 };
-use log::info;
 use smart_leds::{brightness, RGB8};
 
 const NUM_LEDS: usize = 48;
@@ -56,12 +54,15 @@ pub fn wheel(mut wheel_pos: u8) -> RGB8 {
     (wheel_pos * 3, 255 - wheel_pos * 3, 0).into()
 }
 
-async fn spi_task(spi: &mut SpiDmaBus<'_, Async>) {
+async fn spi_task<T>(spi: &mut T)
+where
+    T: embedded_hal_async::spi::SpiBus,
+{
     esp_println::println!("Cleaning led");
     for _ in 0..100 {
         const BLANK_LINE_BUF: usize = size_of_line(72);
         let blank = ws2812_spi::make_row::<BLANK_LINE_BUF>([RGB8::default(); 72]);
-        spi.write_async(&blank).await.unwrap();
+        spi.write(&blank).await.unwrap();
     }
     esp_println::println!("Rainbow example is ready to start");
 
@@ -75,7 +76,7 @@ async fn spi_task(spi: &mut SpiDmaBus<'_, Async>) {
         for j in 0..counts {
             let now = Instant::now();
 
-            spi.write_async(&ws2812_spi::make_row::<LED_BUF_LEN>(brightness(
+            spi.write(&ws2812_spi::make_row::<LED_BUF_LEN>(brightness(
                 (0..NUM_LEDS)
                     .map(|i| wheel((((i * 256) as u16 / NUM_LEDS as u16 + j as u16) & 255) as u8)),
                 LED_BRIGHTNESS,
@@ -126,7 +127,7 @@ async fn main(_spawner: Spawner) {
     let mut spi = Spi::new_with_config(
         peripherals.SPI2,
         Config {
-            frequency: 6000u32.kHz(),
+            frequency: 4_500u32.kHz(),
             mode: SpiMode::Mode0,
             ..Config::default()
         },
